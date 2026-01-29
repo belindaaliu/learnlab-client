@@ -8,6 +8,8 @@ import CoursesList from "../pages/Courses/CoursesList";
 import StudentDashboard from "../pages/Student/Dashboard";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+import Cart from "../pages/Cart/Cart";
+import CartTest from "../pages/Cart/CartTest";
 
 export const router = createBrowserRouter([
   // PUBLIC LAYOUT
@@ -16,6 +18,8 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { path: "/", element: <Home /> },
+      { path: "/cart", element: <Cart /> },
+      { path: "/cart-test", element: <CartTest /> },
       { path: "/courses", element: <CoursesList /> }
     ],
   },
