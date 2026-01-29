@@ -37,7 +37,9 @@ const MainLayout = () => {
               <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">0</span>
             </Link>
             
-            <div className="hidden sm:flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-6">
+              <Link to="/pricing" className="px-5 py-2.5 text-gray-700 font-medium hover:text-primary transition" > Plans & Pricing </Link> 
+              <Link to="/teach" className="px-5 py-2.5 text-gray-700 font-medium hover:text-primary transition" > Teach on LearnLab </Link>
               <Link to="/auth/login" className="px-5 py-2.5 text-gray-700 font-medium hover:text-primary transition">Log in</Link>
               <Link to="/auth/register" className="px-5 py-2.5 bg-primary text-white font-medium rounded-xl hover:bg-primaryHover shadow-lg shadow-purple-200 transition transform hover:-translate-y-0.5">Sign up</Link>
             </div>
