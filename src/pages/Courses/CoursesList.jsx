@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from "react-router-dom"; 
 import { Search, Filter, SlidersHorizontal, ChevronDown, X, Loader2 } from "lucide-react";
 import CourseCard from '../../components/CourseCard';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 
-// We will keep the categories fixed for now (later we can get them from the API)
+// We will keep the categories fixed for now
 const CATEGORIES = ["All", "Development", "Business", "Design"];
 
 const SORT_OPTIONS = [
@@ -15,6 +16,10 @@ const SORT_OPTIONS = [
 ];
 
 const CoursesList = () => {
+
+  const [searchParams] = useSearchParams();
+  const urlSearchQuery = searchParams.get("search");
+
   // --- STATE ---
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +28,7 @@ const CoursesList = () => {
 
   // Filter States
   const [filters, setFilters] = useState({
-    search: "",
+    search: urlSearchQuery || "", 
     category: "All",
     priceRange: [], 
     sortBy: "newest"
@@ -36,25 +41,23 @@ const CoursesList = () => {
       setError(null);
       
       try {
-
         const queryParams = new URLSearchParams();
         
         if (filters.search) queryParams.append("search", filters.search);
         if (filters.category !== "All") queryParams.append("category", filters.category);
         if (filters.sortBy) queryParams.append("sort", filters.sortBy);
 
-
+        // Request to the real backend
         const response = await fetch(`http://localhost:5000/api/courses?${queryParams.toString()}`);
         
         if (!response.ok) throw new Error("Failed to fetch courses");
         
         const data = await response.json();
         
-        // Note: Since the backend doesn't have a price filter yet, here we will apply the price filter on the client side.
+        // Price filter on the client side (because the backend doesn't have it yet)
         let result = data;
         if (filters.priceRange.length > 0) {
           result = result.filter(c => {
-
             const price = Number(c.price); 
             if (filters.priceRange.includes('free') && price === 0) return true;
             if (filters.priceRange.includes('under_20') && price > 0 && price < 20) return true;
@@ -73,7 +76,7 @@ const CoursesList = () => {
       }
     };
 
-
+    // Debounce logic
     const timeoutId = setTimeout(() => {
       fetchCourses();
     }, 500);
@@ -82,7 +85,7 @@ const CoursesList = () => {
 
   }, [filters]); 
 
-  // --- HANDLERS ---
+  // --- HANDLERS --- 
   const handlePriceChange = (value) => {
     setFilters(prev => {
       const current = prev.priceRange;
@@ -154,7 +157,7 @@ const CoursesList = () => {
         {/* MAIN LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
-          {/* SIDEBAR FILTERS */}
+          {/* SIDEBAR FILTERS - SAME AS YOUR CODE */}
           <div className="hidden lg:block space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -202,7 +205,7 @@ const CoursesList = () => {
 
           {/* RESULTS GRID */}
           <div className="lg:col-span-3">
-             {/* Tags area omitted for brevity, same as before */}
+            {/* Tags area omitted for brevity */}
             
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
