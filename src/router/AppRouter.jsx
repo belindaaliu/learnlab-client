@@ -1,10 +1,13 @@
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import StudentLayout from "../layouts/StudentLayout";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 import Home from "../pages/Home/Home";
 import CoursesList from "../pages/Courses/CoursesList";
 import StudentDashboard from "../pages/Student/Dashboard";
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
 import Cart from "../pages/Cart/Cart";
 import CartTest from "../pages/Cart/CartTest";
 
@@ -21,15 +24,26 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // STUDENT LAYOUT
+  // AUTH ROUTES (no layout)
+  {
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/register",
+    element: <Register />,
+  },
+
+  // STUDENT LAYOUT (protected)
   {
     path: "/student",
-    element: <StudentLayout />,
+    element: (
+      <ProtectedRoute allowedRoles="student">
+        <StudentLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
     ],
   },
 ]);
-
-
-
