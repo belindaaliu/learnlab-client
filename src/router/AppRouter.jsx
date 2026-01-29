@@ -4,6 +4,8 @@ import StudentLayout from "../layouts/StudentLayout";
 
 import Home from "../pages/Home/Home";
 import StudentDashboard from "../pages/Student/Dashboard";
+import Cart from "../pages/Cart/Cart";
+import CartTest from "../pages/Cart/CartTest";
 
 export const router = createBrowserRouter([
   // PUBLIC LAYOUT
@@ -12,6 +14,8 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { path: "/", element: <Home /> },
+      { path: "/cart", element: <Cart /> },
+      { path: "/cart-test", element: <CartTest /> },
     ],
   },
 
@@ -24,3 +28,6 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
+
+
+
