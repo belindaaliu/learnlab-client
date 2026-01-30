@@ -11,6 +11,11 @@ const MOCK_USER = {
 };
 
 export default function StudentLayout() {
+
+  const [showLearningMenu, setShowLearningMenu] = useState(false);
+  const [showWishlistMenu, setShowWishlistMenu] = useState(false);
+
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
 
@@ -50,14 +55,99 @@ export default function StudentLayout() {
             </Link>
 
             {/* My Learning */}
-            <Link to="/student/dashboard" className="text-sm font-medium text-gray-700 hover:text-primary transition">
-            My Learning
+            <div className="relative" 
+            onMouseEnter={() => setShowLearningMenu(true)} 
+            onMouseLeave={() => setShowLearningMenu(false)} 
+            >
+            <Link
+              to="/student/learning"
+              className="text-sm font-medium text-gray-700 hover:text-primary transition"
+            >
+              My Learning
             </Link>
 
+            {/* DROPDOWN */}
+            <div className="absolute left-0 mt-2 w-80 bg-white shadow-lg border rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              
+              {/* COURSE LIST */}
+              <div className="p-4 space-y-4">
+                {purchasedCourses.slice(0, 3).map(course => (
+                  <div key={course.id} className="flex gap-3">
+                    <img
+                      src={course.thumbnail_url}
+                      className="w-16 h-10 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-2">{course.title}</p>
+                      <Link
+                        to={`/course/${course.id}`}
+                        className="text-xs text-primary font-semibold hover:underline"
+                      >
+                        Start learning
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* FOOTER BUTTON */}
+              <div className="border-t p-3">
+                <Link
+                  to="/student/learning"
+                  className="block text-center text-sm font-semibold text-primary hover:underline"
+                >
+                  Go to My Learning
+                </Link>
+              </div>
+            </div>
+          </div>
+
+
             {/* Wishlist */}
-            <Link to="/student/wishlist" className="text-gray-600 hover:text-primary transition">
-            <Heart className="w-6 h-6" />
+            <div className="relative" 
+            onMouseEnter={() => setShowWishlistMenu(true)} 
+            onMouseLeave={() => setShowWishlistMenu(false)} 
+            >
+            <Link
+              to="/student/learning?tab=wishlist"
+              className="text-sm font-medium text-gray-700 hover:text-primary transition"
+            >
+              Wishlist
             </Link>
+
+            <div className="absolute left-0 mt-2 w-80 bg-white shadow-lg border rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              
+              <div className="p-4 space-y-4">
+                {wishlistCourses.slice(0, 3).map(course => (
+                  <div key={course.id} className="flex gap-3">
+                    <img
+                      src={course.thumbnail_url}
+                      className="w-16 h-10 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-2">{course.title}</p>
+                      <Link
+                        to={`/course/${course.id}`}
+                        className="text-xs text-primary font-semibold hover:underline"
+                      >
+                        View course
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t p-3">
+                <Link
+                  to="/student/learning?tab=wishlist"
+                  className="block text-center text-sm font-semibold text-primary hover:underline"
+                >
+                  Go to Wishlist
+                </Link>
+              </div>
+            </div>
+          </div>
+
 
             {/* Cart */}
             <Link to="/cart" className="relative text-gray-600 hover:text-primary transition">
@@ -108,7 +198,7 @@ export default function StudentLayout() {
                 {/* Menu Items */}
                 <div className="py-2">
 
-                <Link to="/student/dashboard" className="block px-4 py-2 hover:bg-gray-100">My learning</Link>
+                <Link to="/student/learning" className="block px-4 py-2 hover:bg-gray-100">My learning</Link>
                 <Link to="/cart" className="block px-4 py-2 hover:bg-gray-100">My cart</Link>
                 <Link to="/student/wishlist" className="block px-4 py-2 hover:bg-gray-100">Wishlist</Link>
                 <Link to="/teach" className="block px-4 py-2 hover:bg-gray-100">Teach on LearnLab</Link>
