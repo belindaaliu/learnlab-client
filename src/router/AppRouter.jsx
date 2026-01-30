@@ -5,6 +5,9 @@ import ProtectedRoute from "../components/ProtectedRoute";
 
 import Home from "../pages/Home/Home";
 import CoursesList from "../pages/Courses/CoursesList";
+
+import CourseDetails from "../pages/Courses/CourseDetails"; 
+
 import StudentDashboard from "../pages/Student/Dashboard";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
@@ -18,15 +21,18 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { path: "/", element: <Home /> },
+      
       { path: "/courses", element: <CoursesList /> },
-      { path: "/courses/search", element: <CoursesList /> }
+      { path: "/courses/search", element: <CoursesList /> },
+
+      { path: "/courses/:id", element: <CourseDetails /> },
+
       { path: "/cart", element: <Cart /> },
       { path: "/cart-test", element: <CartTest /> },
-      { path: "/courses", element: <CoursesList /> }
     ],
   },
 
-  // AUTH ROUTES (no layout)
+  // AUTH ROUTES
   {
     path: "/login",
     element: <Login />,
@@ -36,7 +42,7 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
 
-  // STUDENT LAYOUT (protected)
+  // STUDENT LAYOUT
   {
     path: "/student",
     element: (
