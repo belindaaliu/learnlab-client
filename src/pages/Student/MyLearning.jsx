@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Search } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+
 
 export default function MyLearning() {
   const [activeTab, setActiveTab] = useState("courses");
@@ -13,6 +15,19 @@ export default function MyLearning() {
   // Logged‑in user
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?.id;
+
+  const [searchParams, setSearchParams] = useSearchParams();
+    const tabFromUrl = searchParams.get("tab"); // "wishlist" | null
+
+    useEffect(() => {
+    // If URL has ?tab=wishlist, activate wishlist tab
+    if (tabFromUrl === "wishlist") {
+        setActiveTab("wishlist");
+    } else {
+        setActiveTab("courses");
+    }
+    }, [tabFromUrl]);
+
 
   useEffect(() => {
     if (!userId) return;
@@ -50,27 +65,34 @@ export default function MyLearning() {
 
         {/* TABS */}
         <div className="flex items-center gap-6 text-sm font-medium">
-          <button
-            onClick={() => setActiveTab("courses")}
-            className={`pb-2 ${
-              activeTab === "courses"
-                ? "text-primary border-b-2 border-primary"
-                : "text-gray-600 hover:text-primary"
-            }`}
-          >
-            My Courses
-          </button>
+        <button
+        onClick={() => {
+            setActiveTab("courses");
+            setSearchParams({ tab: "courses" });
+        }}
+        className={`pb-2 ${
+            activeTab === "courses"
+            ? "text-primary border-b-2 border-primary"
+            : "text-gray-600 hover:text-primary"
+        }`}
+        >
+        My Courses
+        </button>
 
-          <button
-            onClick={() => setActiveTab("wishlist")}
-            className={`pb-2 ${
-              activeTab === "wishlist"
-                ? "text-primary border-b-2 border-primary"
-                : "text-gray-600 hover:text-primary"
-            }`}
-          >
-            Wishlist
-          </button>
+        <button
+        onClick={() => {
+            setActiveTab("wishlist");
+            setSearchParams({ tab: "wishlist" });
+        }}
+        className={`pb-2 ${
+            activeTab === "wishlist"
+            ? "text-primary border-b-2 border-primary"
+            : "text-gray-600 hover:text-primary"
+        }`}
+        >
+        Wishlist
+        </button>
+
         </div>
 
         {/* SEARCH */}

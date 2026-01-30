@@ -3,20 +3,37 @@ import axios from "axios";
 import { Link, Outlet } from "react-router-dom";
 import { Search, Bell, ShoppingCart, MessageSquare } from "lucide-react";
 import logo from "../assets/images/logo.png";
+import { useNavigate } from "react-router-dom";
+
+
 
 export default function StudentLayout() {
-  const [showLearningMenu, setShowLearningMenu] = useState(false);
-  const [showWishlistMenu, setShowWishlistMenu] = useState(false);
 
   const [realUser, setRealUser] = useState(null);
   const [purchasedCourses, setPurchasedCourses] = useState([]);
   const [wishlistCourses, setWishlistCourses] = useState([]);
+
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
   // Get logged‑in user from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?.id;
+
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Remove stored auth data
+    localStorage.removeItem("user");
+    localStorage.removeItem("token"); // if you use one
+
+    // Optional: clear axios auth header
+    delete axios.defaults.headers.common["Authorization"];
+
+    // Redirect to login page
+    navigate("/login");
+  };
+
 
   useEffect(() => {
     if (!userId) return;
@@ -78,58 +95,54 @@ export default function StudentLayout() {
           </Link>
 
           {/* My Learning */}
-          <div
-            className="relative"
-            onMouseEnter={() => setShowLearningMenu(true)}
-            onMouseLeave={() => setShowLearningMenu(false)}
+          <div className="relative group pt-2">
+          <Link
+            to="/student/learning"
+            className="text-sm font-medium text-gray-700 hover:text-primary transition"
           >
-            <Link
-              to="/student/learning"
-              className="text-sm font-medium text-gray-700 hover:text-primary transition"
-            >
-              My Learning
-            </Link>
+            My Learning
+          </Link>
 
-            {showLearningMenu && (
-              <div className="absolute left-0 mt-2 w-80 bg-white shadow-lg border rounded-lg z-50">
-                <div className="p-4 space-y-4">
-                  {purchasedCourses.slice(0, 3).map((course) => (
-                    <div key={course.id} className="flex gap-3">
-                      <img
-                        src={course.thumbnail_url}
-                        className="w-16 h-10 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium line-clamp-2">{course.title}</p>
-                        <Link
-                          to={`/course/${course.id}`}
-                          className="text-xs text-primary font-semibold hover:underline"
-                        >
-                          Start learning
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+          <div
+            className="absolute left-0 top-full w-80 bg-white shadow-lg border rounded-lg z-50
+                      opacity-0 group-hover:opacity-100 pointer-events-none
+                      group-hover:pointer-events-auto transition"
+          >
+            <div className="p-4 space-y-4">
+              {purchasedCourses.slice(0, 3).map((course) => (
+                <div key={course.id} className="flex gap-3">
+                  <img
+                    src={course.thumbnail_url}
+                    className="w-16 h-10 object-cover rounded"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium line-clamp-2">{course.title}</p>
+                    <Link
+                      to={`/course/${course.id}`}
+                      className="text-xs text-primary font-semibold hover:underline"
+                    >
+                      Start learning
+                    </Link>
+                  </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="border-t p-3">
-                  <Link
-                    to="/student/learning"
-                    className="block text-center text-sm font-semibold text-primary hover:underline"
-                  >
-                    Go to My Learning
-                  </Link>
-                </div>
-              </div>
-            )}
+            <div className="border-t p-3">
+              <Link
+                to="/student/learning"
+                className="block text-center text-sm font-semibold text-primary hover:underline"
+              >
+                Go to My Learning
+              </Link>
+            </div>
           </div>
+        </div>
 
+
+        
           {/* Wishlist */}
-          <div
-            className="relative"
-            onMouseEnter={() => setShowWishlistMenu(true)}
-            onMouseLeave={() => setShowWishlistMenu(false)}
-          >
+          <div className="relative group pt-2">
             <Link
               to="/student/learning?tab=wishlist"
               className="text-sm font-medium text-gray-700 hover:text-primary transition"
@@ -137,39 +150,45 @@ export default function StudentLayout() {
               Wishlist
             </Link>
 
-            {showWishlistMenu && (
-              <div className="absolute left-0 mt-2 w-80 bg-white shadow-lg border rounded-lg z-50">
-                <div className="p-4 space-y-4">
-                  {wishlistCourses.slice(0, 3).map((course) => (
-                    <div key={course.id} className="flex gap-3">
-                      <img
-                        src={course.thumbnail_url}
-                        className="w-16 h-10 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium line-clamp-2">{course.title}</p>
-                        <Link
-                          to={`/course/${course.id}`}
-                          className="text-xs text-primary font-semibold hover:underline"
-                        >
-                          View course
-                        </Link>
-                      </div>
+            <div
+              className="absolute left-0 top-full w-80 bg-white shadow-lg border rounded-lg z-50
+                        opacity-0 group-hover:opacity-100 pointer-events-none
+                        group-hover:pointer-events-auto transition"
+            >
+              <div className="p-4 space-y-4">
+                {wishlistCourses.slice(0, 3).map((course) => (
+                  <div key={course.id} className="flex gap-3">
+                    <img
+                      src={course.thumbnail_url}
+                      alt={course.title}
+                      className="w-16 h-10 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-2">
+                        {course.title}
+                      </p>
+                      <Link
+                        to={`/course/${course.id}`}
+                        className="text-xs text-primary font-semibold hover:underline"
+                      >
+                        View course
+                      </Link>
                     </div>
-                  ))}
-                </div>
-
-                <div className="border-t p-3">
-                  <Link
-                    to="/student/learning?tab=wishlist"
-                    className="block text-center text-sm font-semibold text-primary hover:underline"
-                  >
-                    Go to Wishlist
-                  </Link>
-                </div>
+                  </div>
+                ))}
               </div>
-            )}
+
+              <div className="border-t p-3">
+                <Link
+                  to="/student/learning?tab=wishlist"
+                  className="block text-center text-sm font-semibold text-primary hover:underline"
+                >
+                  Go to Wishlist
+                </Link>
+              </div>
+            </div>
           </div>
+
 
           {/* Cart */}
           <Link to="/cart" className="relative text-gray-600 hover:text-primary transition">
@@ -191,7 +210,7 @@ export default function StudentLayout() {
           </Link>
 
           {/* Avatar */}
-          <div className="relative group cursor-pointer">
+          <div className="relative group cursor-pointer pt-2">
             {realUser?.avatar_url ? (
               <img
                 src={realUser.avatar_url}
@@ -207,10 +226,11 @@ export default function StudentLayout() {
             )}
 
             {/* Dropdown */}
-            <div className="absolute right-0 mt-3 w-64 bg-white shadow-xl rounded-lg opacity-0 
-                            group-hover:opacity-100 transition pointer-events-none 
-                            group-hover:pointer-events-auto z-50">
-
+            <div
+              className="absolute right-0 top-full w-64 bg-white shadow-xl rounded-lg z-50
+                        opacity-0 group-hover:opacity-100 hover:opacity-100
+                        pointer-events-none group-hover:pointer-events-auto transition"
+            >
               <div className="px-4 py-3 border-b">
                 <p className="font-semibold">
                   {realUser?.first_name} {realUser?.last_name}
@@ -225,9 +245,13 @@ export default function StudentLayout() {
                 <Link to="/cart" className="block px-4 py-2 hover:bg-gray-100">
                   My cart
                 </Link>
-                <Link to="/student/wishlist" className="block px-4 py-2 hover:bg-gray-100">
-                  Wishlist
+                <Link
+                  to="/student/learning?tab=wishlist"
+                  className="lock px-4 py-2 hover:bg-gray-100"
+                >
+                  Go to Wishlist
                 </Link>
+
                 <Link to="/teach" className="block px-4 py-2 hover:bg-gray-100">
                   Teach on LearnLab
                 </Link>
@@ -265,12 +289,17 @@ export default function StudentLayout() {
                   Help & Support
                 </Link>
 
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
-                  Log out
-                </button>
+                <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+              >
+                Log out
+              </button>
+
               </div>
             </div>
           </div>
+
         </div>
       </header>
 

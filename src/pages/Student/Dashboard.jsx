@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import CourseCard from "../../components/CourseCard";
+import { useSearchParams } from "react-router-dom";
+
 
 export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
