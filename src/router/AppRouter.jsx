@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import StudentLayout from "../layouts/StudentLayout";
+import MyLearning from "../pages/Student/MyLearning";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 import Home from "../pages/Home/Home";
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
+      { path: "learning", element: <MyLearning /> },
     ],
   },
 ]);
