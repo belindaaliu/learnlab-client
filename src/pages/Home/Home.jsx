@@ -1,56 +1,54 @@
-// src/pages/Home.jsx
-import React from 'react';
-import { ArrowRight, PlayCircle } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, PlayCircle, Search, Loader2 } from "lucide-react";
 import CourseCard from '../../components/CourseCard';
 
-// Synthetic data for testing (we will get it from the database later)
-
-const DUMMY_COURSES = [
-  {
-    id: 1,
-    title: "Complete React Developer in 2026 (w/ Redux, Hooks, GraphQL)",
-    instructor: "Ali Ravanbakhsh",
-    rating: 4.8,
-    reviews: 120,
-    price: 89.99,
-    duration: "42h",
-    lessons: 250,
-    category: "Development",
-    image: "https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    id: 2,
-    title: "Financial Analysis & Valuation Masterclass",
-    instructor: "Sarah Johnson",
-    rating: 4.9,
-    reviews: 85,
-    price: 129.99,
-    duration: "28h",
-    lessons: 140,
-    category: "Finance",
-    image: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    id: 3,
-    title: "Modern UI/UX Design Bootcamp",
-    instructor: "Mike Smith",
-    rating: 4.7,
-    reviews: 210,
-    price: 69.99,
-    duration: "15h",
-    lessons: 80,
-    category: "Design",
-    image: "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?q=80&w=800&auto=format&fit=crop"
-  }
-];
-
 const Home = () => {
+  const navigate = useNavigate();
+  
+  // --- STATES ---
+  const [featuredCourses, setFeaturedCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchFeaturedCourses = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/courses');
+        const data = await response.json();
+        
+        // We are currently only displaying the first 3 lessons as "special".
+        setFeaturedCourses(data.slice(0, 3));
+      } catch (error) {
+        console.error("Failed to fetch courses:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFeaturedCourses();
+  }, []);
+
+  // --- HANDLERS ---
+  const handleSearch = (e) => {
+    e.preventDefault(); 
+    if (searchQuery.trim()) {
+
+      navigate(`/courses?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  const goToCourses = () => {
+    navigate('/courses');
+  };
+
   return (
     <div className="pb-20">
       
       {/* --- HERO SECTION --- */}
       <section className="bg-gradient-to-r from-primary to-purple-800 text-white py-20 lg:py-28 relative overflow-hidden">
-        {/* Background Pattern (Optional) */}
+        {/* Background Pattern */}
         <div className="absolute top-0 right-0 w-1/2 h-full bg-white/5 skew-x-12 transform origin-bottom-left"></div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid lg:grid-cols-2 gap-12 items-center">
@@ -65,17 +63,30 @@ const Home = () => {
             <p className="text-lg text-purple-100 mb-8 max-w-lg leading-relaxed">
               Join millions of learners. Master the skills that matter with industry-leading courses in Tech, Business, and more.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button className="px-8 py-4 bg-white text-primary rounded-xl font-bold text-lg hover:bg-gray-100 transition shadow-lg flex items-center justify-center gap-2">
-                Get Started <ArrowRight className="w-5 h-5" />
+
+            {/* --- SEARCH BAR (NEW) --- */}
+            <form onSubmit={handleSearch} className="bg-white/10 backdrop-blur-md p-2 rounded-2xl flex items-center border border-white/20 mb-8 max-w-lg shadow-lg">
+              <Search className="text-purple-200 w-6 h-6 ml-3" />
+              <input 
+                type="text" 
+                placeholder="What do you want to learn?" 
+                className="bg-transparent border-none outline-none text-white placeholder-purple-200 flex-1 px-4 py-2 font-medium"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button type="submit" className="bg-white text-primary px-6 py-2 rounded-xl font-bold hover:bg-gray-100 transition">
+                Search
               </button>
-              <button className="px-8 py-4 bg-transparent border-2 border-white/30 text-white rounded-xl font-bold text-lg hover:bg-white/10 transition flex items-center justify-center gap-2">
-                <PlayCircle className="w-5 h-5" /> Watch Demo
+            </form>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button onClick={goToCourses} className="px-8 py-4 bg-yellow-400 text-primary rounded-xl font-bold text-lg hover:bg-yellow-300 transition shadow-lg flex items-center justify-center gap-2">
+                Explore All Courses <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>
           
-          {/* Hero Image / Illustration */}
+          {/* Hero Image */}
           <div className="hidden lg:block relative">
              <div className="absolute inset-0 bg-primary/30 blur-3xl rounded-full"></div>
              <img 
@@ -104,26 +115,36 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- FEATURED COURSES --- */}
+      {/* --- FEATURED COURSES (REAL DATA) --- */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="flex items-end justify-between mb-12">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Featured Courses</h2>
             <p className="text-gray-500">Hand-picked by our experts for you.</p>
           </div>
-          <button className="hidden sm:flex text-primary font-bold hover:text-primaryHover items-center gap-1 transition">
+          <button onClick={goToCourses} className="hidden sm:flex text-primary font-bold hover:text-primaryHover items-center gap-1 transition">
             View All <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
         {/* Grid of Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {DUMMY_COURSES.map(course => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredCourses.length > 0 ? (
+              featuredCourses.map(course => (
+                <CourseCard key={course.id} course={course} />
+              ))
+            ) : (
+              <p className="col-span-3 text-center text-gray-500">No courses available at the moment.</p>
+            )}
+          </div>
+        )}
 
-        <button className="w-full sm:hidden mt-8 py-3 border border-gray-200 rounded-lg text-gray-600 font-bold hover:bg-gray-50">
+        <button onClick={goToCourses} className="w-full sm:hidden mt-8 py-3 border border-gray-200 rounded-lg text-gray-600 font-bold hover:bg-gray-50">
           View All Courses
         </button>
       </section>
