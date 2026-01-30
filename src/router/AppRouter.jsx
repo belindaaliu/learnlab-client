@@ -20,10 +20,9 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Home /> },
       { path: "/courses", element: <CoursesList /> },
-      { path: "/courses/search", element: <CoursesList /> }
+      { path: "/courses/search", element: <CoursesList /> },
       { path: "/cart", element: <Cart /> },
       { path: "/cart-test", element: <CartTest /> },
-      { path: "/courses", element: <CoursesList /> }
     ],
   },
 
