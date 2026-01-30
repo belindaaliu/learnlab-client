@@ -13,7 +13,7 @@ import StudentDashboard from "../pages/Student/Dashboard";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import Cart from "../pages/Cart/Cart";
-import CartTest from "../pages/Cart/CartTest";
+import Checkout from "../pages/Checkout/Checkout";
 
 export const router = createBrowserRouter([
   // PUBLIC LAYOUT
@@ -29,7 +29,15 @@ export const router = createBrowserRouter([
       { path: "/courses/:id", element: <CourseDetails /> },
 
       { path: "/cart", element: <Cart /> },
-      { path: "/cart-test", element: <CartTest /> },
+
+      { 
+        path: "/checkout", 
+        element: (
+          <ProtectedRoute allowedRoles="student">
+            <Checkout />
+          </ProtectedRoute>
+        ) 
+      },
     ],
   },
 
