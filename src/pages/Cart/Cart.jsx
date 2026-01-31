@@ -7,7 +7,7 @@ import CourseCard from "../../components/CourseCard";
 import { getCart, removeCartItem } from "../../services/cartService.js";
 
 const RECOMMENDATIONS = [
-  /* ... existing recommendations ... */
+  /* TODO: ... existing recommendations ... */
 ];
 
 const Cart = () => {

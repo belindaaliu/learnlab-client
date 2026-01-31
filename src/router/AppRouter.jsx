@@ -14,6 +14,11 @@ import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import Cart from "../pages/Cart/Cart";
 import Checkout from "../pages/Checkout/Checkout";
+import SubscriptionOverview from "../pages/Subscription/Overview";
+import SubscriptionPlans from "../pages/Subscription/Plans";
+import SubscriptionHistory from "../pages/Subscription/History";
+import SubscriptionCheckout from "../pages/Subscription/Checkout";
+
 
 export const router = createBrowserRouter([
   // PUBLIC LAYOUT
@@ -27,7 +32,7 @@ export const router = createBrowserRouter([
       { path: "/courses/search", element: <CoursesList /> },
 
       { path: "/courses/:id", element: <CourseDetails /> },
-
+      { path: "pricing", element: <SubscriptionPlans /> },
       { path: "/cart", element: <Cart /> },
 
       { 
@@ -62,6 +67,17 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
+
+      // --- Subscription Routes ---
+      { 
+        path: "subscription", 
+        children: [
+          { index: true, element: <SubscriptionOverview /> },
+          { path: "plans", element: <SubscriptionPlans /> },
+          { path: "history", element: <SubscriptionHistory /> },
+          { path: "checkout/:planId", element: <SubscriptionCheckout /> },
+        ]
+      },
     ],
   },
 ]);
