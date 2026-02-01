@@ -39,12 +39,12 @@ const VerifyCertificate = () => {
         <div className="space-y-4">
           <div className="bg-gray-50 p-4 rounded-xl">
             <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Student</p>
-            <p className="text-lg font-semibold text-gray-900">{data.studentName}</p>
+            <p className="text-lg font-semibold text-gray-900">{data.data.studentName}</p>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-xl">
             <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">Course</p>
-            <p className="text-lg font-semibold text-gray-900">{data.courseTitle}</p>
+            <p className="text-lg font-semibold text-gray-900">{data.data.courseTitle}</p>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-xl">
