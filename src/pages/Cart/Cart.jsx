@@ -7,7 +7,7 @@ import CourseCard from "../../components/CourseCard";
 import { getCart, removeCartItem } from "../../services/cartService.js";
 
 const RECOMMENDATIONS = [
-  /* TODO: ... existing recommendations ... */
+  /* TODO:... existing recommendations ... */
 ];
 
 const Cart = () => {
@@ -49,10 +49,21 @@ const Cart = () => {
       alert("Your cart is empty!");
       return;
     }
+
+    const flattenedItems = cartData.items.map((item) => {
+      const course = item.course || item.courses || item;
+      return {
+        id: course.id || item.course_id || item.id,
+        title: course.title || course.course_title || "Course Name Not Found",
+        price: course.price || course.course_price || 0,
+      };
+    });
+
     navigate("/checkout", {
       state: {
-        cartItems: cartData.items,
-        totalAmount: cartData.total,
+        type: "cart",
+        cartItems: flattenedItems,
+        totalAmount: Number(cartData.total),
       },
     });
   };

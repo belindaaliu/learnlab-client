@@ -273,7 +273,7 @@ export default function StudentLayout() {
                 <Link to="/student/subscription" className="block px-4 py-2 hover:bg-gray-100">
                   Subscriptions
                 </Link>
-                <Link to="/student/subscription/history" className="block px-4 py-2 hover:bg-gray-100">
+                <Link to="/student/payment/history" className="block px-4 py-2 hover:bg-gray-100">
                   Purchase history
                 </Link>
 

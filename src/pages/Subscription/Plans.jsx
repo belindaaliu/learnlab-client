@@ -52,7 +52,13 @@ const SubscriptionPlans = () => {
       return;
     }
 
-    navigate(`/student/subscription/checkout/${plan.id}`, { state: { plan } });
+    navigate("/checkout", {
+      state: {
+        type: "subscription",
+        planId: plan.id,
+        totalAmount: Number(plan.price),
+      },
+    });
   };
 
   return (

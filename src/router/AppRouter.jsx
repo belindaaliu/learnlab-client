@@ -16,8 +16,8 @@ import Cart from "../pages/Cart/Cart";
 import Checkout from "../pages/Checkout/Checkout";
 import SubscriptionOverview from "../pages/Subscription/Overview";
 import SubscriptionPlans from "../pages/Subscription/Plans";
-import SubscriptionHistory from "../pages/Subscription/History";
-import SubscriptionCheckout from "../pages/Subscription/Checkout";
+import PaymentHistory from "../pages/Payment/History";
+import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
 
 
 export const router = createBrowserRouter([
@@ -36,6 +36,15 @@ export const router = createBrowserRouter([
       { path: "/cart", element: <Cart /> },
 
       { 
+        path: "/payment-success", 
+        element: (
+          <ProtectedRoute allowedRoles="student">
+            <PaymentSuccess />
+          </ProtectedRoute>
+        ) 
+      },
+      
+      { 
         path: "/checkout", 
         element: (
           <ProtectedRoute allowedRoles="student">
@@ -43,6 +52,8 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ) 
       },
+
+      // 
     ],
   },
 
@@ -67,6 +78,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
+      
 
       // --- Subscription Routes ---
       { 
@@ -74,8 +86,14 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <SubscriptionOverview /> },
           { path: "plans", element: <SubscriptionPlans /> },
-          { path: "history", element: <SubscriptionHistory /> },
-          { path: "checkout/:planId", element: <SubscriptionCheckout /> },
+          { path: "history", element: <PaymentHistory /> },
+        ]
+      },
+
+      { 
+        path: "payment", 
+        children: [
+          { path: "history", element: <PaymentHistory /> },
         ]
       },
     ],
