@@ -11,6 +11,29 @@ const PaymentHistory = () => {
     api.get("/subscription/history").then((res) => setHistory(res.data.data));
   }, []);
 
+ const handleDownloadInvoice = async (paymentId) => {
+  try {
+    const response = await api.get(`/order/invoice/${paymentId}`, {
+      responseType: 'blob', 
+    });
+
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Invoice-${paymentId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("PDF Download failed:", error);
+    alert("Failed to download invoice. Check console for details.");
+  }
+};
+
   return (
     <div className="max-w-5xl mx-auto p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -73,7 +96,10 @@ const PaymentHistory = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <button className="text-primary hover:text-primaryHover flex items-center gap-1 text-sm font-bold">
+                  <button
+                    onClick={() => handleDownloadInvoice(item.id)}
+                    className="text-primary hover:text-primaryHover flex items-center gap-1 text-sm font-bold"
+                  >
                     <FileText className="w-4 h-4" /> PDF
                   </button>
                 </td>
