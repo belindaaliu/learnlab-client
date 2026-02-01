@@ -2,13 +2,12 @@ import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import StudentLayout from "../layouts/StudentLayout";
 import MyLearning from "../pages/Student/MyLearning";
+import StudentCertificates from "../pages/Student/StudentCertificates";
+import CertificateDetail from "../pages/Student/CertificateDetail";
 import ProtectedRoute from "../components/ProtectedRoute";
-
 import Home from "../pages/Home/Home";
 import CoursesList from "../pages/Courses/CoursesList";
-
 import CourseDetails from "../pages/Courses/CourseDetails"; 
-
 import StudentDashboard from "../pages/Student/Dashboard";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
@@ -18,6 +17,7 @@ import SubscriptionOverview from "../pages/Subscription/Overview";
 import SubscriptionPlans from "../pages/Subscription/Plans";
 import PaymentHistory from "../pages/Payment/History";
 import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
+import VerifyCertificate from './pages/VerifyCertificate';
 
 
 export const router = createBrowserRouter([
@@ -34,6 +34,7 @@ export const router = createBrowserRouter([
       { path: "/courses/:id", element: <CourseDetails /> },
       { path: "pricing", element: <SubscriptionPlans /> },
       { path: "/cart", element: <Cart /> },
+      { path: "/verify/:certId", element: <VerifyCertificate />},
 
       { 
         path: "/payment-success", 
@@ -78,7 +79,8 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
-      
+      { path: "certificates", element: <StudentCertificates /> },
+      { path: "certificates/:courseId", element: <CertificateDetail /> },
 
       // --- Subscription Routes ---
       { 
