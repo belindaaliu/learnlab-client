@@ -5,21 +5,34 @@ import MainLayout from "../layouts/MainLayout";
 import StudentLayout from "../layouts/StudentLayout";
 import InstructorLayout from "../layouts/InstructorLayout";
 
-// COMPONENTS & PAGES
+// COMPONENTS
 import ProtectedRoute from "../components/ProtectedRoute";
-import Home from "../pages/Home/Home";
-import CoursesList from "../pages/Courses/CoursesList";
-import CourseDetails from "../pages/Courses/CourseDetails"; 
-import Cart from "../pages/Cart/Cart";
-import CartTest from "../pages/Cart/CartTest";
 
-// AUTH
+// AUTH PAGES
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+
+// PUBLIC PAGES
+import Home from "../pages/Home/Home";
+import CoursesList from "../pages/Courses/CoursesList";
+import CourseDetails from "../pages/Courses/CourseDetails";
+import VerifyCertificate from "../pages/VerifyCertificate";
+
+// CART & CHECKOUT PAGES
+import Cart from "../pages/Cart/Cart";
+import Checkout from "../pages/Checkout/Checkout";
+import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
 
 // STUDENT PAGES
 import StudentDashboard from "../pages/Student/Dashboard";
 import MyLearning from "../pages/Student/MyLearning";
+import StudentCertificates from "../pages/Student/StudentCertificates";
+import CertificateDetail from "../pages/Student/CertificateDetail";
+
+// SUBSCRIPTION & PAYMENT PAGES
+import SubscriptionOverview from "../pages/Subscription/Overview";
+import SubscriptionPlans from "../pages/Subscription/Plans";
+import PaymentHistory from "../pages/Payment/History";
 
 // INSTRUCTOR PAGES
 import InstructorDashboard from "../pages/Instructor/Dashboard";
@@ -39,9 +52,27 @@ export const router = createBrowserRouter([
       { path: "/courses", element: <CoursesList /> },
       { path: "/courses/search", element: <CoursesList /> },
       { path: "/courses/:id", element: <CourseDetails /> },
-
+      { path: "pricing", element: <SubscriptionPlans /> },
       { path: "/cart", element: <Cart /> },
-      { path: "/cart-test", element: <CartTest /> },
+      { path: "/verify/:certId", element: <VerifyCertificate /> },
+
+      { 
+        path: "/payment-success", 
+        element: (
+          <ProtectedRoute allowedRoles="student">
+            <PaymentSuccess />
+          </ProtectedRoute>
+        ) 
+      },
+      
+      { 
+        path: "/checkout", 
+        element: (
+          <ProtectedRoute allowedRoles="student">
+            <Checkout />
+          </ProtectedRoute>
+        ) 
+      },
     ],
   },
 
@@ -70,6 +101,27 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
+      
+      // Certificate Routes
+      { path: "certificates", element: <StudentCertificates /> },
+      { path: "certificates/:courseId", element: <CertificateDetail /> },
+
+      // Subscription Routes
+      { 
+        path: "subscription", 
+        children: [
+          { index: true, element: <SubscriptionOverview /> },
+          { path: "plans", element: <SubscriptionPlans /> },
+          { path: "history", element: <PaymentHistory /> },
+        ]
+      },
+
+      { 
+        path: "payment", 
+        children: [
+          { path: "history", element: <PaymentHistory /> },
+        ]
+      },
     ],
   },
 
@@ -79,7 +131,6 @@ export const router = createBrowserRouter([
   {
     path: "/instructor",
     element: (
-      // Only users with the instructor role are allowed to log in.
       <ProtectedRoute allowedRoles="instructor">
         <InstructorLayout />
       </ProtectedRoute>
