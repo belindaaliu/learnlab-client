@@ -10,6 +10,7 @@ function Register() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     first_name: '',
     last_name: '',
     role: 'student'
@@ -20,10 +21,19 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, formData);
+      // Don't send confirmPassword to the API
+      const { confirmPassword, ...registerData } = formData;
+      const response = await axios.post(`${API_URL}/auth/register`, registerData);
       const { accessToken, refreshToken, user } = response.data.data;
 
       // Store tokens and user data
@@ -132,6 +142,19 @@ function Register() {
               autoComplete="new-password"
             />
             <small>Must be at least 8 characters</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              placeholder="••••••••"
+              required
+              autoComplete="new-password"
+            />
           </div>
 
           <div className="form-group">
