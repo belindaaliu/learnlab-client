@@ -53,12 +53,7 @@ function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="logo">
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-              <path d="M20 5L35 15V25L20 35L5 25V15L20 5Z" fill="currentColor" opacity="0.2"/>
-              <path d="M20 5L35 15M20 5L5 15M20 5V35M35 15V25M35 15L20 35M5 15V25M5 15L20 35M35 25L20 35M5 25L20 35" 
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            <span>LearnLab</span>
+            <img src="/src/assets/images/logo.png" alt="LearnLab" />
           </div>
           <h1>Welcome back</h1>
           <p>Continue your learning journey</p>
