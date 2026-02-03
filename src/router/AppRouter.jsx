@@ -12,6 +12,8 @@ import ProtectedRoute from "../components/ProtectedRoute";
 // AUTH PAGES
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
 
 // PUBLIC PAGES
 import Home from "../pages/Home/Home";
@@ -99,6 +101,14 @@ export const router = createBrowserRouter([
   {
     path: "/register",
     element: <Register />,
+  },
+  {
+    path: "/forgot-password",
+    element: <ForgotPassword />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPassword />,
   },
 
   // ===================================

@@ -406,3 +406,150 @@
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* Success/Error Icons */
+.success-icon,
+.error-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1.5rem;
+  color: var(--success-color, #10b981);
+}
+
+.error-icon {
+  color: var(--error-color, #ef4444);
+}
+
+/* Auth Info Section */
+.auth-info {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-item svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+  color: var(--primary-color, #6366f1);
+}
+
+.info-item span {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.5;
+}
+
+/* Link Button */
+.link-button {
+  background: none;
+  border: none;
+  color: var(--primary-color, #6366f1);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-size: inherit;
+  transition: color 0.2s;
+}
+
+.link-button:hover {
+  color: var(--primary-hover, #4f46e5);
+}
+
+/* Password Strength Indicator */
+.password-strength {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 2px;
+}
+
+.strength-fill.strength-1,
+.strength-fill.strength-2 {
+  background: #ef4444;
+}
+
+.strength-fill.strength-3 {
+  background: #f59e0b;
+}
+
+.strength-fill.strength-4 {
+  background: #3b82f6;
+}
+
+.strength-fill.strength-5 {
+  background: #10b981;
+}
+
+.strength-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
+}
+
+.strength-text.strength-1,
+.strength-text.strength-2 {
+  color: #ef4444;
+}
+
+.strength-text.strength-3 {
+  color: #f59e0b;
+}
+
+.strength-text.strength-4 {
+  color: #3b82f6;
+}
+
+.strength-text.strength-5 {
+  color: #10b981;
+}
+
+/* Form Error Text */
+.form-error {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--error-color, #ef4444);
+}
+
+/* Form Hint Text */
+.form-hint {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #64748b);
+}
+
+/* Force white text on all primary buttons */
+button.btn-primary,
+a.btn-primary,
+.btn-primary * {
+  color: #ffffff !important;
+}
