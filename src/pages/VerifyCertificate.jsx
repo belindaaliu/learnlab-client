@@ -61,3 +61,5 @@ const VerifyCertificate = () => {
     </div>
   );
 };
+
+export default VerifyCertificate;
