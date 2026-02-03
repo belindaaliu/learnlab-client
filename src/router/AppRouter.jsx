@@ -34,6 +34,10 @@ import SubscriptionOverview from "../pages/Subscription/Overview";
 import SubscriptionPlans from "../pages/Subscription/Plans";
 import PaymentHistory from "../pages/Payment/History";
 
+// ADMIN PAGES (Added from Main Branch)
+import AdminInstructors from '../pages/admin/AdminInstructors';
+import AdminInstructorReview from '../pages/admin/AdminInstructorReview';
+
 // INSTRUCTOR PAGES
 import InstructorDashboard from "../pages/Instructor/Dashboard";
 import InstructorCoursesList from "../pages/Instructor/CoursesList";
@@ -126,7 +130,7 @@ export const router = createBrowserRouter([
   },
 
   // ===================================
-  // INSTRUCTOR LAYOUT
+  // INSTRUCTOR LAYOUT (From Your Branch)
   // ===================================
   {
     path: "/instructor",
@@ -144,5 +148,22 @@ export const router = createBrowserRouter([
       // Create a new course
       { path: "courses/create", element: <CreateCourse /> },
     ],
+  },
+
+  // ===================================
+  // ADMIN LAYOUT (From Main Branch)
+  // ===================================
+  {
+    path: "/admin",
+    element: (
+      <ProtectedRoute allowedRoles="admin">
+
+      </ProtectedRoute>
+    ),
+    children: [
+      // { path: "dashboard", element: <AdminDashboard /> }, // This line was in the original code but was not imported, comment if it gives an error
+      { path: "instructors", element: <AdminInstructors /> },
+      { path: "instructors/:instructorId/review", element: <AdminInstructorReview /> },
+    ]
   },
 ]);
