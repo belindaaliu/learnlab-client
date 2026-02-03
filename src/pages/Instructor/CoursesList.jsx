@@ -119,7 +119,13 @@ const InstructorCoursesList = () => {
                         </Link>
                         
                         <button className="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded">
-                           <Edit className="w-4 h-4"/>
+                           <Link 
+                                to={`/instructor/courses/edit/${course.id}`} 
+                                className="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded"
+                                title="Edit Course"
+                              >
+                                <Edit className="w-4 h-4"/>
+                            </Link>
                         </button>
                         
                         <button 
