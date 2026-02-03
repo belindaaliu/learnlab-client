@@ -136,7 +136,7 @@ function ResetPassword() {
     );
   }
 
-  // ... rest of the component (success state and form) stays the same ...
+  // ... rest of the component (success state and form) stays the same .
   
   if (success) {
     return (
