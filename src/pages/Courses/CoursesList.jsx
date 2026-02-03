@@ -48,7 +48,7 @@ const CoursesList = () => {
         if (filters.sortBy) queryParams.append("sort", filters.sortBy);
 
         // Request to the real backend
-        const response = await fetch(`http://localhost:5000/api/courses?${queryParams.toString()}`);
+        const response = await fetch(`http://localhost:5001/api/courses?${queryParams.toString()}`);
         
         if (!response.ok) throw new Error("Failed to fetch courses");
         

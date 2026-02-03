@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, PlayCircle, Search, Loader2 } from "lucide-react";
 import CourseCard from '../../components/CourseCard';
+import api from '../../utils/Api';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -12,14 +13,32 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   // --- FETCH DATA ---
+  // useEffect(() => {
+  //   const fetchFeaturedCourses = async () => {
+  //     try {
+  //       const response = await fetch('http://localhost:5001/api/courses');
+  //       const data = await response.json();
+        
+  //       // We are currently only displaying the first 3 lessons as "special".
+  //       setFeaturedCourses(data.slice(0, 3));
+  //     } catch (error) {
+  //       console.error("Failed to fetch courses:", error);
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
+
+  //   fetchFeaturedCourses();
+  // }, []);
+
   useEffect(() => {
     const fetchFeaturedCourses = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/courses');
-        const data = await response.json();
+        const response = await api.get('/courses');
         
-        // We are currently only displaying the first 3 lessons as "special".
-        setFeaturedCourses(data.slice(0, 3));
+        const courseData = response.data.data || response.data;
+        
+        setFeaturedCourses(courseData.slice(0, 3));
       } catch (error) {
         console.error("Failed to fetch courses:", error);
       } finally {
