@@ -11,11 +11,14 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
   // --- FETCH DATA ---
   useEffect(() => {
     const fetchFeaturedCourses = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/courses');
+
+        const response = await fetch(`${API_URL}/courses`);
         const data = await response.json();
         
         // We are currently only displaying the first 3 lessons as "special".
@@ -34,7 +37,6 @@ const Home = () => {
   const handleSearch = (e) => {
     e.preventDefault(); 
     if (searchQuery.trim()) {
-
       navigate(`/courses?search=${encodeURIComponent(searchQuery)}`);
     }
   };
@@ -64,7 +66,7 @@ const Home = () => {
               Join millions of learners. Master the skills that matter with industry-leading courses in Tech, Business, and more.
             </p>
 
-            {/* --- SEARCH BAR (NEW) --- */}
+            {/* --- SEARCH BAR --- */}
             <form onSubmit={handleSearch} className="bg-white/10 backdrop-blur-md p-2 rounded-2xl flex items-center border border-white/20 mb-8 max-w-lg shadow-lg">
               <Search className="text-purple-200 w-6 h-6 ml-3" />
               <input 
@@ -115,7 +117,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- FEATURED COURSES (REAL DATA) --- */}
+      {/* --- FEATURED COURSES --- */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="flex items-end justify-between mb-12">
           <div>
