@@ -1,182 +1,223 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import api from '../../utils/Api'; 
-import Button from '../../components/common/Button';
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Lock, ShieldCheck } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import api from "../../utils/Api";
+import Button from "../../components/common/Button";
 
-// Initialize Stripe with the Publishable Key
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
-const CheckoutForm = ({ cartItems, totalAmount }) => {
+const CheckoutForm = ({ totalAmount, type }) => {
   const stripe = useStripe();
   const elements = useElements();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!stripe || !elements) return;
-    if (cartItems.length === 0) return alert("Your cart is empty");
 
     setLoading(true);
-    setError(null);
+    setErrorMessage(null);
 
-    try {
-      // 1. Create PaymentIntent on the backend
-      const { data } = await api.post('/orders/create-payment-intent', {
-        cartItems: cartItems,
-      });
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/payment-success?type=${type}`,
+      },
+    });
 
-      // 2. Confirm the payment with Stripe
-      const result = await stripe.confirmCardPayment(data.clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-        },
-      });
-
-      if (result.error) {
-        setError(result.error.message);
-      } else {
-        if (result.paymentIntent.status === 'succeeded') {
-          navigate("/student/learning?purchase=success");
-        }
-      }
-    } catch (err) {
-      console.error("Payment failed", err);
-      setError("Checkout failed. Please try again.");
-    } finally {
+    if (error) {
+      setErrorMessage(error.message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="border border-gray-200 p-5 bg-gray-50 rounded-xl">
-        <div className="flex items-center gap-3 mb-6">
-          <input type="radio" checked readOnly className="w-5 h-5 accent-primary" />
-          <span className="font-bold text-gray-900">Credit/Debit Card</span>
-          <div className="flex gap-2 ml-auto">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-4" />
-          </div>
-        </div>
-
-        {/* Stripe Card Input */}
-        <div className="p-4 bg-white border border-gray-200 rounded-lg">
-          <CardElement 
-            options={{
-              style: {
-                base: {
-                  fontSize: '16px',
-                  color: '#1f2937',
-                  '::placeholder': { color: '#9ca3af' },
-                },
-                invalid: { color: '#ef4444' },
-              },
-            }}
-          />
-        </div>
+      <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+        <PaymentElement options={{ layout: "tabs" }} />
       </div>
 
-      {error && (
+      {errorMessage && (
         <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
-          {error}
+          {errorMessage}
         </div>
       )}
 
-      <div className="pt-4">
-        <Button 
-          type="submit"
-          isLoading={loading}
-          variant="primary"
-          className="w-full py-4 text-lg rounded-xl"
-          disabled={!stripe}
-        >
-          Complete Purchase CA${totalAmount.toFixed(2)}
-        </Button>
-      </div>
+      <Button
+        type="submit"
+        isLoading={loading}
+        variant="primary"
+        className="w-full py-4 text-lg rounded-xl"
+        disabled={!stripe || loading}
+      >
+        Complete Purchase CA${totalAmount.toFixed(2)}
+      </Button>
+
+      <p className="text-center text-xs text-gray-500 flex items-center justify-center gap-1">
+        <ShieldCheck className="w-4 h-4 text-green-500" />
+        Your payment information is encrypted and secure.
+      </p>
     </form>
   );
 };
 
 const CheckoutPage = () => {
   const location = useLocation();
-  const { cartItems, totalAmount } = location.state || { cartItems: [], totalAmount: 0 };
+  const navigate = useNavigate();
+
+  const {
+    cartItems,
+    totalAmount,
+    planId,
+    type = "cart",
+  } = location.state || {};
+
+  const [clientSecret, setClientSecret] = useState("");
+  const [initError, setInitError] = useState(false);
+
+  useEffect(() => {
+    if (!totalAmount) {
+      navigate("/");
+      return;
+    }
+
+    const initializePayment = async () => {
+      try {
+        const response = await api.post("/order/create-payment-intent", {
+          cartItems: cartItems || [],
+          planId: planId || null,
+          checkoutType: type,
+        });
+
+        setClientSecret(response.data.clientSecret);
+      } catch (err) {
+        console.error("Payment Initialization Error:", err);
+        setInitError(true);
+      }
+    };
+
+    initializePayment();
+  }, [cartItems, planId, type, totalAmount, navigate]);
+
+  const appearance = {
+    theme: "stripe",
+    variables: {
+      colorPrimary: "#4f46e5", 
+      colorBackground: "#ffffff",
+      colorText: "#1f2937",
+      borderRadius: "12px",
+    },
+  };
+
+  if (initError) {
+    return (
+      <div className="max-w-md mx-auto py-20 text-center">
+        <h2 className="text-xl font-bold text-red-600">
+          Initialization Failed
+        </h2>
+        <p className="text-gray-600 mb-6">
+          We couldn't connect to the payment gateway. Please try again.
+        </p>
+        <Button onClick={() => navigate(-1)}>Go Back</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-3 gap-12 bg-white">
-      {/* LEFT COLUMN: Billing & Payment */}
+      {/* LEFT COLUMN: Payment */}
       <div className="lg:col-span-2 space-y-8">
         <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
 
-        <section>
-          <h2 className="text-xl font-bold mb-4">Billing address</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col">
-              <label className="text-sm font-bold mb-1.5 text-gray-700">Country</label>
-              <select className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 outline-none focus:border-primary">
-                <option>Canada</option>
-              </select>
-            </div>
-            <div className="flex flex-col">
-              <label className="text-sm font-bold mb-1.5 text-gray-700">Province</label>
-              <select className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 outline-none focus:border-primary">
-                <option>Quebec</option>
-                <option>Ontario</option>
-                <option>British Columbia</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <section className="border border-gray-200 p-6 rounded-xl">
+        <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Payment method</h2>
-            <span className="flex items-center gap-1 text-xs text-gray-500 font-medium uppercase tracking-widest">
-              Secure and encrypted <Lock className="w-3 h-3" />
+            <h2 className="text-xl font-bold">Payment Method</h2>
+            <span className="flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+              Secure SSL <Lock className="w-3 h-3" />
             </span>
           </div>
 
-          <Elements stripe={stripePromise}>
-            <CheckoutForm cartItems={cartItems} totalAmount={totalAmount} />
-          </Elements>
-
-          <div className="mt-4 border border-gray-200 p-5 flex items-center gap-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer opacity-60">
-            <input type="radio" disabled name="payment" className="w-5 h-5 accent-primary" />
-            <span className="font-bold text-gray-900">PayPal</span>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-4 ml-auto" />
-          </div>
+          {clientSecret ? (
+            <Elements
+              stripe={stripePromise}
+              options={{ clientSecret, appearance }}
+            >
+              <CheckoutForm totalAmount={totalAmount} type={type} />
+            </Elements>
+          ) : (
+            <div className="py-20 flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+              <p className="text-gray-500 font-medium">
+                Securing connection to Stripe...
+              </p>
+            </div>
+          )}
         </section>
       </div>
 
-      {/* RIGHT COLUMN: Summary Sidebar */}
-      <div className="lg:col-span-1 bg-gray-50 p-8 rounded-xl h-fit sticky top-24 border border-gray-100">
+      {/* RIGHT COLUMN: Order Summary */}
+      <div className="lg:col-span-1 bg-gray-50 p-8 rounded-2xl h-fit sticky top-24 border border-gray-100">
         <h2 className="text-xl font-bold mb-6 text-gray-900">Order summary</h2>
-        <div className="space-y-3 text-sm border-b border-gray-200 pb-6 text-gray-600">
-          <div className="flex justify-between">
-            <span>Original Price:</span>
-            <span>CA${(totalAmount * 5.5).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Discounts:</span>
-            <span className="text-red-500">-CA${(totalAmount * 4.5).toFixed(2)}</span>
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center py-6">
-          <span className="text-lg font-bold text-gray-900">Total:</span>
-          <span className="text-3xl font-black text-gray-900">CA${totalAmount.toFixed(2)}</span>
+
+        <div className="space-y-4 mb-6 border-b border-gray-200 pb-6">
+          {type === "subscription" ? (
+            <div className="flex justify-between font-medium">
+              <span>Subscription Plan</span>
+              <span>CA${(totalAmount || 0).toFixed(2)}</span>
+            </div>
+          ) : (
+            <>
+              {cartItems?.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between text-sm py-1"
+                >
+                  <span className="truncate max-w-[150px] text-gray-600 font-medium">
+                    {item.title}
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    CA${Number(item.price).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+
+              <div className="pt-4 space-y-2 text-xs text-gray-500 border-t border-gray-100 mt-4">
+                <div className="flex justify-between">
+                  <span>Original Price:</span>
+                  <span>CA${(totalAmount * 5.5 || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-red-500">
+                  <span>Discounts:</span>
+                  <span>-CA${(totalAmount * 4.5 || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        <p className="text-[11px] text-gray-500 mt-6 text-center leading-relaxed">
-          By completing your purchase, you agree to our <span className="underline cursor-pointer">Terms of Service</span> and acknowledge our <span className="underline cursor-pointer">Privacy Policy</span>.
-        </p>
+        <div className="pt-2">
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-bold text-gray-900">Total:</span>
+            <span className="text-3xl font-black text-gray-900">
+              CA${(totalAmount || 0).toFixed(2)}
+            </span>
+          </div>
+        </div>
 
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-          <p className="font-bold text-sm text-gray-800">30-Day Money-Back Guarantee</p>
+          <p className="font-bold text-sm text-gray-800">
+            30-Day Money-Back Guarantee
+          </p>
+          <p className="text-xs text-gray-500 mt-1">No questions asked.</p>
         </div>
       </div>
     </div>

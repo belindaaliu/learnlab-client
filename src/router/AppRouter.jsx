@@ -1,30 +1,31 @@
 import { createBrowserRouter } from "react-router-dom";
+
+// LAYOUTS
 import MainLayout from "../layouts/MainLayout";
 import StudentLayout from "../layouts/StudentLayout";
-import MyLearning from "../pages/Student/MyLearning";
+import InstructorLayout from "../layouts/InstructorLayout";
+
+// COMPONENTS
 import ProtectedRoute from "../components/ProtectedRoute";
 
-import Home from "../pages/Home/Home";
-import CoursesList from "../pages/Courses/CoursesList";
-
-import CourseDetails from "../pages/Courses/CourseDetails"; 
-
-import StudentDashboard from "../pages/Student/Dashboard";
+// AUTH PAGES
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+
+// PUBLIC PAGES
+import Home from "../pages/Home/Home";
+import CoursesList from "../pages/Courses/CoursesList";
+import CourseDetails from "../pages/Courses/CourseDetails";
+import VerifyCertificate from "../pages/VerifyCertificate";
+
+// CART & CHECKOUT PAGES
 import Cart from "../pages/Cart/Cart";
 import Checkout from "../pages/Checkout/Checkout";
-import PublicProfile from "../pages/Student/PublicProfile";
-import EditProfile from "../pages/Student/EditProfile";
-import EditPhoto from "../pages/Student/EditPhoto";
-// import AccountSecurity from "../pages/Student/AccountSecurity";
-// import NotificationSettings from "../pages/Student/NotificationSettings";
-// import PrivacySettings from "../pages/Student/PrivacySettings";
-
-
 
 export const router = createBrowserRouter([
+  // ===================================
   // PUBLIC LAYOUT
+  // ===================================
   {
     path: "/",
     element: <MainLayout />,
@@ -33,11 +34,20 @@ export const router = createBrowserRouter([
       
       { path: "/courses", element: <CoursesList /> },
       { path: "/courses/search", element: <CoursesList /> },
-
       { path: "/courses/:id", element: <CourseDetails /> },
-
+      { path: "pricing", element: <SubscriptionPlans /> },
       { path: "/cart", element: <Cart /> },
+      { path: "/verify/:certId", element: <VerifyCertificate /> },
 
+      { 
+        path: "/payment-success", 
+        element: (
+          <ProtectedRoute allowedRoles="student">
+            <PaymentSuccess />
+          </ProtectedRoute>
+        ) 
+      },
+      
       { 
         path: "/checkout", 
         element: (
@@ -50,7 +60,9 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // ===================================
   // AUTH ROUTES
+  // ===================================
   {
     path: "/login",
     element: <Login />,
@@ -60,7 +72,9 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
 
+  // ===================================
   // STUDENT LAYOUT
+  // ===================================
   {
     path: "/student",
     element: (
@@ -71,14 +85,6 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
-      { path: "public-profile/:id", element: <PublicProfile /> },
-      { path: "edit-profile", element: <EditProfile /> },
-      { path: "edit-photo", element: <EditPhoto /> },
-      // { path: "security", element: <AccountSecurity /> },
-      // { path: "notifications", element: <NotificationSettings /> },
-      // { path: "privacy", element: <PrivacySettings /> },
-
     ],
-  }
-,
+  },
 ]);
