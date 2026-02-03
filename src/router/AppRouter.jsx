@@ -21,6 +21,34 @@ import VerifyCertificate from "../pages/VerifyCertificate";
 // CART & CHECKOUT PAGES
 import Cart from "../pages/Cart/Cart";
 import Checkout from "../pages/Checkout/Checkout";
+import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
+
+// STUDENT PAGES
+import StudentDashboard from "../pages/Student/Dashboard";
+import MyLearning from "../pages/Student/MyLearning";
+import StudentCertificates from "../pages/Student/StudentCertificates";
+import CertificateDetail from "../pages/Student/CertificateDetail";
+import PublicProfile from "../pages/Student/PublicProfile";
+import EditProfile from "../pages/Student/EditProfile";
+import EditPhoto from "../pages/Student/EditPhoto";
+// import AccountSecurity from "../pages/Student/AccountSecurity";
+// import NotificationSettings from "../pages/Student/NotificationSettings";
+// import PrivacySettings from "../pages/Student/PrivacySettings";
+
+// SUBSCRIPTION & PAYMENT PAGES
+import SubscriptionOverview from "../pages/Subscription/Overview";
+import SubscriptionPlans from "../pages/Subscription/Plans";
+import PaymentHistory from "../pages/Payment/History";
+
+// ADMIN PAGES (Added from Main Branch)
+import AdminInstructors from '../pages/admin/AdminInstructors';
+import AdminInstructorReview from '../pages/admin/AdminInstructorReview';
+
+// INSTRUCTOR PAGES
+import InstructorDashboard from "../pages/Instructor/Dashboard";
+import InstructorCoursesList from "../pages/Instructor/CoursesList";
+import CreateCourse from "../pages/Instructor/CreateCourse";
+import EditCourse from "../pages/Instructor/EditCourse";
 
 export const router = createBrowserRouter([
   // ===================================
@@ -56,7 +84,6 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ) 
       },
-      // { path: "/student/public-profile/:id", element: <PublicProfile /> },
     ],
   },
 
@@ -85,6 +112,75 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
+      { path: "public-profile/:id", element: <PublicProfile /> },
+      { path: "edit-profile", element: <EditProfile /> },
+      { path: "edit-photo", element: <EditPhoto /> },
+      // { path: "security", element: <AccountSecurity /> },
+      // { path: "notifications", element: <NotificationSettings /> },
+      // { path: "privacy", element: <PrivacySettings /> },
+      
+      // Certificate Routes
+      { path: "certificates", element: <StudentCertificates /> },
+      { path: "certificates/:courseId", element: <CertificateDetail /> },
+
+      // Subscription Routes
+      { 
+        path: "subscription", 
+        children: [
+          { index: true, element: <SubscriptionOverview /> },
+          { path: "plans", element: <SubscriptionPlans /> },
+          { path: "history", element: <PaymentHistory /> },
+        ]
+      },
+
+      { 
+        path: "payment", 
+        children: [
+          { path: "history", element: <PaymentHistory /> },
+        ]
+      },
     ],
+  },
+
+  // ===================================
+  // INSTRUCTOR LAYOUT
+  // ===================================
+  {
+    path: "/instructor",
+    element: (
+      <ProtectedRoute allowedRoles="instructor">
+        <InstructorLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: "dashboard", element: <InstructorDashboard /> },
+      
+      // List of courses
+      { path: "courses", element: <InstructorCoursesList /> },
+      
+      // Create a new course
+      { path: "courses/create", element: <CreateCourse /> },
+      
+      // Edit a course
+      { path: "courses/edit/:id", element: <EditCourse /> },
+    ],
+  },
+  
+
+  // ===================================
+  // ADMIN LAYOUT (From Main Branch)
+  // ===================================
+  {
+    path: "/admin",
+    element: (
+      <ProtectedRoute allowedRoles="admin">
+
+      </ProtectedRoute>
+    ),
+    children: [
+      // { path: "dashboard", element: <AdminDashboard /> }, // This line was in the original code but was not imported, comment if it gives an error
+      { path: "instructors", element: <AdminInstructors /> },
+      { path: "instructors/:instructorId/review", element: <AdminInstructorReview /> },
+    ]
   },
 ]);
