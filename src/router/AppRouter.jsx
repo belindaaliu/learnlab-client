@@ -138,10 +138,10 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <InstructorDashboard /> },
       
-      // لیست دوره‌ها
+      // List of courses
       { path: "courses", element: <InstructorCoursesList /> },
       
-      // ساخت دوره جدید
+      // Create a new course
       { path: "courses/create", element: <CreateCourse /> },
     ],
   },
