@@ -1,30 +1,61 @@
 import { createBrowserRouter } from "react-router-dom";
+
+// LAYOUTS
 import MainLayout from "../layouts/MainLayout";
 import StudentLayout from "../layouts/StudentLayout";
 import AdminLayout from "../layouts/AdminLayout";
-import MyLearning from "../pages/Student/MyLearning";
-import StudentCertificates from "../pages/Student/StudentCertificates";
-import CertificateDetail from "../pages/Student/CertificateDetail";
+import InstructorLayout from "../layouts/InstructorLayout";
+
+// COMPONENTS
 import ProtectedRoute from "../components/ProtectedRoute";
+
+// AUTH PAGES
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
+
+// PUBLIC PAGES
 import Home from "../pages/Home/Home";
 import CoursesList from "../pages/Courses/CoursesList";
 import CourseDetails from "../pages/Courses/CourseDetails";
-import StudentDashboard from "../pages/Student/Dashboard";
-import Login from "../pages/Auth/Login";
-import Register from "../pages/Auth/Register";
+import VerifyCertificate from "../pages/VerifyCertificate";
+
+// CART & CHECKOUT PAGES
 import Cart from "../pages/Cart/Cart";
 import Checkout from "../pages/Checkout/Checkout";
+import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
+
+// STUDENT PAGES
+import StudentDashboard from "../pages/Student/Dashboard";
+import MyLearning from "../pages/Student/MyLearning";
+import StudentCertificates from "../pages/Student/StudentCertificates";
+import CertificateDetail from "../pages/Student/CertificateDetail";
+import PublicProfile from "../pages/Student/PublicProfile";
+import EditProfile from "../pages/Student/EditProfile";
+import EditPhoto from "../pages/Student/EditPhoto";
+// import AccountSecurity from "../pages/Student/AccountSecurity";
+// import NotificationSettings from "../pages/Student/NotificationSettings";
+// import PrivacySettings from "../pages/Student/PrivacySettings";
+
+// SUBSCRIPTION & PAYMENT PAGES
 import SubscriptionOverview from "../pages/Subscription/Overview";
 import SubscriptionPlans from "../pages/Subscription/Plans";
 import PaymentHistory from "../pages/Payment/History";
-import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
-import VerifyCertificate from "../pages/VerifyCertificate";
+
+// ADMIN PAGES
 import AdminInstructors from "../pages/Admin/AdminInstructors";
 import AdminInstructorReview from "../pages/Admin/AdminInstructorReview";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 
+// INSTRUCTOR PAGES
+import InstructorDashboard from "../pages/Instructor/Dashboard";
+import InstructorCoursesList from "../pages/Instructor/CoursesList";
+import CreateCourse from "../pages/Instructor/CreateCourse";
+import EditCourse from "../pages/Instructor/EditCourse";
+
 export const router = createBrowserRouter([
+  // ===================================
   // PUBLIC LAYOUT
+  // ===================================
   {
     path: "/",
     element: <MainLayout />,
@@ -33,7 +64,6 @@ export const router = createBrowserRouter([
 
       { path: "/courses", element: <CoursesList /> },
       { path: "/courses/search", element: <CoursesList /> },
-
       { path: "/courses/:id", element: <CourseDetails /> },
       { path: "pricing", element: <SubscriptionPlans /> },
       { path: "/cart", element: <Cart /> },
@@ -56,12 +86,12 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
-      //
     ],
   },
 
+  // ===================================
   // AUTH ROUTES
+  // ===================================
   {
     path: "/login",
     element: <Login />,
@@ -71,7 +101,9 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
 
+  // ===================================
   // STUDENT LAYOUT
+  // ===================================
   {
     path: "/student",
     element: (
@@ -82,10 +114,18 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
+      { path: "public-profile/:id", element: <PublicProfile /> },
+      { path: "edit-profile", element: <EditProfile /> },
+      { path: "edit-photo", element: <EditPhoto /> },
+      // { path: "security", element: <AccountSecurity /> },
+      // { path: "notifications", element: <NotificationSettings /> },
+      // { path: "privacy", element: <PrivacySettings /> },
+      
+      // Certificate Routes
       { path: "certificates", element: <StudentCertificates /> },
       { path: "certificates/:courseId", element: <CertificateDetail /> },
 
-      // --- Subscription Routes ---
+      // Subscription Routes
       {
         path: "subscription",
         children: [
@@ -102,7 +142,34 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ADMIN LAYOUT
+  // ===================================
+  // INSTRUCTOR LAYOUT
+  // ===================================
+  {
+    path: "/instructor",
+    element: (
+      <ProtectedRoute allowedRoles="instructor">
+        <InstructorLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: "dashboard", element: <InstructorDashboard /> },
+      
+      // List of courses
+      { path: "courses", element: <InstructorCoursesList /> },
+      
+      // Create a new course
+      { path: "courses/create", element: <CreateCourse /> },
+      
+      // Edit a course
+      { path: "courses/edit/:id", element: <EditCourse /> },
+    ],
+  },
+  
+
+  // ===================================
+  // ADMIN LAYOUT (From Main Branch)
+  // ===================================
   {
     path: "/admin",
     element: (
@@ -113,10 +180,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <AdminDashboard /> },
       { path: "instructors", element: <AdminInstructors /> },
-      {
-        path: "instructors/:instructorId/review",
-        element: <AdminInstructorReview />,
-      },
+      { path: "instructors/:instructorId/review", element: <AdminInstructorReview />, },
       { path: "analytics", element: <div>Analytics Page Coming Soon</div> },
       { path: "courses", element: <div>Course List Page Coming Soon</div> },
     ],
