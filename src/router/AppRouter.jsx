@@ -14,6 +14,14 @@ import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import Cart from "../pages/Cart/Cart";
 import Checkout from "../pages/Checkout/Checkout";
+import PublicProfile from "../pages/Student/PublicProfile";
+import EditProfile from "../pages/Student/EditProfile";
+import EditPhoto from "../pages/Student/EditPhoto";
+// import AccountSecurity from "../pages/Student/AccountSecurity";
+// import NotificationSettings from "../pages/Student/NotificationSettings";
+// import PrivacySettings from "../pages/Student/PrivacySettings";
+
+
 
 export const router = createBrowserRouter([
   // PUBLIC LAYOUT
@@ -38,6 +46,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ) 
       },
+      // { path: "/student/public-profile/:id", element: <PublicProfile /> },
     ],
   },
 
@@ -62,6 +71,14 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
+      { path: "public-profile/:id", element: <PublicProfile /> },
+      { path: "edit-profile", element: <EditProfile /> },
+      { path: "edit-photo", element: <EditPhoto /> },
+      // { path: "security", element: <AccountSecurity /> },
+      // { path: "notifications", element: <NotificationSettings /> },
+      // { path: "privacy", element: <PrivacySettings /> },
+
     ],
-  },
+  }
+,
 ]);
