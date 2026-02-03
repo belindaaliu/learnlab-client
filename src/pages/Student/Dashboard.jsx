@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import CourseCard from "../../components/CourseCard";
 import { useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+
 
 
 export default function StudentDashboard() {
@@ -41,9 +43,13 @@ export default function StudentDashboard() {
 
         <p className="text-gray-600 mt-1 flex items-center gap-3">
           {profile?.occupation || "Learner"}
-          <span className="text-primary font-semibold cursor-pointer hover:underline">
+          <Link
+            to="/student/edit-profile"
+            className="text-primary font-semibold hover:underline"
+          >
             Edit occupation & interests
-          </span>
+          </Link>
+
         </p>
       </div>
 

@@ -211,9 +211,9 @@ export default function StudentLayout() {
 
           {/* Avatar */}
           <div className="relative group cursor-pointer pt-2">
-            {realUser?.avatar_url ? (
+            {realUser?.photo_url ? (
               <img
-                src={realUser.avatar_url}
+                src={realUser.photo_url}
                 alt="User Avatar"
                 className="w-10 h-10 rounded-full object-cover"
               />
@@ -224,6 +224,7 @@ export default function StudentLayout() {
                 {realUser?.last_name?.[0]}
               </div>
             )}
+
 
             {/* Dropdown */}
             <div
@@ -247,7 +248,7 @@ export default function StudentLayout() {
                 </Link>
                 <Link
                   to="/student/learning?tab=wishlist"
-                  className="lock px-4 py-2 hover:bg-gray-100"
+                  className="block px-4 py-2 hover:bg-gray-100"
                 >
                   Go to Wishlist
                 </Link>
@@ -279,9 +280,14 @@ export default function StudentLayout() {
 
                 <div className="border-t my-2"></div>
 
-                <Link to="/student/public-profile" className="block px-4 py-2 hover:bg-gray-100">
+                <Link
+                  to={`/${user.role}/public-profile/${user.id}`}
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
                   Public profile
                 </Link>
+
+
                 <Link to="/student/edit-profile" className="block px-4 py-2 hover:bg-gray-100">
                   Edit profile
                 </Link>
