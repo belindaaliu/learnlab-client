@@ -42,6 +42,7 @@ import AdminInstructorReview from '../pages/admin/AdminInstructorReview';
 import InstructorDashboard from "../pages/Instructor/Dashboard";
 import InstructorCoursesList from "../pages/Instructor/CoursesList";
 import CreateCourse from "../pages/Instructor/CreateCourse";
+import EditCourse from "../pages/Instructor/EditCourse";
 
 export const router = createBrowserRouter([
   // ===================================
@@ -130,7 +131,7 @@ export const router = createBrowserRouter([
   },
 
   // ===================================
-  // INSTRUCTOR LAYOUT (From Your Branch)
+  // INSTRUCTOR LAYOUT
   // ===================================
   {
     path: "/instructor",
@@ -147,8 +148,12 @@ export const router = createBrowserRouter([
       
       // Create a new course
       { path: "courses/create", element: <CreateCourse /> },
+      
+      // Edit a course
+      { path: "courses/edit/:id", element: <EditCourse /> },
     ],
   },
+  
 
   // ===================================
   // ADMIN LAYOUT (From Main Branch)
