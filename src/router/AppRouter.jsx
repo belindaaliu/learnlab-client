@@ -17,9 +17,8 @@ import SubscriptionOverview from "../pages/Subscription/Overview";
 import SubscriptionPlans from "../pages/Subscription/Plans";
 import PaymentHistory from "../pages/Payment/History";
 import PaymentSuccess from "../pages/Checkout/PaymentSuccess";
-import VerifyCertificate from '../pages/VerifyCertificate';
-import AdminInstructors from '../pages/admin/AdminInstructors';
-import AdminInstructorReview from '../pages/admin/AdminInstructorReview';
+// import VerifyCertificate from '../pages/VerifyCertificate';
+
 
 
 export const router = createBrowserRouter([
@@ -36,7 +35,7 @@ export const router = createBrowserRouter([
       { path: "/courses/:id", element: <CourseDetails /> },
       { path: "pricing", element: <SubscriptionPlans /> },
       { path: "/cart", element: <Cart /> },
-      { path: "/verify/:certId", element: <VerifyCertificate />},
+      // { path: "/verify/:certId", element: <VerifyCertificate />},
 
       { 
         path: "/payment-success", 
@@ -102,21 +101,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-
-  // ADMIN LAYOUT
-  {
-    path: "/admin",
-    element: (
-      <ProtectedRoute allowedRoles="admin">
-      </ProtectedRoute>
-    ),
-    children: [
-      { path: "dashboard", element: <AdminDashboard /> },
-      { path: "instructors", element: <AdminInstructors /> },
-      { path: "instructors/:instructorId/review", element: <AdminInstructorReview /> },
-         
-    ]
-  },
-
-
 ]);
