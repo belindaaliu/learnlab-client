@@ -3,10 +3,15 @@ import axios from "axios";
 import CourseCard from "../../components/CourseCard";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
+
 
 
 
 export default function StudentDashboard() {
+
+  const { searchResults, searchQuery } = useOutletContext() || {};
+
   const [profile, setProfile] = useState(null);
   const [recommended, setRecommended] = useState([]);
 
@@ -32,6 +37,8 @@ export default function StudentDashboard() {
       .catch((err) => console.error("Recommendations fetch error:", err));
   }, [userId]);
 
+  console.log("Search Results:", searchResults);
+
   return (
     <div className="pb-20 max-w-7xl mx-auto px-4">
 
@@ -53,23 +60,46 @@ export default function StudentDashboard() {
         </p>
       </div>
 
-      {/* RECOMMENDATIONS */}
-      <div className="mt-12">
-        <h2 className="text-2xl font-bold text-gray-900">
-          What to learn next
-        </h2>
-        <p className="text-gray-500 mb-6">Recommended for you</p>
+      {/* SEARCH RESULTS */}
+      {searchQuery && searchResults.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-gray-900">
+            Search results for "{searchQuery}"
+          </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {recommended.length > 0 ? (
-            recommended.map((course) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-6">
+            {searchResults.map((course) => (
               <CourseCard key={course.id} course={course} />
-            ))
-          ) : (
-            <p className="text-gray-500">No recommendations yet.</p>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* NO RESULTS */}
+      {searchQuery && searchResults.length === 0 && (
+        <p className="text-gray-500 mt-12">No courses found for "{searchQuery}".</p>
+      )}
+
+      {/* DEFAULT — RECOMMENDATIONS */}
+      {!searchQuery && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-gray-900">
+            What to learn next
+          </h2>
+          <p className="text-gray-500 mb-6">Recommended for you</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {recommended.length > 0 ? (
+              recommended.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))
+            ) : (
+              <p className="text-gray-500">No recommendations yet.</p>
+            )}
+          </div>
+        </div>
+      )}
+
 
     </div>
   );
