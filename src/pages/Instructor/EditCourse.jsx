@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Save, Loader } from 'lucide-react';
+import CurriculumBuilder from '../../components/CurriculumBuilder';
 
 const EditCourse = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
+  // State to hold the main form data
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,28 +22,35 @@ const EditCourse = () => {
     thumbnail_url: ''
   });
 
-  useEffect(() => {
-    const fetchCourse = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/courses/${id}`);
-        const course = res.data;
-        
-        setFormData({
-          title: course.title || '',
-          description: course.description || '',
-          price: course.price || '',
-          category_id: course.category_id || '',
-          level: course.level || 'beginner',
-          thumbnail_url: course.thumbnail_url || ''
-        });
-      } catch (error) {
-        console.error("Error fetching course details:", error);
-        alert("Failed to load course details.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // ✅ New state to maintain section list
+  const [courseContent, setCourseContent] = useState([]);
 
+  const fetchCourse = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/courses/${id}`);
+      const course = res.data;
+      
+      setFormData({
+        title: course.title || '',
+        description: course.description || '',
+        price: course.price || '',
+        category_id: course.category_id || '',
+        level: course.level || 'beginner',
+        thumbnail_url: course.thumbnail_url || ''
+      });
+
+      // ✅ Filling in the section list
+      setCourseContent(course.CourseContent || []);
+
+    } catch (error) {
+      console.error("Error fetching course details:", error);
+      alert("Failed to load course details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCourse();
   }, [id, API_URL]);
 
@@ -63,8 +71,7 @@ const EditCourse = () => {
       await axios.put(`${API_URL}/courses/${id}`, formData, config);
       
       alert("Course updated successfully!");
-      navigate('/instructor/courses');
-      
+            
     } catch (error) {
       console.error("Error updating course:", error);
       alert(error.response?.data?.message || "Failed to update course.");
@@ -77,7 +84,7 @@ const EditCourse = () => {
 
   return (
     <div className="max-w-4xl mx-auto pb-10">
-      {/* Heather */}
+      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link to="/instructor/courses" className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition">
           <ArrowLeft size={20} className="text-gray-600" />
@@ -85,8 +92,9 @@ const EditCourse = () => {
         <h1 className="text-2xl font-bold text-gray-800">Edit Course</h1>
       </div>
 
-      {/* Edit form */}
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+      {/* 1. Main Course Information Form */}
+      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6 mb-8">
+        <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">General Information</h2>
         
         {/* Title */}
         <div>
@@ -161,9 +169,8 @@ const EditCourse = () => {
           )}
         </div>
 
-        {/* Hidden Category ID (Simple input for now) */}
+        {/* Hidden Category ID */}
         <div className="hidden">
-
            <input type="text" name="category_id" value={formData.category_id} readOnly />
         </div>
 
@@ -176,17 +183,24 @@ const EditCourse = () => {
           >
             {saving ? (
               <>
-                <Loader className="animate-spin w-5 h-5" /> Saving...
+                <Loader className="animate-spin w-5 h-5" /> Saving Changes...
               </>
             ) : (
               <>
-                <Save className="w-5 h-5" /> Update Course
+                <Save className="w-5 h-5" /> Update Course Info
               </>
             )}
           </button>
         </div>
-
       </form>
+
+      {/* 2. ✅ Curriculum Builder Section */}
+      <CurriculumBuilder 
+        courseId={id} 
+        sections={courseContent} 
+        onUpdate={fetchCourse} 
+      />
+      
     </div>
   );
 };
