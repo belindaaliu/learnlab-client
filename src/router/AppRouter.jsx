@@ -34,6 +34,7 @@ import CertificateDetail from "../pages/Student/CertificateDetail";
 import PublicProfile from "../pages/Student/PublicProfile";
 import EditProfile from "../pages/Student/EditProfile";
 import EditPhoto from "../pages/Student/EditPhoto";
+import Messages from "../pages/Student/Messages";
 // import AccountSecurity from "../pages/Student/AccountSecurity";
 // import NotificationSettings from "../pages/Student/NotificationSettings";
 // import PrivacySettings from "../pages/Student/PrivacySettings";
@@ -53,6 +54,7 @@ import InstructorDashboard from "../pages/Instructor/Dashboard";
 import InstructorCoursesList from "../pages/Instructor/CoursesList";
 import CreateCourse from "../pages/Instructor/CreateCourse";
 import EditCourse from "../pages/Instructor/EditCourse";
+import InstructorMessages from "../pages/Instructor/Messages";
 
 export const router = createBrowserRouter([
   // ===================================
@@ -127,6 +129,7 @@ export const router = createBrowserRouter([
       { path: "public-profile/:id", element: <PublicProfile /> },
       { path: "edit-profile", element: <EditProfile /> },
       { path: "edit-photo", element: <EditPhoto /> },
+      { path: "messages", element: <Messages /> },
       // { path: "security", element: <AccountSecurity /> },
       // { path: "notifications", element: <NotificationSettings /> },
       // { path: "privacy", element: <PrivacySettings /> },
@@ -173,6 +176,9 @@ export const router = createBrowserRouter([
       
       // Edit a course
       { path: "courses/edit/:id", element: <EditCourse /> },
+      
+      // Messages
+      { path: "messages", element: <InstructorMessages /> },
     ],
   },
   
