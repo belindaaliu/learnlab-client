@@ -8,7 +8,7 @@ const InstructorCoursesList = () => {
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem('accessToken'); 
-  const API_URL = "http://localhost:5000/api";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
   const defaultImage = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
 
