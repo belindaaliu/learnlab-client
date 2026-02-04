@@ -12,9 +12,22 @@ export default function StudentLayout() {
   const [realUser, setRealUser] = useState(null);
   const [purchasedCourses, setPurchasedCourses] = useState([]);
   const [wishlistCourses, setWishlistCourses] = useState([]);
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+  const handleSearch = async (e) => {
+  if (e.key === "Enter" && searchQuery.trim() !== "") {
+    try {
+      const res = await axios.get(`${API_URL}/courses/search?q=${searchQuery}`);
+      setSearchResults(res.data);
+    } catch (err) {
+      console.error("Search error:", err);
+    }
+  }
+};
+
 
   // Get logged‑in user from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
@@ -60,29 +73,33 @@ export default function StudentLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ---------------- TOP NAVBAR ---------------- */}
-      <header className="bg-white h-20 border-b border-gray-200 shadow-sm flex items-center px-6 gap-6">
+      <header className="bg-white h-20 border-b border-gray-200 shadow-sm flex items-center px-6 justify-between">
         
         {/* LEFT — Logo */}
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-4">
           <Link to="/student/dashboard">
             <img src={logo} alt="LearnLab Logo" className="h-10 w-auto object-contain" />
           </Link>
         </div>
 
         {/* CENTER — Search Bar */}
-        <div className="hidden md:flex flex-1 max-w-3xl mx-6 relative">
+        {/* <div className="hidden md:flex flex-1 max-w-3xl mx-6 relative">
           <input
             type="text"
             placeholder="Search your courses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
             className="w-full pl-12 pr-4 py-3 rounded-full bg-gray-100 border-transparent 
-                       focus:bg-white focus:border-primary focus:ring-2 focus:ring-purple-100 
-                       outline-none transition text-sm"
+                      focus:bg-white focus:border-primary focus:ring-2 focus:ring-purple-100 
+                      outline-none transition text-sm"
           />
+
           <Search className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-        </div>
+        </div> */}
 
         {/* RIGHT — Navigation + Icons */}
-        <div className="flex items-center gap-6 shrink-0">
+        <div className="flex items-center gap-6 ">
 
           {/* Plans & Pricing */}
           <Link to="/pricing" className="text-sm font-medium text-gray-700 hover:text-primary transition">
@@ -95,7 +112,7 @@ export default function StudentLayout() {
           </Link>
 
           {/* My Learning */}
-          <div className="relative group pt-2">
+          <div className="relative group">
           <Link
             to="/student/learning"
             className="text-sm font-medium text-gray-700 hover:text-primary transition"
@@ -142,7 +159,7 @@ export default function StudentLayout() {
 
         
           {/* Wishlist */}
-          <div className="relative group pt-2">
+          <div className="relative group">
             <Link
               to="/student/learning?tab=wishlist"
               className="text-sm font-medium text-gray-700 hover:text-primary transition"
@@ -210,7 +227,7 @@ export default function StudentLayout() {
           </Link>
 
           {/* Avatar */}
-          <div className="relative group cursor-pointer pt-2">
+          <div className="relative group cursor-pointer">
             {realUser?.photo_url ? (
               <img
                 src={realUser.photo_url}
@@ -311,7 +328,7 @@ export default function StudentLayout() {
 
       {/* ---------------- PAGE CONTENT ---------------- */}
       <main className="flex-1 p-8">
-        <Outlet />
+        <Outlet context={{ searchResults, searchQuery }} />
       </main>
     </div>
   );

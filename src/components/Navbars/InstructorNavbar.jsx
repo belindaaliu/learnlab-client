@@ -45,8 +45,8 @@ export default function InstructorNavbar() {
           <Link to="/instructor/courses" className="hover:text-white transition flex items-center gap-2">
               <BookOpen className="w-4 h-4"/> Courses
           </Link>
-          <Link to="/instructor/communication" className="hover:text-white transition flex items-center gap-2">
-              <MessageSquare className="w-4 h-4"/> Communication
+          <Link to="/instructor/messages" className="hover:text-white transition flex items-center gap-2">
+              <MessageSquare className="w-4 h-4"/> Messages
           </Link>
           <Link to="/instructor/performance" className="hover:text-white transition flex items-center gap-2">
               <BarChart className="w-4 h-4"/> Performance
