@@ -73,17 +73,17 @@ export default function StudentLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ---------------- TOP NAVBAR ---------------- */}
-      <header className="bg-white h-20 border-b border-gray-200 shadow-sm flex items-center px-6 gap-6">
+      <header className="bg-white h-20 border-b border-gray-200 shadow-sm flex items-center px-6 justify-between">
         
         {/* LEFT — Logo */}
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-4">
           <Link to="/student/dashboard">
             <img src={logo} alt="LearnLab Logo" className="h-10 w-auto object-contain" />
           </Link>
         </div>
 
         {/* CENTER — Search Bar */}
-        <div className="hidden md:flex flex-1 max-w-3xl mx-6 relative">
+        {/* <div className="hidden md:flex flex-1 max-w-3xl mx-6 relative">
           <input
             type="text"
             placeholder="Search your courses..."
@@ -96,10 +96,10 @@ export default function StudentLayout() {
           />
 
           <Search className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-        </div>
+        </div> */}
 
         {/* RIGHT — Navigation + Icons */}
-        <div className="flex items-center gap-6 shrink-0">
+        <div className="flex items-center gap-6 ">
 
           {/* Plans & Pricing */}
           <Link to="/pricing" className="text-sm font-medium text-gray-700 hover:text-primary transition">
@@ -112,7 +112,7 @@ export default function StudentLayout() {
           </Link>
 
           {/* My Learning */}
-          <div className="relative group pt-2">
+          <div className="relative group">
           <Link
             to="/student/learning"
             className="text-sm font-medium text-gray-700 hover:text-primary transition"
@@ -159,7 +159,7 @@ export default function StudentLayout() {
 
         
           {/* Wishlist */}
-          <div className="relative group pt-2">
+          <div className="relative group">
             <Link
               to="/student/learning?tab=wishlist"
               className="text-sm font-medium text-gray-700 hover:text-primary transition"
@@ -227,7 +227,7 @@ export default function StudentLayout() {
           </Link>
 
           {/* Avatar */}
-          <div className="relative group cursor-pointer pt-2">
+          <div className="relative group cursor-pointer">
             {realUser?.photo_url ? (
               <img
                 src={realUser.photo_url}
