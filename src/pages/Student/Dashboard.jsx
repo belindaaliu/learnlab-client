@@ -15,7 +15,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
   const [recommended, setRecommended] = useState([]);
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
   // Get logged‑in user from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
