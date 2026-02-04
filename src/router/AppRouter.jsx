@@ -47,6 +47,8 @@ import PaymentHistory from "../pages/Payment/History";
 import AdminInstructors from "../pages/Admin/AdminInstructors";
 import AdminInstructorReview from "../pages/Admin/AdminInstructorReview";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
+import AdminCourses from "../pages/Admin/AdminCourses";
+import AdminAnalytics from "../pages/Admin/AdminAnalytics";
 
 // INSTRUCTOR PAGES
 import InstructorDashboard from "../pages/Instructor/Dashboard";
@@ -191,8 +193,8 @@ export const router = createBrowserRouter([
       { path: "dashboard", element: <AdminDashboard /> },
       { path: "instructors", element: <AdminInstructors /> },
       { path: "instructors/:instructorId/review", element: <AdminInstructorReview />, },
-      { path: "analytics", element: <div>Analytics Page Coming Soon</div> },
-      { path: "courses", element: <div>Course List Page Coming Soon</div> },
+      { path: "analytics", element: < AdminAnalytics /> },
+      { path: "courses", element: <AdminCourses /> },
     ],
   },
   
