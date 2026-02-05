@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Clock,
   BookOpen,
@@ -15,11 +15,14 @@ import {
 import Button from "../../components/common/Button";
 import VideoPreviewModal from "../../components/Modals/VideoPreviewModal";
 import api from "../../utils/Api";
+import { addToCart } from "../../services/cartService";
 
 const CourseDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [addingToCart, setAddingToCart] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("Course Introduction");
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -86,6 +89,42 @@ const CourseDetails = () => {
 
     if (id) fetchCourse();
   }, [id]);
+
+  // --- CART LOGIC ---
+  const handleAddToCart = async () => {
+    if (!course) return;
+    setAddingToCart(true);
+    try {
+      await addToCart(course.id);
+      alert("Added to cart!");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    try {
+      await addToCart(course.id);
+      navigate("/checkout", {
+        state: {
+          checkoutType: "cart",
+          cartItems: [
+            {
+              id: course.id,
+              title: course.title,
+              price: course.price,
+            },
+          ],
+          totalAmount: Number(course.price),
+        },
+      });
+    } catch (err) {
+      console.error("Buy Now error:", err);
+      navigate("/cart");
+    }
+  };
 
   const openPreview = (title = "Course Introduction") => {
     setPreviewTitle(title);
@@ -303,10 +342,19 @@ const CourseDetails = () => {
                 <span className="text-sm text-gray-500">50% off</span>
               </div>
 
-              <Button fullWidth size="lg" className="h-12 text-lg font-bold">
+              <Button
+                fullWidth
+                size="lg"
+                className="h-12 text-lg font-bold"
+                onClick={handleAddToCart}
+                isLoading={addingToCart}
+              >
                 Add to Cart
               </Button>
-              <button className="w-full py-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition">
+              <button
+                onClick={handleBuyNow}
+                className="w-full py-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition"
+              >
                 Buy Now
               </button>
 

@@ -48,9 +48,16 @@ const SubscriptionPlans = () => {
     }
 
     if (!user) {
-      navigate("/login", { state: { from: location.pathname } });
-      return;
-    }
+    const pendingCheckout = {
+      type: "subscription",
+      planId: plan.id,
+      totalAmount: Number(plan.price),
+    };
+    localStorage.setItem("pending_checkout", JSON.stringify(pendingCheckout));
+    
+    navigate("/login", { state: { from: location.pathname } });
+    return;
+  }
 
     navigate("/checkout", {
       state: {

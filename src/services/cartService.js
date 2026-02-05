@@ -10,4 +10,9 @@ const removeCartItem = async (cartItemId) => {
   return res.data;
 };
 
-export { getCart, removeCartItem };
+const addToCart = async (courseId) => {
+  const res = await api.post('/cart', { courseId });
+  return res.data;
+};
+
+export { getCart, removeCartItem, addToCart };

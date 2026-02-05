@@ -12,6 +12,7 @@ import CourseCard from "../../components/CourseCard";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import api from "../../utils/Api";
+import { addToCart } from "../../services/cartService";
 
 // We will keep the categories fixed for now
 const CATEGORIES = ["All", "Development", "Business", "Design"];
@@ -168,6 +169,16 @@ const CoursesList = () => {
     setShowSortMenu(false);
   };
 
+  const handleAddToCart = async (courseId) => {
+    try {
+      await addToCart(courseId);
+      alert("Course added to cart successfully!");
+    } catch (err) {
+      console.error("Add to cart error:", err);
+      alert(err.response?.data?.message || "Failed to add course to cart.");
+    }
+  };
+
   return (
     <div
       className="bg-gray-50 min-h-screen py-8"
@@ -292,7 +303,11 @@ const CoursesList = () => {
             ) : courses.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {courses.map((course) => (
-                  <CourseCard key={course.id} course={course} />
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    onAddToCart={() => handleAddToCart(course.id)}
+                  />
                 ))}
               </div>
             ) : (
