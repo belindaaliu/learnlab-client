@@ -7,9 +7,15 @@ import { Link } from "react-router-dom";
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
-  const API_URL = import.meta.env.VITE_API_URL;
+//   const API_URL = import.meta.env.VITE_API_URL;
+
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 
   const user = JSON.parse(localStorage.getItem("user"));
+    const userId = user?.id;
+
+    
   const token = localStorage.getItem("token");
 
   const authHeader = {
@@ -59,33 +65,42 @@ export default function CoursePlayer() {
   // ============================
   // FETCH COURSE + LESSONS + NEXT LESSON
   // ============================
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const courseRes = await axios.get(
-          `${API_URL}/course-player/${courseId}`,
-          authHeader
-        );
-        setCourse(courseRes.data);
+    useEffect(() => {
+  if (!userId) {
+    window.location.href = "/login";
+    return;
+  }
 
-        const lessonsRes = await axios.get(
-          `${API_URL}/course-player/${courseId}/lessons`,
-          authHeader
-        );
-        setLessons(lessonsRes.data);
+  async function loadData() {
+    try {
+      // Fetch course player data
+      const courseRes = await axios.get(
+        `${API_URL}/course-player/${courseId}`,
+        authHeader
+      );
+      setCourse(courseRes.data);
 
-        const nextRes = await axios.get(
-          `${API_URL}/course-player/${courseId}/next`,
-          authHeader
-        );
-        setCurrentLesson(nextRes.data);
-      } catch (err) {
-        console.error("Error loading course player:", err);
-      }
+      // Fetch lessons
+      const lessonsRes = await axios.get(
+        `${API_URL}/course-player/${courseId}/lessons`,
+        authHeader
+      );
+      setLessons(lessonsRes.data);
+
+      // Fetch next lesson
+      const nextRes = await axios.get(
+        `${API_URL}/course-player/${courseId}/next`,
+        authHeader
+      );
+      setCurrentLesson(nextRes.data);
+    } catch (err) {
+      console.error("Error loading course player:", err);
     }
+  }
 
-    loadData();
-  }, [courseId]);
+  loadData();
+}, [courseId, userId]);
+
 
   // ============================
   // MARK LESSON COMPLETE + LOAD NEXT

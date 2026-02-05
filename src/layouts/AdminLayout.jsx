@@ -26,7 +26,7 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex">
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col fixed h-full">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
@@ -68,7 +68,6 @@ const AdminLayout = () => {
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8">
         <div className="max-w-7xl mx-auto">
-          {/* This is where the specific admin pages will render */}
           <Outlet />
         </div>
       </main>
