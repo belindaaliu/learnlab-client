@@ -1,106 +1,243 @@
-import React, { useEffect, useState } from 'react';
-import api from '../../utils/Api';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, PieChart, Pie, Cell 
-} from 'recharts';
-import { Users, BookOpen, DollarSign, Clock } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import api from "../../utils/Api";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+import {
+  Award,
+  AlertTriangle,
+  PieChart as PieIcon,
+  Zap,
+  Target,
+} from "lucide-react";
 
 const AdminAnalytics = () => {
   const [data, setData] = useState(null);
+  const COLORS = [
+    "#6366f1",
+    "#8b5cf6",
+    "#ec4899",
+    "#f43f5e",
+    "#f59e0b",
+    "#10b981",
+  ];
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    api.get('/admin/dashboard-stats')
-      .then(res => setData(res.data))
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+    api
+      .get("/admin/analytics")
+      .then((res) => {
+        setData(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load analytics. Check server logs.");
+        setLoading(false);
+      });
   }, []);
 
-  if (loading) return <div className="p-10 text-center">Loading Analytics...</div>;
+  if (loading)
+    return (
+      <div className="p-10 text-center text-gray-500 animate-pulse">
+        Crunching platform data...
+      </div>
+    );
+  if (error)
+    return <div className="p-10 text-center text-red-500">{error}</div>;
+  if (!data) return null;
 
-  // Data for the Pie Chart (User Distribution)
-  const userData = [
-    { name: 'Students', value: data.metrics.students },
-    { name: 'Instructors', value: data.metrics.instructors },
-  ];
-  const COLORS = ['#8884d8', '#82ca9d'];
+  // Add default empty arrays to prevent "cannot map of undefined" errors
+  const {
+    courseAnalytics = { mostEnrolledCourses: [], dropOffCourses: [] },
+    financialAnalytics = { revenueByCategory: [], refundPercentage: 0 },
+    engagementAnalytics = { quizStats: [] },
+    userAnalytics = { mostActiveLearners: [] },
+  } = data;
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Admin Dashboard</h1>
-
-      {/* --- STAT CARDS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <StatCard title="Total Revenue" value={`$${data.metrics.revenue}`} icon={<DollarSign/>} color="bg-green-500" />
-        <StatCard title="Total Courses" value={data.metrics.courses} icon={<BookOpen/>} color="bg-blue-500" />
-        <StatCard title="Pending Approvals" value={data.metrics.pendingApprovals} icon={<Clock/>} color="bg-yellow-500" />
-        <StatCard title="Total Students" value={data.metrics.students} icon={<Users/>} color="bg-purple-500" />
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">Platform Insights</h1>
+        <p className="text-gray-500">
+          Deep dive into user behavior and course performance
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* --- REVENUE/ACTIVITY CHART --- */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold mb-6">Enrollment Activity</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        {/* Most Enrolled - Bar Chart */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Award className="text-amber-500" /> Top Performing Courses
+          </h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.recentEnrollments}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="enrolled_at" tickFormatter={(str) => new Date(str).toLocaleDateString()} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="id" name="Enrollment ID" fill="#8884d8" radius={[4, 4, 0, 0]} />
+              <BarChart
+                data={courseAnalytics.mostEnrolledCourses}
+                layout="vertical"
+                margin={{ left: 40 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  horizontal={true}
+                  vertical={false}
+                  stroke="#f1f5f9"
+                />
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="title"
+                  type="category"
+                  width={120}
+                  tick={{ fontSize: 11, fill: "#475569" }}
+                  axisLine={false}
+                />
+                <Tooltip cursor={{ fill: "#f8fafc" }} />
+                <Bar
+                  dataKey="enrollments"
+                  fill="#6366f1"
+                  radius={[0, 4, 4, 0]}
+                  barSize={20}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* --- USER DISTRIBUTION PIE CHART --- */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold mb-6">User Distribution</h2>
-          <div className="h-80">
+        {/* Revenue Pie Chart */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <PieIcon className="text-indigo-600" /> Revenue Share
+          </h2>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={userData}
+                  data={financialAnalytics.revenueByCategory}
                   innerRadius={60}
-                  outerRadius={100}
+                  outerRadius={80}
                   paddingAngle={5}
-                  dataKey="value"
+                  dataKey="total"
+                  nameKey="category"
                 >
-                  {userData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {financialAnalytics.revenueByCategory.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value) => `$${value}`} />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ paddingTop: "20px" }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6 mt-4">
-             {userData.map((entry, i) => (
-               <div key={i} className="flex items-center gap-2">
-                 <div className="w-3 h-3 rounded-full" style={{backgroundColor: COLORS[i]}}></div>
-                 <span className="text-sm text-gray-600 font-medium">{entry.name}</span>
-               </div>
-             ))}
+          <div className="mt-4 p-4 bg-indigo-50 rounded-xl">
+            <p className="text-xs text-indigo-700 font-medium">Refund Rate</p>
+            <p className="text-xl font-bold text-indigo-900">
+              {financialAnalytics.refundPercentage.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Quiz Engagement */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Zap size={20} className="text-yellow-500" /> Quiz Stats
+          </h2>
+          <div className="space-y-4">
+            {engagementAnalytics.quizStats.slice(0, 5).map((quiz, i) => (
+              <div
+                key={i}
+                className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"
+              >
+                <span className="text-xs font-semibold text-gray-700 truncate w-32">
+                  {quiz.title}
+                </span>
+                <div className="text-right">
+                  <div className="text-sm font-bold text-indigo-600">
+                    {Math.round(quiz.avg_score)}%{" "}
+                    <span className="text-[10px] text-gray-400 font-normal">
+                      Score
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-400">
+                    {quiz.attempts} attempts
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Drop-off Risk */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-rose-600">
+            <AlertTriangle size={20} /> Drop-off Risk
+          </h2>
+          <div className="space-y-5">
+            {courseAnalytics.dropOffCourses.slice(0, 4).map((course, i) => (
+              <div key={i}>
+                <div className="flex justify-between text-xs mb-1 font-medium">
+                  <span className="truncate w-40">{course.title}</span>
+                  <span className="text-rose-500">
+                    {course.incomplete} left
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-1.5">
+                  <div
+                    className="bg-rose-400 h-1.5 rounded-full"
+                    style={{
+                      width: `${(course.incomplete / course.total) * 100}%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Active Learners */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Target size={20} className="text-emerald-500" /> Most Active
+          </h2>
+          <div className="space-y-3">
+            {userAnalytics.mostActiveLearners.map((learner, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-bold text-gray-300">
+                    #{i + 1}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700">
+                    {learner.name}
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                  {learner.completed_lessons} lessons
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-// Reusable Stat Card Component
-const StatCard = ({ title, value, icon, color }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-    <div className={`p-4 rounded-xl text-white ${color}`}>
-      {React.cloneElement(icon, { size: 24 })}
-    </div>
-    <div>
-      <p className="text-sm text-gray-500 font-medium">{title}</p>
-      <h3 className="text-2xl font-bold text-gray-800">{value}</h3>
-    </div>
-  </div>
-);
 
 export default AdminAnalytics;
