@@ -182,11 +182,12 @@ export default function MyLearning() {
 
                           {/* START / CONTINUE LINK */}
                           <a
-                            href={`/course/${course.id}`}
+                            href={`/course/${course.id}/learn`}
                             className="text-primary font-semibold text-sm whitespace-nowrap hover:underline"
                           >
                             {started ? "Continue Learning" : "Start Course"}
                           </a>
+
                         </div>
                       </div>
                     </div>

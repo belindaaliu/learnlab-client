@@ -58,6 +58,8 @@ import CreateCourse from "../pages/Instructor/CreateCourse";
 import EditCourse from "../pages/Instructor/EditCourse";
 import InstructorMessages from "../pages/Instructor/Messages";
 
+import CoursePlayer from "../pages/Student/CoursePlayer";
+
 export const router = createBrowserRouter([
   // ===================================
   // PUBLIC LAYOUT
@@ -183,6 +185,20 @@ export const router = createBrowserRouter([
       { path: "messages", element: <InstructorMessages /> },
     ],
   },
+
+
+  // ===================================
+  // COURSE PLAYER (FULL PAGE)
+  // ===================================
+  {
+    path: "/course/:courseId/learn",
+    element: (
+      <ProtectedRoute allowedRoles="student">
+        <CoursePlayer />
+      </ProtectedRoute>
+    ),
+  },
+
   
 
   // ===================================
