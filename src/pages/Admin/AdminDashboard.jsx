@@ -1,79 +1,329 @@
-import React, { useEffect, useState } from 'react';
-import { Users, BookOpen, DollarSign, Clock, CheckCircle } from 'lucide-react';
-import api from '../../utils/Api';
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import {
+  Users,
+  BookOpen,
+  DollarSign,
+  Activity,
+  UserPlus,
+  BarChart3,
+  PieChart as PieIcon,
+  Download,
+  Calendar,
+  RefreshCcw,
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import api from "../../utils/Api";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#3b82f6", "#8b5cf6"];
 
 const AdminDashboard = () => {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const dashboardRef = useRef(null);
+
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (dateRange.start) params.start = dateRange.start;
+      if (dateRange.end) params.end = dateRange.end;
+      const res = await api.get("/admin/dashboard-stats", { params });
+      setData(res.data);
+    } catch (err) {
+      console.error("Dashboard Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange.start, dateRange.end]);
 
   useEffect(() => {
-    api.get('/admin/dashboard-stats').then(res => setData(res.data));
-  }, []);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
-  if (!data) return <div className="p-8">Loading Overview...</div>;
+  const resetFilters = () => {
+    setDateRange({ start: "", end: "" });
+  };
 
-  const stats = [
-    { label: 'Total Revenue', value: `$${data.metrics.revenue}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100' },
-    { label: 'Active Students', value: data.metrics.students, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { label: 'Total Courses', value: data.metrics.courses, icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { label: 'Pending Apps', value: data.metrics.pendingApprovals, icon: Clock, color: 'text-orange-600', bg: 'bg-orange-100' },
-  ];
+  const downloadReport = async () => {
+    if (!dashboardRef.current) return;
+
+    try {
+      const element = dashboardRef.current;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#f9fafb",
+        width: element.offsetWidth,
+        height: element.offsetHeight,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`LearnLab_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (error) {
+      console.error("PDF Export Error:", error);
+      alert("Failed to generate PDF. Check console.");
+    }
+  };
+
+  if (loading && !data) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <RefreshCcw className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  const { metrics = {}, charts = {}, activity = {} } = data || {};
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
-      
-      {/* Stat Cards */}
+    <div
+      ref={dashboardRef}
+      className="p-8 min-h-screen bg-gray-50/50 overflow-x-hidden"
+    >
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            Platform Dashboard
+          </h1>
+          <p className="text-gray-500">Visual performance and growth metrics</p>
+        </div>
+
+        <div
+          data-html2canvas-ignore
+          className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-gray-100"
+        >
+          <div className="flex items-center gap-2 px-3">
+            <Calendar size={16} className="text-gray-400" />
+            <input
+              type="date"
+              className="text-sm bg-transparent outline-none"
+              value={dateRange.start}
+              onChange={(e) =>
+                setDateRange((p) => ({ ...p, start: e.target.value }))
+              }
+            />
+            <span className="text-gray-300">to</span>
+            <input
+              type="date"
+              className="text-sm bg-transparent outline-none"
+              value={dateRange.end}
+              onChange={(e) =>
+                setDateRange((p) => ({ ...p, end: e.target.value }))
+              }
+            />
+            {(dateRange.start || dateRange.end) && (
+              <button
+                onClick={resetFilters}
+                className="ml-2 text-xs text-red-500 hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <button
+            onClick={downloadReport}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition shadow-md"
+          >
+            <Download size={18} />
+            <span className="font-semibold">Export Visual Report</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div className={`w-12 h-12 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
-              <stat.icon size={24} />
-            </div>
-            <p className="text-gray-500 text-sm font-medium">{stat.label}</p>
-            <h3 className="text-2xl font-bold">{stat.value}</h3>
-          </div>
-        ))}
+        <StatCard
+          label="Revenue"
+          value={`$${(metrics.totalRevenue || 0).toLocaleString()}`}
+          icon={<DollarSign />}
+          color="indigo"
+        />
+        <StatCard
+          label="Students"
+          value={metrics.totalStudents || 0}
+          icon={<Users />}
+          color="blue"
+        />
+        <StatCard
+          label="Courses"
+          value={metrics.totalCourses || 0}
+          icon={<BookOpen />}
+          color="orange"
+        />
+        <StatCard
+          label="Enrollments"
+          value={metrics.totalEnrollments || 0}
+          icon={<Activity />}
+          color="emerald"
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activity Table */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-50">
-            <h2 className="font-bold text-lg">Recent Enrollments</h2>
+      {/* Main Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <BarChart3 className="text-emerald-600" size={20} /> Revenue by
+            Month
+          </h2>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={charts.revenueByMonth}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#f1f5f9"
+                />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: "#f8fafc" }} />
+                <Bar
+                  dataKey="total"
+                  fill="#10b981"
+                  radius={[6, 6, 0, 0]}
+                  barSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-gray-500 text-sm uppercase">
-              <tr>
-                <th className="px-6 py-4">Student</th>
-                <th className="px-6 py-4">Course</th>
-                <th className="px-6 py-4">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.recentEnrollments.map((enr) => (
-                <tr key={enr.id}>
-                  <td className="px-6 py-4 font-medium">{enr.Users.first_name} {enr.Users.last_name}</td>
-                  <td className="px-6 py-4 text-gray-600">{enr.Courses.title}</td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">
-                    {new Date(enr.enrolled_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
 
-        {/* Action Shortcuts */}
-        <div className="space-y-6">
-          <div className="bg-primary text-white p-6 rounded-2xl shadow-lg shadow-primary/20">
-            <h3 className="font-bold text-xl mb-2">Platform Pulse</h3>
-            <p className="opacity-80 text-sm">You have {data.metrics.pendingApprovals} instructors waiting for review.</p>
-            <button className="mt-4 bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm">
-              Review Applications
-            </button>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <PieIcon className="text-orange-500" size={20} /> Category Split
+          </h2>
+          <div className="h-72 w-full overflow-hidden">
+            <ResponsiveContainer width="99%" height="100%">
+              <PieChart>
+                <Pie
+                  data={
+                    charts.popularCategories?.map((item) => ({
+                      ...item,
+                      total: Number(item.total),
+                    })) || []
+                  }
+                  innerRadius={60}
+                  outerRadius={80}
+                  dataKey="total"
+                  nameKey="name"
+                  paddingAngle={5}
+                >
+                  {charts.popularCategories?.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend iconType="circle" />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
+
+      {/* Bottom Row: Revenue & Category Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <Activity className="text-indigo-600" size={20} /> User Acquisition
+          </h2>
+          <div className="h-80 w-full overflow-hidden">
+            <ResponsiveContainer width="99%" height="100%">
+              <LineChart data={charts.usersByMonth}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#f1f5f9"
+                />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#6366f1"
+                  strokeWidth={4}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <UserPlus className="text-indigo-600" size={20} /> Recent Signups
+          </h2>
+          {/* Increased spacing and allowed for text wrapping */}
+          <div className="space-y-6">
+            {activity.latestUsers?.slice(0, 6).map((user) => (
+              <div key={user.id} className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold uppercase text-xs">
+                  {user.first_name?.[0]}
+                  {user.last_name?.[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {/* Removed truncate so full names show */}
+                  <p className="text-sm font-bold text-gray-900 leading-tight">
+                    {user.first_name} {user.last_name}
+                  </p>
+                  {/* Added break-all for long emails to prevent bleeding */}
+                  <p className="text-xs text-gray-500 break-all leading-normal">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatCard = ({ label, value, icon, color }) => {
+  const styles = {
+    indigo: "bg-indigo-50 text-indigo-600",
+    blue: "bg-blue-50 text-blue-600",
+    orange: "bg-orange-50 text-orange-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+  };
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+      <div className={`p-3 w-fit rounded-2xl ${styles[color]} mb-4`}>
+        {React.cloneElement(icon, { size: 24 })}
+      </div>
+      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+        {label}
+      </p>
+      <h3 className="text-2xl font-black text-gray-900 mt-1">{value}</h3>
     </div>
   );
 };
