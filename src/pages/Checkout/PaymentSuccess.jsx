@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle2, ArrowRight, PlayCircle, LayoutDashboard } from 'lucide-react';
+import { CheckCircle2, ArrowRight, LayoutDashboard } from 'lucide-react';
 import Button from '../../components/common/Button';
+import confetti from 'canvas-confetti';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -12,16 +13,43 @@ const PaymentSuccess = () => {
   const isSubscription = type === 'subscription';
 
   useEffect(() => {
-    // Redirect to dashboard automatically after 10 seconds
+    // Trigger Confetti Cannon
+    const duration = 3 * 1000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 2,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.8 },
+        colors: ['#4f46e5', '#10b981'] 
+      });
+      confetti({
+        particleCount: 2,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.8 },
+        colors: ['#4f46e5', '#10b981']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+
     const timer = setInterval(() => {
       setCountdown((prev) => prev - 1);
     }, 1000);
 
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (countdown === 0) {
       navigate('/student/dashboard');
     }
-
-    return () => clearInterval(timer);
   }, [countdown, navigate]);
 
   return (
@@ -37,7 +65,7 @@ const PaymentSuccess = () => {
 
         <div className="space-y-3">
           <h1 className="text-3xl font-black text-gray-900">Payment Successful!</h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 leading-relaxed">
             Thank you for your purchase. Your {isSubscription ? 'subscription is now active' : 'courses have been added to your library'}.
           </p>
         </div>
@@ -50,7 +78,7 @@ const PaymentSuccess = () => {
         <div className="flex flex-col gap-3">
           <Button 
             variant="primary" 
-            className="w-full py-4 flex items-center justify-center gap-2 rounded-xl"
+            className="w-full py-4 flex items-center justify-center gap-2 rounded-xl shadow-lg shadow-indigo-100"
             onClick={() => navigate('/student/dashboard')}
           >
             <LayoutDashboard className="w-5 h-5" />
@@ -59,14 +87,13 @@ const PaymentSuccess = () => {
           
           <Link 
             to="/courses" 
-            className="text-sm font-bold text-gray-500 hover:text-primary flex items-center justify-center gap-1 transition-colors"
+            className="text-sm font-bold text-gray-500 hover:text-indigo-600 flex items-center justify-center gap-1 transition-colors"
           >
             Browse more courses <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
-        {/* Countdown Footer */}
-        <p className="text-xs text-gray-400 pt-4">
+        <p className="text-xs text-gray-400 pt-4 font-medium italic">
           Redirecting to dashboard in {countdown} seconds...
         </p>
       </div>

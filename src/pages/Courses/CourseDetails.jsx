@@ -13,6 +13,7 @@ import {
   Target,
 } from "lucide-react";
 import Button from "../../components/common/Button";
+import Modal from "../../components/common/Modal";
 import VideoPreviewModal from "../../components/Modals/VideoPreviewModal";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
@@ -26,6 +27,18 @@ const CourseDetails = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("Course Introduction");
   const [showFullDesc, setShowFullDesc] = useState(false);
+
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+    confirmText: "Close",
+    onConfirm: null,
+  });
+
+  const closeModal = () =>
+    setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   // --- DUMMY DATA FOR MISSING DB FIELDS ---
 
@@ -96,9 +109,25 @@ const CourseDetails = () => {
     setAddingToCart(true);
     try {
       await addToCart(course.id);
-      alert("Added to cart!");
+      setModalConfig({
+        isOpen: true,
+        title: "Added to Cart",
+        message: `${course.title} has been successfully added to your shopping cart.`,
+        type: "success",
+        confirmText: "View Cart",
+        onConfirm: () => navigate("/cart"),
+      });
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to add to cart");
+      setModalConfig({
+        isOpen: true,
+        title: "Action Failed",
+        message:
+          err.response?.data?.message ||
+          "We couldn't add this course to your cart. Please try again.",
+        type: "danger",
+        confirmText: "Try Again",
+        onConfirm: closeModal,
+      });
     } finally {
       setAddingToCart(false);
     }
@@ -121,8 +150,15 @@ const CourseDetails = () => {
         },
       });
     } catch (err) {
-      console.error("Buy Now error:", err);
-      navigate("/cart");
+      setModalConfig({
+        isOpen: true,
+        title: "Checkout Error",
+        message:
+          "We encountered an issue starting your checkout. You might already have this item in your cart.",
+        type: "warning",
+        confirmText: "Go to Cart",
+        onConfirm: () => navigate("/cart"),
+      });
     }
   };
 
@@ -144,6 +180,17 @@ const CourseDetails = () => {
         course={course}
         title={previewTitle}
         videoUrl="" // we put the real link after
+      />
+
+      <Modal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        onConfirm={modalConfig.onConfirm || closeModal}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        confirmText={modalConfig.confirmText}
+        showCancel={modalConfig.type === "danger" || modalConfig.type === "warning"} 
       />
 
       {/* --- HERO HEADER --- */}
