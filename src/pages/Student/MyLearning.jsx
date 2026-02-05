@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import CourseCard from "../../components/CourseCard";
-
 
 export default function MyLearning() {
   const [activeTab, setActiveTab] = useState("courses");
@@ -13,22 +12,19 @@ export default function MyLearning() {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-  // Logged‑in user
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?.id;
 
   const [searchParams, setSearchParams] = useSearchParams();
-    const tabFromUrl = searchParams.get("tab"); // "wishlist" | null
+  const tabFromUrl = searchParams.get("tab");
 
-    useEffect(() => {
-    // If URL has ?tab=wishlist, activate wishlist tab
+  useEffect(() => {
     if (tabFromUrl === "wishlist") {
-        setActiveTab("wishlist");
+      setActiveTab("wishlist");
     } else {
-        setActiveTab("courses");
+      setActiveTab("courses");
     }
-    }, [tabFromUrl]);
-
+  }, [tabFromUrl]);
 
   useEffect(() => {
     if (!userId) return;
@@ -46,66 +42,65 @@ export default function MyLearning() {
       .catch((err) => console.error("Error fetching wishlist:", err));
   }, [userId]);
 
-  // Choose which tab’s data to show
-  const coursesToShow =
-    activeTab === "courses" ? purchasedCourses : wishlistCourses;
+  const handleRemoveFromWishlist = async (courseId) => {
+    if (!userId) return;
 
-  // Optional search filter
+    try {
+      await axios.delete(`${API_URL}/student/${userId}/wishlist/${courseId}`);
+      // Refresh wishlist by filtering out the removed course
+      setWishlistCourses((prev) => prev.filter((course) => course.id !== courseId));
+    } catch (err) {
+      console.error("Error removing from wishlist:", err);
+      alert("Failed to remove from wishlist");
+    }
+  };
+
+  const coursesToShow = activeTab === "courses" ? purchasedCourses : wishlistCourses;
+
   const filteredCourses = coursesToShow.filter((course) =>
     course.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getProgressPercent = (course) => {
-  if (!course.total_lessons || course.total_lessons === 0) return 0;
-
-  return Math.round(
-    (course.completed_lessons / course.total_lessons) * 100
-  );
-};
-
+    if (!course.total_lessons || course.total_lessons === 0) return 0;
+    return Math.round((course.completed_lessons / course.total_lessons) * 100);
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
-
-      {/* PAGE TITLE */}
       <h1 className="text-3xl font-bold mb-6">My learning</h1>
 
-      {/* TOP BAR: TABS + SEARCH */}
       <div className="flex items-center justify-between border-b pb-3 mb-6">
-
-        {/* TABS */}
         <div className="flex items-center gap-6 text-sm font-medium">
-        <button
-        onClick={() => {
-            setActiveTab("courses");
-            setSearchParams({ tab: "courses" });
-        }}
-        className={`pb-2 ${
-            activeTab === "courses"
-            ? "text-primary border-b-2 border-primary"
-            : "text-gray-600 hover:text-primary"
-        }`}
-        >
-        My Courses
-        </button>
+          <button
+            onClick={() => {
+              setActiveTab("courses");
+              setSearchParams({ tab: "courses" });
+            }}
+            className={`pb-2 ${
+              activeTab === "courses"
+                ? "text-primary border-b-2 border-primary"
+                : "text-gray-600 hover:text-primary"
+            }`}
+          >
+            My Courses
+          </button>
 
-        <button
-        onClick={() => {
-            setActiveTab("wishlist");
-            setSearchParams({ tab: "wishlist" });
-        }}
-        className={`pb-2 ${
-            activeTab === "wishlist"
-            ? "text-primary border-b-2 border-primary"
-            : "text-gray-600 hover:text-primary"
-        }`}
-        >
-        Wishlist
-        </button>
-
+          <button
+            onClick={() => {
+              setActiveTab("wishlist");
+              setSearchParams({ tab: "wishlist" });
+            }}
+            className={`pb-2 ${
+              activeTab === "wishlist"
+                ? "text-primary border-b-2 border-primary"
+                : "text-gray-600 hover:text-primary"
+            }`}
+          >
+            Wishlist
+          </button>
         </div>
 
-        {/* SEARCH */}
         <div className="relative max-w-xs">
           <input
             type="text"
@@ -120,26 +115,39 @@ export default function MyLearning() {
         </div>
       </div>
 
-      {/* COURSE LIST */}
       <div className="mt-6">
-
-        {/* --- WISHLIST USES COURSE CARD --- */}
+        {/* WISHLIST USES COURSE CARD */}
         {activeTab === "wishlist" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCourses.length > 0 ? (
               filteredCourses.map((course) => (
-                <div key={course.id} className="transform scale-[0.90] origin-top-left">
-                  <CourseCard course={course} />
+                <div key={course.id} className="relative group">
+                  {/* Remove button */}
+                  <button
+                    onClick={() => handleRemoveFromWishlist(course.id)}
+                    className="absolute top-2 right-2 z-10 bg-white rounded-full p-2 shadow-md 
+                             hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                    title="Remove from wishlist"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="transform scale-[0.90] origin-top-left">
+                    <CourseCard course={course} />
+                  </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500">No courses found in wishlist.</p>
+              <div className="col-span-3 text-center py-12">
+                <p className="text-gray-500 text-lg">No courses in your wishlist yet.</p>
+                <p className="text-gray-400 text-sm mt-2">
+                  Browse courses and click the heart icon to save them here!
+                </p>
+              </div>
             )}
           </div>
         )}
 
-
-        {/* --- MY COURSES USES ORIGINAL LIST LAYOUT --- */}
+        {/* MY COURSES USES ORIGINAL LIST LAYOUT */}
         {activeTab === "courses" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredCourses.length > 0 ? (
@@ -160,16 +168,14 @@ export default function MyLearning() {
                       />
 
                       <div className="flex flex-col flex-1">
-                        <h3 className="text-lg font-semibold line-clamp-2">{course.title}</h3>
+                        <h3 className="text-lg font-semibold line-clamp-2">
+                          {course.title}
+                        </h3>
                         <p className="text-sm text-gray-600">{course.instructor}</p>
 
-                        {/* This spacer forces the bottom row to stay fixed */}
                         <div className="flex-1" />
 
-                        {/* BOTTOM ROW: PROGRESS + LINK */}
                         <div className="flex items-center justify-between mt-4">
-
-                          {/* PROGRESS BAR */}
                           <div className="flex-1 mr-4">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
@@ -179,31 +185,26 @@ export default function MyLearning() {
                             </div>
                             <div className="text-xs text-gray-500 mt-1">{percent}%</div>
                           </div>
-
-                          {/* START / CONTINUE LINK */}
                           <a
                             href={`/course/${course.id}/learn`}
                             className="text-primary font-semibold text-sm whitespace-nowrap hover:underline"
                           >
                             {started ? "Continue Learning" : "Start Course"}
                           </a>
-
                         </div>
                       </div>
                     </div>
                   </div>
-
                 );
               })
             ) : (
-              <p className="text-gray-500">No courses found.</p>
+              <div className="col-span-2 text-center py-12">
+                <p className="text-gray-500 text-lg">No courses found.</p>
+              </div>
             )}
           </div>
         )}
-
       </div>
-
-
     </div>
   );
 }
