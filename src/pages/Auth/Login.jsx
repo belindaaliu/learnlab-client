@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import logo from '../../assets/images/logo.png'; // ADD THIS IMPORT
 import './Auth.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -53,7 +54,7 @@ function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="logo">
-            <img src="/src/assets/images/logo.png" alt="LearnLab" />
+            <img src={logo} alt="LearnLab" /> {/* CHANGED THIS */}
           </div>
           <h1>Welcome back</h1>
           <p>Continue your learning journey</p>
