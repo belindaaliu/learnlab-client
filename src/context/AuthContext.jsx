@@ -3,27 +3,49 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('accessToken');
+      return (savedUser && token) ? JSON.parse(savedUser) : null;
+    } catch (err) {
+      console.error("Auth hydration error:", err);
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('accessToken');
-    
-    if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = () => {
+    const syncAuth = () => {
+      const token = localStorage.getItem('accessToken');
       const savedUser = localStorage.getItem('user');
-      setUser(savedUser ? JSON.parse(savedUser) : null);
+      
+      if (token && savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(prev => {
+            const isDifferent = JSON.stringify(prev) !== JSON.stringify(parsedUser);
+            return isDifferent ? parsedUser : prev;
+          });
+        } catch (e) {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    syncAuth();
+
+    window.addEventListener('storage', syncAuth);
+    const interval = setInterval(syncAuth, 500);
+
+    return () => {
+      window.removeEventListener('storage', syncAuth);
+      clearInterval(interval);
+    };
   }, []);
 
   const logout = () => {
@@ -34,16 +56,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout, loading }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ user, setUser, logout, loading }}>    
+      {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
