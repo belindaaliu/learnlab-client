@@ -11,6 +11,7 @@ import {
   Lock,
   AlertCircle,
   Target,
+  Heart,
 } from "lucide-react";
 import Button from "../../components/common/Button";
 import Modal from "../../components/common/Modal";
@@ -40,7 +41,13 @@ const CourseDetails = () => {
   const closeModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
-  // --- DUMMY DATA FOR MISSING DB FIELDS ---
+  // Wishlist state
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+
+  // Get logged-in user
+  const user = JSON.parse(localStorage.getItem("user"));
 
   const extraData = {
     requirements: [
@@ -64,27 +71,11 @@ const CourseDetails = () => {
         <li>Extensive case studies that will help you reinforce what you have learned</li>
       </ul>
       <p class="mb-4">We will cover a wide variety of topics, including: Ethics, Quantitative Methods, Corporate Finance, Economics, and Alternative Investments.</p>
-      <p>Click the “Buy Now” button and become a part of our program today.</p>
+      <p>Click the "Buy Now" button and become a part of our program today.</p>
     `,
   };
 
-  // useEffect(() => {
-  //   const fetchCourse = async () => {
-  //     try {
-  //       const response = await fetch(`http://localhost:5001/api/courses/${id}`);
-  //       if (response.ok) {
-  //         const data = await response.json();
-  //         setCourse(data);
-  //       }
-  //     } catch (error) {
-  //       console.error(error);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   fetchCourse();
-  // }, [id]);
-
+  // Fetch course data
   useEffect(() => {
     const fetchCourse = async () => {
       try {
@@ -103,7 +94,33 @@ const CourseDetails = () => {
     if (id) fetchCourse();
   }, [id]);
 
-  // --- CART LOGIC ---
+  // Check if in wishlist and if enrolled
+  useEffect(() => {
+    const checkWishlistAndEnrollment = async () => {
+      if (!user || !id) return;
+
+      try {
+        // Check wishlist
+        const wishlistResponse = await api.get(`/student/${user.id}/wishlist`);
+        const inWishlist = wishlistResponse.data.some(
+          (item) => item.id === parseInt(id)
+        );
+        setIsInWishlist(inWishlist);
+
+        // Check enrollment
+        const coursesResponse = await api.get(`/student/${user.id}/courses`);
+        const enrolled = coursesResponse.data.some(
+          (item) => item.id === parseInt(id)
+        );
+        setIsEnrolled(enrolled);
+      } catch (err) {
+        console.error("Error checking wishlist/enrollment:", err);
+      }
+    };
+
+    checkWishlistAndEnrollment();
+  }, [id, user]);
+
   const handleAddToCart = async () => {
     if (!course) return;
     setAddingToCart(true);
@@ -162,6 +179,40 @@ const CourseDetails = () => {
     }
   };
 
+  const handleAddToWishlist = async () => {
+    if (!user) {
+      alert("Please log in to add to wishlist");
+      navigate("/login");
+      return;
+    }
+
+    setWishlistLoading(true);
+    try {
+      await api.post(`/student/${user.id}/wishlist`, { courseId: course.id });
+      setIsInWishlist(true);
+      alert("Added to wishlist!");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to add to wishlist");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  const handleRemoveFromWishlist = async () => {
+    if (!user) return;
+
+    setWishlistLoading(true);
+    try {
+      await api.delete(`/student/${user.id}/wishlist/${course.id}`);
+      setIsInWishlist(false);
+      alert("Removed from wishlist");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to remove from wishlist");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   const openPreview = (title = "Course Introduction") => {
     setPreviewTitle(title);
     setIsPreviewOpen(true);
@@ -179,7 +230,7 @@ const CourseDetails = () => {
         onClose={() => setIsPreviewOpen(false)}
         course={course}
         title={previewTitle}
-        videoUrl="" // we put the real link after
+        videoUrl=""
       />
 
       <Modal
@@ -193,7 +244,7 @@ const CourseDetails = () => {
         showCancel={modalConfig.type === "danger" || modalConfig.type === "warning"} 
       />
 
-      {/* --- HERO HEADER --- */}
+      {/* HERO HEADER */}
       <div className="bg-slate-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-8">
           <div className="lg:w-2/3 space-y-4">
@@ -247,9 +298,9 @@ const CourseDetails = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-10 relative">
-        {/* --- LEFT COLUMN --- */}
+        {/* LEFT COLUMN */}
         <div className="lg:col-span-2 space-y-8">
-          {/* 1. What you'll learn */}
+          {/* What you'll learn */}
           <div className="bg-white p-6 border border-gray-200 shadow-sm">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               What you'll learn
@@ -267,7 +318,7 @@ const CourseDetails = () => {
             </div>
           </div>
 
-          {/* 2. Course Content */}
+          {/* Course Content */}
           <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               Course Content
@@ -311,7 +362,7 @@ const CourseDetails = () => {
             </div>
           </div>
 
-          {/* 3. Requirements */}
+          {/* Requirements */}
           <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               Requirements
@@ -323,7 +374,7 @@ const CourseDetails = () => {
             </ul>
           </div>
 
-          {/* 4. Description */}
+          {/* Description */}
           <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               Description
@@ -340,7 +391,7 @@ const CourseDetails = () => {
             </button>
           </div>
 
-          {/* 5. Who this course is for */}
+          {/* Who this course is for */}
           <div className="bg-white p-6 border border-gray-200 rounded-lg">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               Who this course is for:
@@ -356,7 +407,7 @@ const CourseDetails = () => {
           </div>
         </div>
 
-        {/* --- RIGHT COLUMN (Sticky Sidebar) --- */}
+        {/* RIGHT COLUMN (Sticky Sidebar) */}
         <div className="lg:col-span-1 relative">
           <div className="bg-white p-1 shadow-xl border border-gray-200 lg:sticky lg:top-24 -mt-32 lg:mt-0 z-10 w-full lg:w-[340px] ml-auto">
             <div
@@ -379,35 +430,74 @@ const CourseDetails = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl font-bold text-gray-900">
-                  ${course.price}
-                </span>
-                <span className="text-lg text-gray-400 line-through">
-                  ${Number(course.price) * 2}
-                </span>
-                <span className="text-sm text-gray-500">50% off</span>
-              </div>
+              {/* If already enrolled, show "Go to Course" */}
+              {isEnrolled ? (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <p className="text-green-800 font-semibold">You own this course</p>
+                  </div>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    className="h-12 text-lg font-bold"
+                    onClick={() => navigate(`/course/${course.id}/learn`)}
+                  >
+                    Go to Course
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-3xl font-bold text-gray-900">
+                      ${course.price}
+                    </span>
+                    <span className="text-lg text-gray-400 line-through">
+                      ${Number(course.price) * 2}
+                    </span>
+                    <span className="text-sm text-gray-500">50% off</span>
+                  </div>
 
-              <Button
-                fullWidth
-                size="lg"
-                className="h-12 text-lg font-bold"
-                onClick={handleAddToCart}
-                isLoading={addingToCart}
-              >
-                Add to Cart
-              </Button>
-              <button
-                onClick={handleBuyNow}
-                className="w-full py-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition"
-              >
-                Buy Now
-              </button>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    className="h-12 text-lg font-bold"
+                    onClick={handleAddToCart}
+                    isLoading={addingToCart}
+                  >
+                    Add to Cart
+                  </Button>
 
-              <p className="text-center text-xs text-gray-500">
-                30-Day Money-Back Guarantee
-              </p>
+                  <button
+                    onClick={handleBuyNow}
+                    className="w-full py-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition"
+                  >
+                    Buy Now
+                  </button>
+
+                  {/* Wishlist Button */}
+                  <button
+                    onClick={isInWishlist ? handleRemoveFromWishlist : handleAddToWishlist}
+                    disabled={wishlistLoading}
+                    className={`w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2 ${
+                      isInWishlist
+                        ? "bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
+                        : "border-purple-600 text-purple-600 hover:bg-purple-50"
+                    } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Heart className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`} />
+                    {wishlistLoading
+                      ? "Processing..."
+                      : isInWishlist
+                      ? "Remove from Wishlist"
+                      : "Add to Wishlist"}
+                  </button>
+
+                  <p className="text-center text-xs text-gray-500">
+                    30-Day Money-Back Guarantee
+                  </p>
+                </>
+              )}
 
               <div className="space-y-2 text-sm text-gray-700 pt-2">
                 <p className="font-bold">This course includes:</p>
