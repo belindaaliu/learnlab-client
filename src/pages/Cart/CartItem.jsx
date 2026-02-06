@@ -1,32 +1,50 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const CartItem = ({ item, onRemove }) => {
-  const { course } = item;
+  const course = item.course || item;
+  const courseId = course.id || item.course_id;
+
+  const instructorId =
+    course.instructor_id || course.Users?.id || course.user_id;
+  const instructorName =
+    course.instructor_name ||
+    (course.Users
+      ? `${course.Users.first_name} ${course.Users.last_name}`
+      : "Instructor");
 
   return (
     <div className="flex flex-col md:flex-row gap-4 py-6 border-b border-gray-200 items-start group">
       {/* Course Image */}
-      <div className="relative shrink-0">
+      <Link to={`/course/${courseId}`} className="relative shrink-0 block">
         <img
           src={
-            course.image || "https://via.placeholder.com/300x200?text=No+Image"
+            course.image ||
+            course.thumbnail ||
+            "https://via.placeholder.com/300x200?text=No+Image"
           }
           alt={course.title}
-          className="w-full md:w-32 h-20 object-cover rounded-sm border border-gray-100"
+          className="w-full md:w-32 h-20 object-cover rounded-sm border border-gray-100 hover:opacity-90 transition"
         />
-      </div>
+      </Link>
 
       {/* Course Info */}
       <div className="flex-grow space-y-1">
-        <h3 className="font-bold text-gray-900 text-[16px] leading-tight hover:text-primary cursor-pointer transition-colors">
-          {course.title}
-        </h3>
+        <Link to={`/courses/${courseId}`}>
+          <h3 className="font-bold text-gray-900 text-[16px] leading-tight hover:text-purple-700 cursor-pointer transition-colors">
+            {course.title}
+          </h3>
+        </Link>
 
+        {/* INSTRUCTOR  */}
         <p className="text-xs text-gray-600">
           By{" "}
-          <span className="hover:text-gray-900 cursor-pointer underline decoration-gray-400">
-            {course.instructor_name}
-          </span>
+          <Link
+            to={`/student/public-profile/${instructorId}`}
+            className="text-primary hover:text-indigo-800 underline transition-colors"
+          >
+            {instructorName}
+          </Link>
         </p>
 
         {/* Udemy Style Rating Placeholder */}

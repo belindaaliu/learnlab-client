@@ -13,6 +13,7 @@ const SubscriptionPlans = () => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userSub, setUserSub] = useState(null);
 
   const isDashboardView = location.pathname.startsWith("/student");
 
@@ -36,6 +37,15 @@ const SubscriptionPlans = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      api
+        .get("/subscription/overview")
+        .then((res) => setUserSub(res.data.data))
+        .catch((err) => console.error("Error fetching sub status", err));
+    }
+  }, [user]);
+
   if (authLoading || loading)
     return <div className="p-10 text-center">Loading...</div>;
   if (error)
@@ -48,16 +58,16 @@ const SubscriptionPlans = () => {
     }
 
     if (!user) {
-    const pendingCheckout = {
-      type: "subscription",
-      planId: plan.id,
-      totalAmount: Number(plan.price),
-    };
-    localStorage.setItem("pending_checkout", JSON.stringify(pendingCheckout));
-    
-    navigate("/login", { state: { from: location.pathname } });
-    return;
-  }
+      const pendingCheckout = {
+        type: "subscription",
+        planId: plan.id,
+        totalAmount: Number(plan.price),
+      };
+      localStorage.setItem("pending_checkout", JSON.stringify(pendingCheckout));
+
+      navigate("/login", { state: { from: location.pathname } });
+      return;
+    }
 
     navigate("/checkout", {
       state: {
@@ -84,52 +94,63 @@ const SubscriptionPlans = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-center">
-        {plans.map((plan) => (
-          <div
-            key={plan.id.toString()}
-            className={`bg-white border rounded-3xl p-8 shadow-sm flex flex-col items-center text-center ${
-              plan.plan_type === "team"
-                ? "border-purple-500 ring-2 ring-purple-50"
-                : "border-gray-100"
-            }`}
-          >
-            <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+        {plans.map((plan) => {
+          const isCurrentPlan =
+            userSub?.hasActiveSubscription && userSub?.planName === plan.name;
+          const hasAnyPlan = userSub?.hasActiveSubscription;
 
-            <div className="mb-4">
-              <span className="text-4xl font-bold text-gray-900">
-                ${Number(plan.price).toFixed(2)}
-              </span>
-              <span className="text-gray-500 text-sm ml-1">
-                /
-                {plan.duration_days === 30
-                  ? "month"
-                  : `${plan.duration_days} days`}
-              </span>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
-
-            <ul className="space-y-4 mb-10 flex-grow text-left w-full max-w-[250px]">
-              {plan.features?.map((feature, index) => (
-                <li
-                  key={index}
-                  className="flex items-start gap-3 text-sm text-gray-700"
-                >
-                  <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-
-            <Button
-              variant={plan.plan_type === "personal" ? "primary" : "outline"}
-              className="w-full py-4 font-semibold"
-              onClick={() => handleAction(plan)}
+          return (
+            <div
+              key={plan.id.toString()}
+              className={`bg-white border rounded-3xl p-8 shadow-sm flex flex-col items-center text-center ${
+                plan.plan_type === "team"
+                  ? "border-purple-500 ring-2 ring-purple-50"
+                  : "border-gray-100"
+              }`}
             >
-              {plan.button_text || "Get Started"}
-            </Button>
-          </div>
-        ))}
+              <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-gray-900">
+                  ${Number(plan.price).toFixed(2)}
+                </span>
+                <span className="text-gray-500 text-sm ml-1">
+                  /
+                  {plan.duration_days === 30
+                    ? "month"
+                    : `${plan.duration_days} days`}
+                </span>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
+
+              <ul className="space-y-4 mb-10 flex-grow text-left w-full max-w-[250px]">
+                {plan.features?.map((feature, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start gap-3 text-sm text-gray-700"
+                  >
+                    <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                variant={isCurrentPlan ? "outline" : "primary"}
+                className="w-full py-4 font-semibold"
+                disabled={isCurrentPlan}
+                onClick={() => handleAction(plan)}
+              >
+                {isCurrentPlan
+                  ? "Current Plan"
+                  : hasAnyPlan
+                    ? "Upgrade/Change"
+                    : plan.button_text || "Get Started"}
+              </Button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import {
   Clock,
   BookOpen,
   Star,
-  User,
   Globe,
   CheckCircle,
   PlayCircle,
-  Lock,
-  AlertCircle,
   Target,
   Heart,
 } from "lucide-react";
 import Button from "../../components/common/Button";
+import Modal from "../../components/common/Modal";
 import VideoPreviewModal from "../../components/Modals/VideoPreviewModal";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
@@ -21,20 +20,37 @@ import { addToCart } from "../../services/cartService";
 const CourseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // State Management
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("Course Introduction");
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
+  const [cartLoading, setCartLoading] = useState(false);
 
   // Wishlist state
   const [isInWishlist, setIsInWishlist] = useState(false);
-  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+    confirmText: "Close",
+    onConfirm: null,
+  });
+
+  const closeModal = () =>
+    setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   // Get logged-in user
-  const user = JSON.parse(localStorage.getItem("user"));
+  // const user = JSON.parse(localStorage.getItem("user"));
 
   const extraData = {
     requirements: [
@@ -82,46 +98,141 @@ const CourseDetails = () => {
   }, [id]);
 
   // Check if in wishlist and if enrolled
+  // useEffect(() => {
+  //   const checkWishlistAndEnrollment = async () => {
+  //     if (!user || !id) return;
+
+  //     try {
+  //       // Check wishlist
+  //       const wishlistResponse = await api.get(`/student/${user.id}/wishlist`);
+  //       const inWishlist = wishlistResponse.data.some(
+  //         (item) => item.id === parseInt(id),
+  //       );
+  //       setIsInWishlist(inWishlist);
+
+  //       // Check enrollment
+  //       const coursesResponse = await api.get(`/student/${user.id}/courses`);
+  //       const enrolled = coursesResponse.data.some(
+  //         (item) => item.id === parseInt(id),
+  //       );
+  //       setIsEnrolled(enrolled);
+
+  //       const cartRes = await api.get("/cart");
+  //       const inCart = cartRes.data.items?.some(
+  //         (item) => item.course_id === parseInt(id),
+  //       );
+  //       setIsInCart(inCart);
+  //     } catch (err) {
+  //       console.error("Error checking wishlist/enrollment:", err);
+  //     }
+  //   };
+
+  //   checkWishlistAndEnrollment();
+  // }, [id, user]);
+
   useEffect(() => {
-    const checkWishlistAndEnrollment = async () => {
-      if (!user || !id) return;
+    const checkAllStatuses = async () => {
+      if (!id) return;
 
-      try {
-        // Check wishlist
-        const wishlistResponse = await api.get(`/student/${user.id}/wishlist`);
-        const inWishlist = wishlistResponse.data.some(
-          (item) => item.id === parseInt(id)
-        );
-        setIsInWishlist(inWishlist);
+      // GUEST CHECK (Check LocalStorage regardless of login status for UI consistency)
+      const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+      const inGuestCart = guestCart.some(
+        (item) => Number(item.id) === Number(id),
+      );
 
-        // Check enrollment
-        const coursesResponse = await api.get(`/student/${user.id}/courses`);
-        const enrolled = coursesResponse.data.some(
-          (item) => item.id === parseInt(id)
-        );
-        setIsEnrolled(enrolled);
-      } catch (err) {
-        console.error("Error checking wishlist/enrollment:", err);
+      if (user) {
+        try {
+          // Use Promise.all for parallel fetching to improve performance
+          const [coursesRes, wishlistRes, cartRes] = await Promise.all([
+            api.get(`/student/${user.id}/courses`),
+            api.get(`/student/${user.id}/wishlist`),
+            api.get("/cart"),
+          ]);
+
+          setIsEnrolled(
+            coursesRes.data?.some((item) => item.id === parseInt(id)),
+          );
+          setIsInWishlist(
+            wishlistRes.data?.some((item) => item.id === parseInt(id)),
+          );
+
+          const cartItems = cartRes.data?.data || cartRes.data.items || [];
+          const inBackendCart = cartItems.some(
+            (item) => Number(item.course_id || item.courseId) === Number(id),
+          );
+
+          setIsInCart(inGuestCart || inBackendCart);
+        } catch (err) {
+          console.error("Status check failed:", err);
+        }
+      } else {
+        // If no user, only the guest cart status matters
+        setIsInCart(inGuestCart);
       }
     };
 
-    checkWishlistAndEnrollment();
+    checkAllStatuses();
   }, [id, user]);
 
   const handleAddToCart = async () => {
-    if (!course) return;
-    setAddingToCart(true);
-    try {
-      await addToCart(course.id);
-      alert("Added to cart!");
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to add to cart");
-    } finally {
-      setAddingToCart(false);
+    if (!course || isEnrolled) return;
+
+    if (user) {
+      setAddingToCart(true);
+      try {
+        await addToCart(course.id);
+        setIsInCart(true);
+        setModalConfig({
+          isOpen: true,
+          title: "Added to Cart",
+          message: `${course.title} is now in your cart.`,
+          type: "success",
+          confirmText: "View Cart",
+          onConfirm: () => navigate("/cart"),
+        });
+      } catch (err) {
+        setModalConfig({
+          isOpen: true,
+          title: "Action Failed",
+          message: "Could not add to cart. It may already be there.",
+          type: "danger",
+          confirmText: "Close",
+          onConfirm: closeModal,
+        });
+      } finally {
+        setAddingToCart(false);
+      }
+    } else {
+      // Guest Logic
+      const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+      if (!guestCart.find((item) => item.id === course.id)) {
+        guestCart.push({
+          id: course.id,
+          title: course.title,
+          price: course.price,
+          thumbnail: course.thumbnail_url,
+          instructor_id: course.Users?.id,
+          instructor_name: `${course.Users?.first_name} ${course.Users?.last_name}`,
+        });
+        localStorage.setItem("cart", JSON.stringify(guestCart));
+      }
+      setIsInCart(true);
+      navigate("/cart");
     }
   };
 
   const handleBuyNow = async () => {
+    if (!user) {
+      navigate("/login", {
+        state: {
+          from: `/course/${id}`,
+          intent: "buy_now",
+          courseId: id,
+        },
+      });
+      return;
+    }
+
     try {
       await addToCart(course.id);
       navigate("/checkout", {
@@ -138,8 +249,15 @@ const CourseDetails = () => {
         },
       });
     } catch (err) {
-      console.error("Buy Now error:", err);
-      navigate("/cart");
+      setModalConfig({
+        isOpen: true,
+        title: "Checkout Error",
+        message:
+          "We encountered an issue starting your checkout. You might already have this item in your cart.",
+        type: "warning",
+        confirmText: "Go to Cart",
+        onConfirm: () => navigate("/cart"),
+      });
     }
   };
 
@@ -152,7 +270,10 @@ const CourseDetails = () => {
 
     setWishlistLoading(true);
     try {
-      await api.post(`/student/${user.id}/wishlist`, { courseId: course.id });
+      // await api.post(`/student/${user.id}/wishlist`, { courseId: course.id });
+      const payload = { course_id: Number(course.id) };
+
+      await api.post(`/student/${user.id}/wishlist`, payload);
       setIsInWishlist(true);
       alert("Added to wishlist!");
     } catch (err) {
@@ -184,7 +305,7 @@ const CourseDetails = () => {
 
   if (loading)
     return <div className="text-center py-20">Loading course details...</div>;
-  if (!course)
+  if (!course || !course.title)
     return <div className="text-center py-20">Course not found.</div>;
 
   return (
@@ -195,6 +316,19 @@ const CourseDetails = () => {
         course={course}
         title={previewTitle}
         videoUrl=""
+      />
+
+      <Modal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        onConfirm={modalConfig.onConfirm || closeModal}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        confirmText={modalConfig.confirmText}
+        showCancel={
+          modalConfig.type === "danger" || modalConfig.type === "warning"
+        }
       />
 
       {/* HERO HEADER */}
@@ -388,7 +522,9 @@ const CourseDetails = () => {
                 <div className="space-y-4">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                     <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <p className="text-green-800 font-semibold">You own this course</p>
+                    <p className="text-green-800 font-semibold">
+                      You own this course
+                    </p>
                   </div>
                   <Button
                     fullWidth
@@ -413,12 +549,13 @@ const CourseDetails = () => {
 
                   <Button
                     fullWidth
-                    size="lg"
-                    className="h-12 text-lg font-bold"
-                    onClick={handleAddToCart}
+                    onClick={
+                      isInCart ? () => navigate("/cart") : handleAddToCart
+                    }
                     isLoading={addingToCart}
+                    variant={isInCart ? "outline" : "primary"}
                   >
-                    Add to Cart
+                    {isInCart ? "Go to Cart" : "Add to Cart"}
                   </Button>
 
                   <button
@@ -430,7 +567,11 @@ const CourseDetails = () => {
 
                   {/* Wishlist Button */}
                   <button
-                    onClick={isInWishlist ? handleRemoveFromWishlist : handleAddToWishlist}
+                    onClick={
+                      isInWishlist
+                        ? handleRemoveFromWishlist
+                        : handleAddToWishlist
+                    }
                     disabled={wishlistLoading}
                     className={`w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2 ${
                       isInWishlist
@@ -438,12 +579,14 @@ const CourseDetails = () => {
                         : "border-purple-600 text-purple-600 hover:bg-purple-50"
                     } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    <Heart className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`} />
+                    <Heart
+                      className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`}
+                    />
                     {wishlistLoading
                       ? "Processing..."
                       : isInWishlist
-                      ? "Remove from Wishlist"
-                      : "Add to Wishlist"}
+                        ? "Remove from Wishlist"
+                        : "Add to Wishlist"}
                   </button>
 
                   <p className="text-center text-xs text-gray-500">
