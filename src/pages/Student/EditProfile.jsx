@@ -16,10 +16,16 @@ export default function EditProfile() {
   });
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-  const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(localStorage.getItem("user"));
 
-  useEffect(() => {
-    axios.get(`${API_URL}/student/me/${user.id}`).then((res) => {
+const token = user?.token || localStorage.getItem("accessToken");
+
+useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = res.data;
 
       setForm({
@@ -33,8 +39,14 @@ export default function EditProfile() {
         interests: data.interests || [],
         resume_url: data.resume_url || "",
       });
-    });
-  }, []);
+    } catch (err) {
+      console.error("Error fetching profile:", err.response?.data || err.message);
+    }
+  };
+
+  fetchProfile();
+}, []);
+
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -44,7 +56,9 @@ export default function EditProfile() {
   const handleSubmit = async () => {
   try {
     console.log("Sending form:", form);
-    const res = await axios.put(`${API_URL}/student/me/${user.id}`, form);
+    const res = await axios.put(`${API_URL}/users/me`, form, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     console.log("Response:", res.data);
     alert("Profile updated");
   } catch (err) {

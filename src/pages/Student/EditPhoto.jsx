@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import ProfileSidebar from "../../components/ProfileSidebar";
 
@@ -10,6 +10,11 @@ export default function EditPhoto() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Optional: refresh preview if user changes elsewhere
+  useEffect(() => {
+    setPreview(user?.photo_url || "");
+  }, [user?.photo_url]);
+
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
     setFile(selected);
@@ -19,38 +24,43 @@ export default function EditPhoto() {
     }
   };
 
-  const handleUpload = async () => {
-    if (!file) {
-      alert("Please select an image first");
-      return;
-    }
+const token = user?.token || localStorage.getItem("accessToken");
 
-    setLoading(true);
+const handleUpload = async () => {
+  if (!file) {
+    alert("Please select an image first");
+    return;
+  }
 
-    try {
-      const formData = new FormData();
-      formData.append("photo", file);
+  setLoading(true);
 
-      const res = await axios.post(
-        `${API_URL}/student/upload-photo/${user.id}`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+  try {
+    const formData = new FormData();
+    formData.append("photo", file);
 
-      // Update localStorage so sidebar updates instantly
-      localStorage.setItem("user", JSON.stringify(res.data));
+    const res = await axios.post(
+      `${API_URL}/users/upload-photo`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-      alert("Photo updated successfully");
-      window.location.reload();
-    } catch (err) {
-      console.error("Upload error:", err.response?.data || err.message);
-      alert("Upload failed — check console");
-    } finally {
-      setLoading(false);
-    }
-  };
+    localStorage.setItem("user", JSON.stringify(res.data));
+
+    alert("Photo updated successfully");
+    setPreview(res.data.photo_url);
+  } catch (err) {
+    console.error("Upload error:", err.response?.data || err.message);
+    alert("Upload failed — check console");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="max-w-7xl mx-auto flex">
@@ -99,10 +109,6 @@ export default function EditPhoto() {
             </button>
           </div>
         </div>
-
-        <button className="bg-primary text-white px-6 py-3 rounded-lg font-semibold">
-          Save
-        </button>
       </div>
     </div>
   );

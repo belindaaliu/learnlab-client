@@ -66,6 +66,7 @@ export default function MyLearning() {
     return Math.round((course.completed_lessons / course.total_lessons) * 100);
   };
 
+
   return (
     <div className="max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">My learning</h1>
