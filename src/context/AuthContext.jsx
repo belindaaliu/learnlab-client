@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-// import { useNavigate } from "react-router-dom";
+import axios from "axios"; 
 
 const AuthContext = createContext(null);
 
@@ -16,8 +16,8 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(true);
-  // const navigate = useNavigate();
 
+  // syncAuth Logic 
   useEffect(() => {
     const syncAuth = () => {
       const token = localStorage.getItem("accessToken");
@@ -27,8 +27,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const parsedUser = JSON.parse(savedUser);
           setUser((prev) => {
-            const isDifferent =
-              JSON.stringify(prev) !== JSON.stringify(parsedUser);
+            const isDifferent = JSON.stringify(prev) !== JSON.stringify(parsedUser);
             return isDifferent ? parsedUser : prev;
           });
         } catch (e) {
@@ -41,7 +40,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     syncAuth();
-
     window.addEventListener("storage", syncAuth);
     const interval = setInterval(syncAuth, 500);
 
@@ -51,15 +49,41 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+ // Cart Merge Logic 
+useEffect(() => {
+  const mergeCartOnLogin = async () => {
+    const token = localStorage.getItem("accessToken");
+    const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    // ONLY merge if there is a guest cart and a user
+    if (user && user.role === 'student' && guestCart.length > 0 && token) {
+      try {
+        console.log("Merging guest cart...");
+        await Promise.all(
+          guestCart.map((item) =>
+            axios.post(
+              `${import.meta.env.VITE_API_URL}/cart`,
+              { courseId: item.id },
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+          )
+        );
+        localStorage.removeItem("cart");
+      } catch (err) {
+        console.error("Cart merge failed:", err);
+      }
+    }
+  };
+
+  mergeCartOnLogin();
+}, [user]); 
+
+  //  Checkout Recovery Logic 
   useEffect(() => {
     const pendingData = localStorage.getItem("pending_checkout");
-
     if (user && pendingData) {
-      // Move data to sessionStorage so Checkout can find it without state
       sessionStorage.setItem("checkout_recovery", pendingData);
       localStorage.removeItem("pending_checkout");
-
-      // Use a hard redirect to bypass the Login.jsx redirect
       window.location.href = "/checkout";
     }
   }, [user]);

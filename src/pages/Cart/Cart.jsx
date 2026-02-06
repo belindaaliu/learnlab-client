@@ -4,6 +4,7 @@ import CartItem from "./CartItem";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import CourseCard from "../../components/CourseCard";
+import { useAuth } from "../../context/AuthContext";
 import { getCart, removeCartItem } from "../../services/cartService.js";
 
 const RECOMMENDATIONS = [
@@ -11,6 +12,7 @@ const RECOMMENDATIONS = [
 ];
 
 const Cart = () => {
+  const { user } = useAuth();
   const [cartData, setCartData] = useState({
     items: [],
     total: 0,
@@ -22,8 +24,33 @@ const Cart = () => {
   const fetchCart = async () => {
     setLoading(true);
     try {
-      const data = await getCart();
-      setCartData(data || { items: [], total: 0, itemCount: 0 });
+      if (user) {
+        // LOGGED IN: Get from API
+        const data = await getCart();
+        setCartData(data || { items: [], total: 0, itemCount: 0 });
+      } else {
+        // GUEST: Get from LocalStorage
+        const localItems = JSON.parse(localStorage.getItem("cart")) || [];
+        
+        const formattedItems = localItems.map(item => ({
+          id: item.id,
+          course: {
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            image: item.thumbnail, 
+            instructor_name: "Instructor" 
+          }
+        }));
+
+        const total = localItems.reduce((sum, item) => sum + Number(item.price), 0);
+        
+        setCartData({
+          items: formattedItems,
+          total: total,
+          itemCount: localItems.length,
+        });
+      }
     } catch (err) {
       console.error("Cart fetch error:", err);
     } finally {
@@ -31,17 +58,20 @@ const Cart = () => {
     }
   };
 
-  useEffect(() => {
+ useEffect(() => {
     fetchCart();
-  }, []);
+  }, [user]);
 
+  // handleRemove for guests
   const handleRemove = async (id) => {
-    try {
+    if (user) {
       await removeCartItem(id);
-      fetchCart();
-    } catch (err) {
-      console.error("Remove error:", err);
+    } else {
+      const localItems = JSON.parse(localStorage.getItem("cart")) || [];
+      const filtered = localItems.filter(item => item.id !== id);
+      localStorage.setItem("cart", JSON.stringify(filtered));
     }
+    fetchCart();
   };
 
   const handleGoToCheckout = () => {

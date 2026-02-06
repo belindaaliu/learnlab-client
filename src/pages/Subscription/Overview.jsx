@@ -42,7 +42,16 @@ const SubscriptionOverview = () => {
       await api.post("/subscription/cancel");
       fetchStatus();
     } catch (err) {
-      // TODO: Show error modal logic here...
+       setModal({
+        isOpen: true,
+        title: "Action Failed",
+        message:
+          err.response?.data?.message ||
+          "We couldn't cancel this course. Please try again.",
+        type: "danger",
+        confirmText: "Try Again",
+        onConfirm: closeModal,
+      });
     } finally {
       setLoading(false);
     }
