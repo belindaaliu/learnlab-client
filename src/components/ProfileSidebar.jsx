@@ -17,14 +17,12 @@ export default function ProfileSidebar() {
           { label: "Public profile", to: "/instructor/edit-profile" },
           { label: "Photo", to: "/instructor/edit-photo" },
           { label: "Account security", to: "/instructor/security" },
-          { label: "Notifications", to: "/instructor/notifications" },
         ]
       : [
           { label: "Edit profile", to: "/student/edit-profile" },
           { label: "Photo", to: "/student/edit-photo" },
           { label: "Account security", to: "/student/security" },
           { label: "Subscriptions", to: "/student/subscriptions" },
-          { label: "Notifications", to: "/student/notifications" },
         ];
 
   return (
