@@ -156,8 +156,20 @@ export const router = createBrowserRouter([
         path: "payment",
         children: [{ path: "history", element: <PaymentHistory /> }],
       },
+
+      // { path: "course/:courseId/learn", element: <CoursePlayer /> },
     ],
   },
+
+  {
+  path: "/course/:courseId/learn",
+  element: (
+    <ProtectedRoute allowedRoles="student">
+      <CoursePlayer />
+    </ProtectedRoute>
+  ),
+},
+
 
   // ===================================
   // INSTRUCTOR LAYOUT
@@ -185,20 +197,6 @@ export const router = createBrowserRouter([
       { path: "messages", element: <InstructorMessages /> },
     ],
   },
-
-
-  // ===================================
-  // COURSE PLAYER (FULL PAGE)
-  // ===================================
-  {
-    path: "/course/:courseId/learn",
-    element: (
-      <ProtectedRoute allowedRoles="student">
-        <CoursePlayer />
-      </ProtectedRoute>
-    ),
-  },
-
   
 
   // ===================================

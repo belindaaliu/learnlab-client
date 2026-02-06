@@ -7,7 +7,9 @@ import { Link } from "react-router-dom";
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
-//   const API_URL = import.meta.env.VITE_API_URL;
+
+  console.log("COURSE PLAYER PARAM courseId:", courseId);
+
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -16,11 +18,14 @@ export default function CoursePlayer() {
     const userId = user?.id;
 
     
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("accessToken");
 
-  const authHeader = {
+    const config = {
     headers: { Authorization: `Bearer ${token}` }
-  };
+    };
+
+    // console.log("ACCESS TOKEN:", token);
+
 
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
@@ -73,28 +78,29 @@ export default function CoursePlayer() {
 
   async function loadData() {
     try {
+
+        console.log("LOADING DATA FOR COURSE:", courseId);
+
       // Fetch course player data
-      const courseRes = await axios.get(
-        `${API_URL}/course-player/${courseId}`,
-        authHeader
-      );
+      const courseRes = await axios.get(`${API_URL}/course-player/${courseId}`, config);
       setCourse(courseRes.data);
 
       // Fetch lessons
-      const lessonsRes = await axios.get(
-        `${API_URL}/course-player/${courseId}/lessons`,
-        authHeader
-      );
+      const lessonsRes = await axios.get(`${API_URL}/course-player/${courseId}/lessons`, config);
+
       setLessons(lessonsRes.data);
 
       // Fetch next lesson
-      const nextRes = await axios.get(
-        `${API_URL}/course-player/${courseId}/next`,
-        authHeader
-      );
+      const nextRes = await axios.get(`${API_URL}/course-player/${courseId}/next`, config);
+
+    console.log("COURSE DATA:", courseRes.data);
+    console.log("LESSONS DATA:", lessonsRes.data);
+    console.log("NEXT LESSON DATA:", nextRes.data);
+
       setCurrentLesson(nextRes.data);
     } catch (err) {
-      console.error("Error loading course player:", err);
+      console.error("COURSE PLAYER ERROR:", err.response?.data || err.message);
+
     }
   }
 
@@ -107,16 +113,10 @@ export default function CoursePlayer() {
   // ============================
   const handleVideoEnd = async () => {
     try {
-      await axios.post(
-        `${API_URL}/course-player/${courseId}/lessons/${currentLesson.id}/complete`,
-        {},
-        authHeader
-      );
+      await axios.post(`${API_URL}/course-player/${courseId}/lessons/${currentLesson.id}/complete`, {}, config);
 
-      const nextRes = await axios.get(
-        `${API_URL}/course-player/${courseId}/next`,
-        authHeader
-      );
+      const nextRes = await axios.get(`${API_URL}/course-player/${courseId}/next`, config);
+
       setCurrentLesson(nextRes.data);
     } catch (err) {
       console.error("Error marking lesson complete:", err);
@@ -126,9 +126,10 @@ export default function CoursePlayer() {
   // ============================
   // SAFE LOADING
   // ============================
-  if (!course || !currentLesson) {
+    if (!course) {
     return <div className="text-white p-10">Loading course...</div>;
-  }
+    }
+
 
 return (
   <div className="min-h-screen bg-slate-900 text-white flex flex-col">
@@ -195,19 +196,29 @@ return (
       {/* VIDEO PLAYER */}
       <div className="flex-1 bg-black flex flex-col">
         <div className="flex-1 flex items-center justify-center bg-black">
-          <video
+        {currentLesson && currentLesson.video_url ? (
+        <video
             key={currentLesson.video_url}
             controls
             autoPlay
             onEnded={handleVideoEnd}
             className="w-full h-full object-contain"
             src={currentLesson.video_url}
-          />
+        />
+        ) : (
+        <div className="text-gray-400 text-center">
+            No video available for this lesson.
+        </div>
+        )}
+ 
         </div>
 
         <div className="p-4 bg-slate-800 text-sm border-t border-gray-700">
           <p className="font-bold mb-1">Now Playing:</p>
-          <p className="text-gray-300">{currentLesson.title}</p>
+          <p className="text-gray-300">
+            {currentLesson ? currentLesson.title : "No lesson selected"}
+            </p>
+
         </div>
       </div>
 
@@ -225,7 +236,7 @@ return (
                 onClick={() => setCurrentLesson(lesson)}
                 className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition 
                 ${
-                  currentLesson.id === lesson.id
+                  currentLesson && currentLesson.id === lesson.id
                     ? "bg-slate-800"
                     : "hover:bg-slate-800"
                 }`}
