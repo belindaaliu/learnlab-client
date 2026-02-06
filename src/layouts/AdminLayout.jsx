@@ -5,6 +5,7 @@ import {
   Users, 
   BookOpen, 
   BarChart3, 
+  Layers,
   LogOut, 
   ShieldCheck 
 } from 'lucide-react';
@@ -23,6 +24,7 @@ const AdminLayout = () => {
     { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
     { label: 'Courses', path: '/admin/courses', icon: BookOpen },
     { label: 'Instructors', path: '/admin/instructors', icon: Users },
+    { label: 'Subscriptions', path: '/admin/subscriptions', icon: Layers },
   ];
 
   return (

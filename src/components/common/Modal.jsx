@@ -8,8 +8,9 @@ const Modal = ({
   onConfirm,
   title,
   message,
+  children, 
   confirmText = "Confirm",
-  type = "info", // "info", "danger", or "warning"
+  type = "info", // "info", "danger", "warning", or "success"
   showCancel = false,
 }) => {
   if (!isOpen) return null;
@@ -23,7 +24,10 @@ const Modal = ({
       icon: <AlertCircle className="w-6 h-6 text-blue-600" />,
       bg: "bg-blue-100",
     },
-    danger: { icon: <X className="w-6 h-6 text-red-600" />, bg: "bg-red-100" },
+    danger: { 
+      icon: <X className="w-6 h-6 text-red-600" />, 
+      bg: "bg-red-100" 
+    },
     warning: {
       icon: <HelpCircle className="w-6 h-6 text-amber-600" />,
       bg: "bg-amber-100",
@@ -47,7 +51,14 @@ const Modal = ({
           </div>
 
           <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
-          <p className="text-gray-600 leading-relaxed">{message}</p>
+          
+          {/* Display message if provided */}
+          {message && <p className="text-gray-600 leading-relaxed mb-4">{message}</p>}
+          
+          {/* Display children (the form/inputs) if provided */}
+          <div className="mt-2">
+            {children}
+          </div>
         </div>
 
         <div className="bg-gray-50 px-6 py-4 flex gap-3 justify-end">
@@ -57,7 +68,13 @@ const Modal = ({
             </Button>
           )}
           <Button
-            onClick={onConfirm || onClose}
+            onClick={() => {
+              if (onConfirm) {
+                onConfirm();
+              } else {
+                onClose();
+              }
+            }}
             variant={type === "danger" ? "danger" : "primary"}
             className="px-6"
           >
