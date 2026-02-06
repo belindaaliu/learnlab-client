@@ -195,6 +195,8 @@ export const router = createBrowserRouter([
       
       // Messages
       { path: "messages", element: <InstructorMessages /> },
+      { path: "edit-profile", element: <EditProfile /> },
+      { path: "edit-photo", element: <EditPhoto /> },
     ],
   },
   

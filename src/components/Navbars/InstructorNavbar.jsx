@@ -98,7 +98,7 @@ export default function InstructorNavbar() {
                   </div>
                   
                   <div className="py-1">
-                      <Link to="/instructor/profile" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
+                      <Link to="/instructor/edit-profile" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
                           Edit Profile
                       </Link>
                       <Link to="/instructor/settings" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
