@@ -11,6 +11,7 @@ const Subscriptions = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [errors, setErrors] = useState({});
+  const [allCourses, setAllCourses] = useState([]);
 
   const defaultFeatures = {
     discount_percent: 0,
@@ -48,9 +49,22 @@ const Subscriptions = () => {
     fetchPlans();
   }, []);
 
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const { data } = await api.get("/admin/courses");
+      setAllCourses(data.data || []);
+    };
+    fetchCourses();
+  }, []);
+
   const openModal = (plan = null) => {
     if (plan) {
       setEditingPlanId(plan.id);
+
+      const assignedCourseIds = allCourses
+        .filter((course) => course.plan_id === plan.id)
+        .map((course) => course.id);
+
       // Ensure features is an object, not a string, when editing
       let currentFeatures = plan.features;
       if (typeof currentFeatures === "string") {
@@ -63,6 +77,7 @@ const Subscriptions = () => {
 
       setFormData({
         ...plan,
+        courseIds: assignedCourseIds,
         features: { ...defaultFeatures, ...(currentFeatures || {}) },
       });
     } else {
@@ -74,6 +89,7 @@ const Subscriptions = () => {
         description: "",
         button_text: "Subscribe",
         slug: "",
+        courseIds: [],
         features: defaultFeatures,
       });
     }
@@ -98,31 +114,48 @@ const Subscriptions = () => {
 
     setLoading(true);
     try {
-      const path = editingPlanId
+      const isEditing = Boolean(editingPlanId);
+      const path = isEditing
         ? `/admin/subscriptions/plans/${editingPlanId}`
         : "/admin/subscriptions/plans";
 
-      // Clean data for Backend/Prisma
       const payload = {
         ...formData,
         price: Number(formData.price),
         duration_days: Number(formData.duration_days),
       };
 
-      if (editingPlanId) {
-        await api.put(path, payload);
-      } else {
-        await api.post(path, payload);
-      }
+      const response = isEditing
+        ? await api.put(path, payload)
+        : await api.post(path, payload);
 
-      closeModal();
-      fetchPlans();
+      if (response.status === 200 || response.status === 201) {
+        closeModal();
+        fetchPlans();
+        // TODO: Add a success toast here
+      }
     } catch (err) {
-      console.error("Save error:", err.response?.data || err.message);
-      alert(
-        err.response?.data?.message ||
-          "An error occurred while saving the plan.",
-      );
+      // Extract the error details
+      const status = err.response?.status;
+      const backendMessage = err.response?.data?.message;
+      const validationErrors = err.response?.data?.errors; 
+
+      if (status === 400) {
+        // Logic for validation errors (e.g., Slug already exists)
+        setErrors(validationErrors || { general: backendMessage });
+        console.error("Validation Error:", backendMessage);
+      } else if (status === 401 || status === 403) {
+        alert(
+          "Session expired or insufficient permissions. Please log in again.",
+        );
+      } else if (status === 404) {
+        alert("The plan you are trying to edit no longer exists.");
+      } else if (status === 500) {
+        alert("Server error. Our engineers are on it!");
+      } else {
+        // Fallback for network issues or unknown errors
+        alert(err.message || "An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }
@@ -296,7 +329,7 @@ const Subscriptions = () => {
             </div>
 
             {/* Tags for Courses */}
-            <div className="mb-4">
+            {/* <div className="mb-4">
               <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
                 Subscriber Only Courses (IDs)
               </label>
@@ -352,6 +385,49 @@ const Subscriptions = () => {
                   }
                 }}
               />
+            </div> */}
+
+            {/* Replace the old Subscriber Only Courses section with this */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                Included Courses
+              </label>
+              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-xl p-3 bg-gray-50 custom-scrollbar">
+                {allCourses.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">
+                    No courses available.
+                  </p>
+                ) : (
+                  allCourses.map((course) => (
+                    <label
+                      key={course.id}
+                      className="flex items-center justify-between p-2 hover:bg-white rounded-lg transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          // "Already checked" logic
+                          checked={formData.courseIds?.includes(course.id)}
+                          onChange={(e) => {
+                            const currentIds = formData.courseIds || [];
+                            const newIds = e.target.checked
+                              ? [...currentIds, course.id]
+                              : currentIds.filter((id) => id !== course.id);
+                            setFormData({ ...formData, courseIds: newIds });
+                          }}
+                        />
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
+                          {course.title}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                        ID: {course.id}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Special Pricing */}

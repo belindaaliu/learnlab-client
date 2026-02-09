@@ -83,8 +83,23 @@ const CourseDetails = () => {
   useEffect(() => {
     const fetchCourse = async () => {
       try {
+        setLoading(true);
         const response = await api.get(`/courses/${id}`);
+        console.log("Full API Response:", response.data);
+
         setCourse(response.data.data || response.data);
+
+        const courseData = response.data.data || response.data;
+        setCourse(courseData);
+
+        if (
+          courseData.required_plan_name &&
+          courseData.required_plan_name !== "Standard"
+        ) {
+          setIsSubscriberCourse(true);
+        } else {
+          setIsSubscriberCourse(false);
+        }
       } catch (error) {
         console.error(
           "Fetch Error:",
@@ -106,6 +121,9 @@ const CourseDetails = () => {
       const inGuestCart = guestCart.some(
         (item) => Number(item.id) === Number(id),
       );
+
+      setIsEnrolled(false);
+      setIsSubscriberCourse(false);
 
       if (user) {
         try {
@@ -185,8 +203,11 @@ const CourseDetails = () => {
 
   // --- LOGIC VARIABLES ---
   const isActuallyFree = course && Number(course.price) === 0;
-  const hasAccess = isEnrolled || isSubscriberCourse || isActuallyFree;
-  const requiredPlan = course?.required_plan_name || "VIP Plan";
+
+const hasAccess = isActuallyFree || (!!user && (isEnrolled || isSubscriberCourse));
+
+const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_name || "Starter";
+
   const isPremium = Number(course?.price) > 0;
 
   const handleAddToCart = async () => {
@@ -320,8 +341,24 @@ const CourseDetails = () => {
 
   if (loading)
     return <div className="text-center py-20">Loading course details...</div>;
-  if (!course || !course.title)
-    return <div className="text-center py-20">Course not found.</div>;
+
+  if (!course) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-bold">Oops! Something went wrong.</h2>
+        <p className="text-gray-600">
+          We couldn't load this course. It might not exist or the server is
+          down.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="mt-4 text-blue-500 underline"
+        >
+          Return Home
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 relative">
@@ -588,7 +625,8 @@ const CourseDetails = () => {
                           </span>
                         </p>
                         <p className="text-[12px] text-gray-600 mt-1">
-                          Unlock this premium course and 500+ others.
+                          Unlock this premium course and all others in the{" "}
+                          {requiredPlan}.
                         </p>
                       </div>
                     </div>
