@@ -61,6 +61,8 @@ import InstructorMessages from "../pages/Instructor/Messages";
 
 import CoursePlayer from "../pages/Student/CoursePlayer";
 
+import InstructorPerformance from '../pages/Instructor/InstructorPerformance';
+
 export const router = createBrowserRouter([
   // ===================================
   // PUBLIC LAYOUT
@@ -193,6 +195,9 @@ export const router = createBrowserRouter([
       
       // Edit a course
       { path: "courses/edit/:id", element: <EditCourse /> },
+
+      // Performance
+      { path: "performance", element: <InstructorPerformance /> },
       
       // Messages
       { path: "messages", element: <InstructorMessages /> },

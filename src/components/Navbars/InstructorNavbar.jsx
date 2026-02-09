@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, BarChart, BookOpen, LogOut } from "lucide-react";
-import logo from "../../assets/images/logo.png";
+import { Bell, MessageSquare, BarChart, BookOpen, LogOut, LayoutDashboard } from "lucide-react";
+import logo from "../../assets/images/logo.png"; // اطمینان حاصل کن مسیر لوگو درست است
 
 export default function InstructorNavbar() {
   const [profile, setProfile] = useState(null);
@@ -21,7 +21,6 @@ export default function InstructorNavbar() {
 
   useEffect(() => {
     if (!userId) return;
-
     axios
       .get(`${API_URL}/student/me/${userId}`)
       .then((res) => setProfile(res.data))
@@ -31,17 +30,28 @@ export default function InstructorNavbar() {
   return (
     <header className="bg-slate-900 text-white h-20 shadow-md flex items-center px-6 gap-6 sticky top-0 z-50">
       
-      {/* LEFT — Logo */}
+      {/* LEFT — Logo & Brand Split Navigation */}
       <div className="flex items-center gap-8 shrink-0">
-        <Link to="/instructor/dashboard">
-           <div className="flex items-center gap-2">
-              <img src={logo} alt="LearnLab" className="h-8 w-auto object-contain brightness-0 invert" />
-              <span className="text-xs font-bold bg-purple-600 px-2 py-0.5 rounded uppercase tracking-wider">Instructor</span>
-           </div>
-        </Link>
+        
+        {/* این بخش تغییر کرده است: دو لینک جداگانه */}
+        <div className="flex items-center gap-3">
+
+          <Link to="/" title="Go to Main Site">
+             <img src={logo} alt="LearnLab" className="h-8 w-auto object-contain brightness-0 invert hover:opacity-80 transition" />
+          </Link>
+
+          <div className="h-6 w-px bg-slate-700 mx-1"></div>
+
+             <span className="text-xs font-bold bg-purple-600 px-2 py-0.5 rounded uppercase tracking-wider group-hover:bg-purple-500 transition">
+               Instructor
+             </span>
+        </div>
 
         {/* Instructor Navigation Links */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-300">
+          <Link to="/instructor/dashboard" className="hover:text-white transition flex items-center gap-2">
+              <LayoutDashboard className="w-4 h-4"/> Dashboard
+          </Link>
           <Link to="/instructor/courses" className="hover:text-white transition flex items-center gap-2">
               <BookOpen className="w-4 h-4"/> Courses
           </Link>
@@ -60,7 +70,7 @@ export default function InstructorNavbar() {
       {/* RIGHT — Actions */}
       <div className="flex items-center gap-6 shrink-0">
 
-        {/* Switch to Student View */}
+        {/* Switch to Student View Button */}
         <Link 
           to="/" 
           className="hidden md:block text-xs font-bold text-slate-900 bg-white hover:bg-gray-100 px-4 py-2 rounded-full transition"
@@ -76,7 +86,6 @@ export default function InstructorNavbar() {
 
         {/* Avatar / Profile Dropdown */}
         <div className="relative group h-full flex items-center cursor-pointer">
-          {/* Profile photo */}
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}
@@ -85,13 +94,13 @@ export default function InstructorNavbar() {
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold border-2 border-slate-700 group-hover:border-purple-400 transition-colors">
-              {profile?.first_name?.[0]}
+              {profile?.first_name?.[0] || "I"}
             </div>
           )}
 
           {/* Dropdown Menu */}
-          <div className="absolute right-0 top-full pt-4 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-              <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden">
+          <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden mt-2">
                   <div className="px-4 py-3 border-b bg-gray-50">
                       <p className="font-bold text-sm truncate">{profile?.first_name} {profile?.last_name}</p>
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
