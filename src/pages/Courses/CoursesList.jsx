@@ -13,6 +13,7 @@ import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
+import { useAuth } from "../../context/AuthContext";
 
 // We will keep the categories fixed for now
 const CATEGORIES = ["All", "Development", "Business", "Design"];
@@ -26,6 +27,7 @@ const SORT_OPTIONS = [
 
 const CoursesList = () => {
   const [searchParams] = useSearchParams();
+  const { userPlan, planLoading, loading: authLoading } = useAuth();
   const urlSearchQuery = searchParams.get("search");
 
   // --- STATE ---
@@ -42,78 +44,22 @@ const CoursesList = () => {
     sortBy: "newest",
   });
 
-  // // --- REAL BACKEND API CALL ---
-  // useEffect(() => {
-  //   const fetchCourses = async () => {
-  //     setIsLoading(true);
-  //     setError(null);
-
-  //     try {
-  //       const queryParams = new URLSearchParams();
-
-  //       if (filters.search) queryParams.append("search", filters.search);
-  //       if (filters.category !== "All") queryParams.append("category", filters.category);
-  //       if (filters.sortBy) queryParams.append("sort", filters.sortBy);
-
-  //       // Request to the real backend
-  //       const response = await fetch(`http://localhost:5001/api/courses?${queryParams.toString()}`);
-
-  //       if (!response.ok) throw new Error("Failed to fetch courses");
-
-  //       const data = await response.json();
-
-  //       // Price filter on the client side (because the backend doesn't have it yet)
-  //       let result = data;
-  //       if (filters.priceRange.length > 0) {
-  //         result = result.filter(c => {
-  //           const price = Number(c.price);
-  //           if (filters.priceRange.includes('free') && price === 0) return true;
-  //           if (filters.priceRange.includes('under_20') && price > 0 && price < 20) return true;
-  //           if (filters.priceRange.includes('mid') && price >= 20 && price <= 100) return true;
-  //           if (filters.priceRange.includes('high') && price > 100) return true;
-  //           return false;
-  //         });
-  //       }
-
-  //       setCourses(result);
-  //     } catch (err) {
-  //       console.error("API Error:", err);
-  //       setError("Could not load courses. Is the server running?");
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
-
-  //   // Debounce logic
-  //   const timeoutId = setTimeout(() => {
-  //     fetchCourses();
-  //   }, 500);
-
-  //   return () => clearTimeout(timeoutId);
-
-  // }, [filters]);
-
-  // --- REAL BACKEND API CALL ---
+  // --- BACKEND API CALL ---
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Prepare query parameters as an object
         const params = {};
         if (filters.search) params.search = filters.search;
         if (filters.category !== "All") params.category = filters.category;
         if (filters.sortBy) params.sort = filters.sortBy;
 
-        // Use the api utility (baseURL and Auth headers are handled automatically)
         const response = await api.get("/courses", { params });
-
-        // Axios stores the response body in .data
-        // Based on your refresh logic (response.data.data), your courses might be in data.data or data
         const data = response.data.data || response.data;
 
-        // Keep your client-side price filter logic
+        // client-side price filter logic
         let result = data;
         if (filters.priceRange.length > 0) {
           result = result.filter((c) => {
@@ -139,7 +85,6 @@ const CoursesList = () => {
         setCourses(result);
       } catch (err) {
         console.error("API Error:", err);
-        // Use the message from your backend if available
         setError(err.response?.data?.message || "Could not load courses.");
       } finally {
         setIsLoading(false);
@@ -301,14 +246,16 @@ const CoursesList = () => {
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
               </div>
             ) : courses.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map((course) => (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    onAddToCart={() => handleAddToCart(course.id)}
-                  />
-                ))}
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {courses.map((course) => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      onAddToCart={() => handleAddToCart(course.id)}
+                    />
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">

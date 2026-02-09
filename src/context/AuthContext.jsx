@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios"; 
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import axios from "axios";
+import api from "../utils/Api";
 
 const AuthContext = createContext(null);
 
@@ -16,8 +23,36 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [userPlan, setUserPlan] = useState(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
-  // syncAuth Logic 
+  // --- Global Subscription Fetcher ---
+  const fetchUserPlan = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token || !user) {
+      setUserPlan(null);
+      return;
+    }
+
+    try {
+      setPlanLoading(true);
+      const res = await api.get("/subscription/overview");
+      const planInfo = res.data?.data || res.data;
+      setUserPlan(planInfo);
+    } catch (err) {
+      console.error("Global subscription fetch failed:", err);
+      setUserPlan(null);
+    } finally {
+      setPlanLoading(false);
+    }
+  }, [user]);
+
+  // Fetch plan whenever user changes
+  useEffect(() => {
+    fetchUserPlan();
+  }, [fetchUserPlan]);
+
+  // --- Sync Auth Logic ---
   useEffect(() => {
     const syncAuth = () => {
       const token = localStorage.getItem("accessToken");
@@ -27,7 +62,8 @@ export const AuthProvider = ({ children }) => {
         try {
           const parsedUser = JSON.parse(savedUser);
           setUser((prev) => {
-            const isDifferent = JSON.stringify(prev) !== JSON.stringify(parsedUser);
+            const isDifferent =
+              JSON.stringify(prev) !== JSON.stringify(parsedUser);
             return isDifferent ? parsedUser : prev;
           });
         } catch (e) {
@@ -49,36 +85,33 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
- // Cart Merge Logic 
-useEffect(() => {
-  const mergeCartOnLogin = async () => {
-    const token = localStorage.getItem("accessToken");
-    const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+  // --- Cart Merge Logic ---
+  useEffect(() => {
+    const mergeCartOnLogin = async () => {
+      const token = localStorage.getItem("accessToken");
+      const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
 
-    // ONLY merge if there is a guest cart and a user
-    if (user && user.role === 'student' && guestCart.length > 0 && token) {
-      try {
-        console.log("Merging guest cart...");
-        await Promise.all(
-          guestCart.map((item) =>
-            axios.post(
-              `${import.meta.env.VITE_API_URL}/cart`,
-              { courseId: item.id },
-              { headers: { Authorization: `Bearer ${token}` } }
-            )
-          )
-        );
-        localStorage.removeItem("cart");
-      } catch (err) {
-        console.error("Cart merge failed:", err);
+      if (user && user.role === "student" && guestCart.length > 0 && token) {
+        try {
+          await Promise.all(
+            guestCart.map((item) =>
+              axios.post(
+                `${import.meta.env.VITE_API_URL}/cart`,
+                { courseId: item.id },
+                { headers: { Authorization: `Bearer ${token}` } },
+              ),
+            ),
+          );
+          localStorage.removeItem("cart");
+        } catch (err) {
+          console.error("Cart merge failed:", err);
+        }
       }
-    }
-  };
+    };
+    mergeCartOnLogin();
+  }, [user]);
 
-  mergeCartOnLogin();
-}, [user]); 
-
-  //  Checkout Recovery Logic 
+  // --- Checkout Recovery ---
   useEffect(() => {
     const pendingData = localStorage.getItem("pending_checkout");
     if (user && pendingData) {
@@ -88,15 +121,26 @@ useEffect(() => {
     }
   }, [user]);
 
+  // --- Logout ---
   const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
+    localStorage.clear();
     setUser(null);
+    setUserPlan(null);
+    window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        logout,
+        loading,
+        userPlan,
+        planLoading,
+        fetchUserPlan,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
