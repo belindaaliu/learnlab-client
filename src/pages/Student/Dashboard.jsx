@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import CourseCard from "../../components/CourseCard";
 import { Link } from "react-router-dom";
+import { addToCart } from "../../services/cartService";
 
 export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
@@ -34,11 +35,23 @@ export default function StudentDashboard() {
   const handleSearch = async (e) => {
     if (e.key === "Enter" && searchQuery.trim() !== "") {
       try {
-        const res = await axios.get(`${API_URL}/courses/search?q=${searchQuery}`);
+        const res = await axios.get(
+          `${API_URL}/courses/search?q=${searchQuery}`,
+        );
         setSearchResults(res.data);
       } catch (err) {
         console.error("Search error:", err);
       }
+    }
+  };
+
+  const handleAddToCart = async (courseId) => {
+    try {
+      await addToCart(courseId);
+      alert("Course added to cart successfully!");
+    } catch (err) {
+      console.error("Add to cart error:", err);
+      alert(err.response?.data?.message || "Failed to add course to cart.");
     }
   };
 
@@ -83,7 +96,11 @@ export default function StudentDashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-6">
             {searchResults.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard
+                key={course.id}
+                course={course}
+                onAddToCart={() => handleAddToCart(course.id)}
+              />
             ))}
           </div>
         </div>
@@ -91,19 +108,27 @@ export default function StudentDashboard() {
 
       {/* NO RESULTS */}
       {searchQuery && searchResults.length === 0 && (
-        <p className="text-gray-500 mt-12">No courses found for "{searchQuery}".</p>
+        <p className="text-gray-500 mt-12">
+          No courses found for "{searchQuery}".
+        </p>
       )}
 
       {/* DEFAULT — RECOMMENDATIONS */}
       {!searchQuery && (
         <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">What to learn next</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            What to learn next
+          </h2>
           <p className="text-gray-500 mb-6">Recommended for you</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {recommended.length > 0 ? (
               recommended.map((course) => (
-                <CourseCard key={course.id} course={course} />
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onAddToCart={() => handleAddToCart(course.id)}
+                />
               ))
             ) : (
               <p className="text-gray-500">No recommendations yet.</p>
