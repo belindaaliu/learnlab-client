@@ -135,6 +135,7 @@ export const router = createBrowserRouter([
       { path: "edit-profile", element: <EditProfile /> },
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "messages", element: <Messages /> },
+      { path: "cart", element: <Cart /> },
       // { path: "security", element: <AccountSecurity /> },
       // { path: "notifications", element: <NotificationSettings /> },
       // { path: "privacy", element: <PrivacySettings /> },

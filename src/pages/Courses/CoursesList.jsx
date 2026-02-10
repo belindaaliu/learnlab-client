@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
   Search,
   Filter,
   SlidersHorizontal,
   ChevronDown,
-  X,
   Loader2,
 } from "lucide-react";
 import CourseCard from "../../components/CourseCard";
@@ -14,8 +14,8 @@ import Button from "../../components/common/Button";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 
-// We will keep the categories fixed for now
 const CATEGORIES = ["All", "Development", "Business", "Design"];
 
 const SORT_OPTIONS = [
@@ -27,16 +27,15 @@ const SORT_OPTIONS = [
 
 const CoursesList = () => {
   const [searchParams] = useSearchParams();
-  const { userPlan, planLoading, loading: authLoading } = useAuth();
+  const { user } = useAuth();
+  const { fetchCartCount } = useCart();
   const urlSearchQuery = searchParams.get("search");
 
-  // --- STATE ---
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [error, setError] = useState(null);
 
-  // Filter States
   const [filters, setFilters] = useState({
     search: urlSearchQuery || "",
     category: "All",
@@ -44,7 +43,6 @@ const CoursesList = () => {
     sortBy: "newest",
   });
 
-  // --- BACKEND API CALL ---
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoading(true);
@@ -59,7 +57,6 @@ const CoursesList = () => {
         const response = await api.get("/courses", { params });
         const data = response.data.data || response.data;
 
-        // client-side price filter logic
         let result = data;
         if (filters.priceRange.length > 0) {
           result = result.filter((c) => {
@@ -91,14 +88,10 @@ const CoursesList = () => {
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      fetchCourses();
-    }, 500);
-
+    const timeoutId = setTimeout(fetchCourses, 500);
     return () => clearTimeout(timeoutId);
   }, [filters]);
 
-  // --- HANDLERS ---
   const handlePriceChange = (value) => {
     setFilters((prev) => {
       const current = prev.priceRange;
@@ -114,13 +107,41 @@ const CoursesList = () => {
     setShowSortMenu(false);
   };
 
-  const handleAddToCart = async (courseId) => {
+  const handleAddToCart = async (course) => {
     try {
-      await addToCart(courseId);
-      alert("Course added to cart successfully!");
+      if (user) {
+        // Logged-in user: backend cart
+        await addToCart(course.id);
+        toast.success("Course added to your cart!");
+      } else {
+        // Guest: localStorage cart
+        const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+        const isAlreadyInCart = guestCart.some(
+          (item) => String(item.id) === String(course.id),
+        );
+
+        if (!isAlreadyInCart) {
+          guestCart.push({
+            id: course.id,
+            title: course.title,
+            price: course.price,
+            thumbnail: course.thumbnail_url || course.image,
+            instructor_id: course.Users?.id,
+            instructor_name: course.Users
+              ? `${course.Users.first_name} ${course.Users.last_name}`
+              : "Instructor",
+          });
+          localStorage.setItem("cart", JSON.stringify(guestCart));
+          toast.success("Course added to your cart!");
+        } else {
+          toast("This course is already in your cart.", { icon: "ℹ️" });
+        }
+      }
+
+      await fetchCartCount();
     } catch (err) {
       console.error("Add to cart error:", err);
-      alert(err.response?.data?.message || "Failed to add course to cart.");
+      toast.error(err.response?.data?.message || "Failed to add course to cart.");
     }
   };
 
@@ -166,7 +187,11 @@ const CoursesList = () => {
                     <button
                       key={opt.value}
                       onClick={() => handleSortChange(opt.value)}
-                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${filters.sortBy === opt.value ? "text-primary font-bold bg-purple-50" : "text-gray-700"}`}
+                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${
+                        filters.sortBy === opt.value
+                          ? "text-primary font-bold bg-purple-50"
+                          : "text-gray-700"
+                      }`}
                     >
                       {opt.label}
                     </button>
@@ -186,7 +211,7 @@ const CoursesList = () => {
 
         {/* MAIN LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* SIDEBAR FILTERS - SAME AS YOUR CODE */}
+          {/* SIDEBAR FILTERS */}
           <div className="hidden lg:block space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -239,23 +264,19 @@ const CoursesList = () => {
 
           {/* RESULTS GRID */}
           <div className="lg:col-span-3">
-            {/* Tags area omitted for brevity */}
-
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
               </div>
             ) : courses.length > 0 ? (
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {courses.map((course) => (
-                    <CourseCard
-                      key={course.id}
-                      course={course}
-                      onAddToCart={() => handleAddToCart(course.id)}
-                    />
-                  ))}
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courses.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    onAddToCart={() => handleAddToCart(course)}
+                  />
+                ))}
               </div>
             ) : (
               <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">

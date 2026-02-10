@@ -3,6 +3,8 @@ import axios from "axios";
 import CourseCard from "../../components/CourseCard";
 import { Link } from "react-router-dom";
 import { addToCart } from "../../services/cartService";
+import { toast } from "react-hot-toast";
+import { useCart } from "../../context/CartContext";
 
 export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
@@ -48,10 +50,10 @@ export default function StudentDashboard() {
   const handleAddToCart = async (courseId) => {
     try {
       await addToCart(courseId);
-      alert("Course added to cart successfully!");
+      toast.success("Course added to your cart!");
     } catch (err) {
       console.error("Add to cart error:", err);
-      alert(err.response?.data?.message || "Failed to add course to cart.");
+      toast.error(err.response?.data?.message || "Failed to add course to cart.");
     }
   };
 

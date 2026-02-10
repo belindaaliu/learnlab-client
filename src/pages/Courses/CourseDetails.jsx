@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 import {
   Clock,
   BookOpen,
@@ -12,7 +14,6 @@ import {
   Heart,
 } from "lucide-react";
 import Button from "../../components/common/Button";
-import Modal from "../../components/common/Modal";
 import VideoPreviewModal from "../../components/Modals/VideoPreviewModal";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
@@ -21,6 +22,7 @@ const CourseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { fetchCartCount } = useCart();
 
   // State Management
   const [course, setCourse] = useState(null);
@@ -49,9 +51,6 @@ const CourseDetails = () => {
 
   const closeModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
-
-  // Get logged-in user
-  // const user = JSON.parse(localStorage.getItem("user"));
 
   const extraData = {
     requirements: [
@@ -86,8 +85,6 @@ const CourseDetails = () => {
         setLoading(true);
         const response = await api.get(`/courses/${id}`);
         console.log("Full API Response:", response.data);
-
-        setCourse(response.data.data || response.data);
 
         const courseData = response.data.data || response.data;
         setCourse(courseData);
@@ -147,7 +144,7 @@ const CourseDetails = () => {
 
           setIsInCart(inGuestCart || inBackendCart);
 
-          //  Subscription Logic
+          // Subscription Logic
           const subData = subRes.data?.data || subRes.data;
           if (subData?.hasActiveSubscription) {
             const features =
@@ -187,7 +184,6 @@ const CourseDetails = () => {
       .get("/subscription/plans")
       .then((res) => {
         const allPlans = res.data.data || [];
-        // Find the plan with the slug or name 'starter'
         const starterPlan = allPlans.find(
           (p) =>
             p.slug?.toLowerCase() === "starter" ||
@@ -204,9 +200,11 @@ const CourseDetails = () => {
   // --- LOGIC VARIABLES ---
   const isActuallyFree = course && Number(course.price) === 0;
 
-const hasAccess = isActuallyFree || (!!user && (isEnrolled || isSubscriberCourse));
+  const hasAccess =
+    isActuallyFree || (!!user && (isEnrolled || isSubscriberCourse));
 
-const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_name || "Starter";
+  const requiredPlan =
+    course?.SubscriptionPlans?.name || course?.required_plan_name || "Starter";
 
   const isPremium = Number(course?.price) > 0;
 
@@ -214,32 +212,20 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
     if (!course || isEnrolled) return;
 
     if (user) {
+      // LOGGED IN: backend cart
       setAddingToCart(true);
       try {
         await addToCart(course.id);
         setIsInCart(true);
-        setModalConfig({
-          isOpen: true,
-          title: "Added to Cart",
-          message: `${course.title} is now in your cart.`,
-          type: "success",
-          confirmText: "View Cart",
-          onConfirm: () => navigate("/cart"),
-        });
+        await fetchCartCount();
+        toast.success("Course added to your cart!");
       } catch (err) {
-        setModalConfig({
-          isOpen: true,
-          title: "Action Failed",
-          message: "Could not add to cart. It may already be there.",
-          type: "danger",
-          confirmText: "Close",
-          onConfirm: closeModal,
-        });
+        toast.error("Could not add to cart. It may already be there.");
       } finally {
         setAddingToCart(false);
       }
     } else {
-      // Guest Logic
+      // Guest Logic: localStorage only
       const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
       if (!guestCart.find((item) => item.id === course.id)) {
         guestCart.push({
@@ -251,14 +237,18 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
           instructor_name: `${course.Users?.first_name} ${course.Users?.last_name}`,
         });
         localStorage.setItem("cart", JSON.stringify(guestCart));
+        toast.success("Added to cart as guest!");
+      } else {
+        toast("This course is already in your cart.", { icon: "ℹ️" });
       }
       setIsInCart(true);
-      navigate("/cart");
+      await fetchCartCount();
     }
   };
 
   const handleBuyNow = async () => {
     if (!user) {
+      toast.error("Please log in to buy this course.");
       navigate("/login", {
         state: {
           from: `/course/${id}`,
@@ -271,6 +261,7 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
 
     try {
       await addToCart(course.id);
+      await fetchCartCount();
       navigate("/checkout", {
         state: {
           checkoutType: "cart",
@@ -306,9 +297,7 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
 
     setWishlistLoading(true);
     try {
-      // await api.post(`/student/${user.id}/wishlist`, { courseId: course.id });
       const payload = { course_id: Number(course.id) };
-
       await api.post(`/student/${user.id}/wishlist`, payload);
       setIsInWishlist(true);
       alert("Added to wishlist!");
@@ -368,19 +357,6 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
         course={course}
         title={previewTitle}
         videoUrl=""
-      />
-
-      <Modal
-        isOpen={modalConfig.isOpen}
-        onClose={closeModal}
-        onConfirm={modalConfig.onConfirm || closeModal}
-        title={modalConfig.title}
-        message={modalConfig.message}
-        type={modalConfig.type}
-        confirmText={modalConfig.confirmText}
-        showCancel={
-          modalConfig.type === "danger" || modalConfig.type === "warning"
-        }
       />
 
       {/* HERO HEADER */}
@@ -519,7 +495,9 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
               Description
             </h3>
             <div
-              className={`prose text-gray-700 text-sm max-w-none overflow-hidden transition-all duration-300 ${showFullDesc ? "max-h-full" : "max-h-48"}`}
+              className={`prose text-gray-700 text-sm max-w-none overflow-hidden transition-all duration-300 ${
+                showFullDesc ? "max-h-full" : "max-h-48"
+              }`}
               dangerouslySetInnerHTML={{ __html: extraData.longDescription }}
             />
             <button
@@ -701,7 +679,9 @@ const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_na
                     } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <Heart
-                      className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`}
+                      className={`w-5 h-5 ${
+                        isInWishlist ? "fill-current" : ""
+                      }`}
                     />
                     {wishlistLoading
                       ? "Processing..."

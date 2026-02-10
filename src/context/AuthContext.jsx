@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [userPlan, setUserPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [hasMergedCart, setHasMergedCart] = useState(false);
 
   // --- Global Subscription Fetcher ---
   const fetchUserPlan = useCallback(async () => {
@@ -91,7 +92,8 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem("accessToken");
       const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
 
-      if (user && user.role === "student" && guestCart.length > 0 && token) {
+      if (user && user.role === "student" && guestCart.length > 0 && token &&
+        !hasMergedCart) {
         try {
           await Promise.all(
             guestCart.map((item) =>
@@ -103,13 +105,15 @@ export const AuthProvider = ({ children }) => {
             ),
           );
           localStorage.removeItem("cart");
+          // Notify the app that the server cart changed
+          window.dispatchEvent(new Event("cartUpdate"));
         } catch (err) {
           console.error("Cart merge failed:", err);
         }
       }
     };
     mergeCartOnLogin();
-  }, [user]);
+  }, [user, hasMergedCart]);
 
   // --- Checkout Recovery ---
   useEffect(() => {
@@ -123,9 +127,13 @@ export const AuthProvider = ({ children }) => {
 
   // --- Logout ---
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    
     setUser(null);
     setUserPlan(null);
+    setHasMergedCart(false);
     window.location.href = "/";
   };
 

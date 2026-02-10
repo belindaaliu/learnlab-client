@@ -1,9 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Crown } from "lucide-react";
 
 const CartItem = ({ item, onRemove }) => {
   const course = item.course || item;
   const courseId = course.id || item.course_id;
+  const itemIdToRemove = item.id;
 
   const instructorId =
     course.instructor_id || course.Users?.id || course.user_id;
@@ -12,6 +14,19 @@ const CartItem = ({ item, onRemove }) => {
     (course.Users
       ? `${course.Users.first_name} ${course.Users.last_name}`
       : "Instructor");
+
+  // BADGE LOGIC
+  const isActuallyFree = Number(course.price) === 0;
+  const isActuallyPremium = Boolean(
+    course.is_premium ||
+    course.is_subscriber_only ||
+    course.isPremium ||
+    Number(course.price) > 0,
+  );
+  const showFreeBadge = isActuallyFree;
+  const showPremiumBadge = isActuallyPremium && !isActuallyFree;
+  const showBestsellerBadge =
+    course.is_bestseller || (course.rating && course.rating >= 4.8);
 
   return (
     <div className="flex flex-col md:flex-row gap-4 py-6 border-b border-gray-200 items-start group">
@@ -46,6 +61,27 @@ const CartItem = ({ item, onRemove }) => {
             {instructorName}
           </Link>
         </p>
+
+        {/* BADGES ROW */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {showFreeBadge && (
+            <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-bold shrink-0">
+              FREE
+            </span>
+          )}
+
+          {showPremiumBadge && (
+            <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-1 rounded font-bold flex items-center gap-1 shrink-0">
+              <Crown size={10} fill="currentColor" /> PREMIUM
+            </span>
+          )}
+
+          {showBestsellerBadge && (
+            <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded font-bold shrink-0">
+              BESTSELLER
+            </span>
+          )}
+        </div>
 
         {/* Udemy Style Rating Placeholder */}
         <div className="flex items-center gap-1.5 pt-1">
