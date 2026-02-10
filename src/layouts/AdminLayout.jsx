@@ -19,6 +19,13 @@ const AdminLayout = () => {
     navigate('/login');
   };
 
+const navItems = [
+  { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+  { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
+  { label: 'Courses', path: '/admin/courses', icon: BookOpen },
+  { label: 'Instructors', path: '/admin/instructors', icon: Users },
+  { label: 'Users', path: '/admin/users', icon: Users },
+];
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },

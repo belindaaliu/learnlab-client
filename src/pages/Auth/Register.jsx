@@ -37,6 +37,7 @@ function Register() {
       const { accessToken, refreshToken, user } = response.data.data;
 
       // Store tokens and user data
+      localStorage.setItem('token', accessToken);
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));

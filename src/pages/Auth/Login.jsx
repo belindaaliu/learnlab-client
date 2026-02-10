@@ -13,35 +13,36 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const response = await axios.post(`${API_URL}/auth/login`, formData);
-      const { accessToken, refreshToken, user } = response.data.data;
+  try {
+    const response = await axios.post(`${API_URL}/auth/login`, formData);
+    const { accessToken, refreshToken, user } = response.data.data;
 
-      // Store tokens and user data
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
+    // Store tokens and user data
+    localStorage.setItem('token', accessToken);  // NEW: For admin/new code
+    localStorage.setItem('accessToken', accessToken);  // OLD: For existing code
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(user));
 
-      // Redirect based on role
-      if (user.role === 'student') {
-        navigate('/student/dashboard');
-      } else if (user.role === 'instructor') {
-        navigate('/instructor/dashboard');
-      } else if (user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
+    // Redirect based on role
+    if (user.role === 'student') {
+      navigate('/student/dashboard');
+    } else if (user.role === 'instructor') {
+      navigate('/instructor/dashboard');
+    } else if (user.role === 'admin') {
+      navigate('/admin/dashboard');
+    } else {
+      navigate('/');
     }
-  };
+  } catch (err) {
+    setError(err.response?.data?.message || 'Login failed. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="auth-container">
