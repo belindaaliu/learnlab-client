@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Star, Check, Crown } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const CourseCard = ({ course, onAddToCart }) => {
+const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
   const navigate = useNavigate();
   const { user, userPlan } = useAuth();
 
@@ -40,9 +40,9 @@ const CourseCard = ({ course, onAddToCart }) => {
   const isActuallyFree = Number(course.price) === 0;
   const isActuallyPremium = Boolean(
     course.is_premium ||
-      course.is_subscriber_only ||
-      course.isPremium ||
-      Number(course.price) > 0,
+    course.is_subscriber_only ||
+    course.isPremium ||
+    Number(course.price) > 0,
   );
 
   // --- ACCESS LOGIC ---
@@ -56,7 +56,11 @@ const CourseCard = ({ course, onAddToCart }) => {
 
   // --- BADGE LOGIC ---
   const showFreeBadge = isActuallyFree;
-  const showPremiumBadge = isActuallyPremium && !isActuallyFree;
+  const hasPlan =
+  Boolean(course.plan_id) || Boolean(course.SubscriptionPlans);
+  // const showPremiumBadge = isActuallyPremium && !isActuallyFree;
+  const showPremiumBadge =
+  isActuallyPremium && !isActuallyFree && hasPlan;
 
   const handleAction = (e) => {
     e.preventDefault();

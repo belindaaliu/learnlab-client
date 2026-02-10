@@ -275,6 +275,7 @@ const CoursesList = () => {
                     key={course.id}
                     course={course}
                     onAddToCart={() => handleAddToCart(course)}
+                    isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
                   />
                 ))}
               </div>

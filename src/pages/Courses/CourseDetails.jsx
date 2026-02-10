@@ -64,7 +64,7 @@ const CourseDetails = () => {
     onConfirm: null,
   });
 
-  const closeModal = () =>
+   const closeModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   // --- Utility: Safe JSON Parse (Fix applied here) ---
@@ -213,7 +213,9 @@ const CourseDetails = () => {
     isActuallyFree || (!!user && (isEnrolled || isSubscriberCourse));
 
   const requiredPlan =
-    course?.SubscriptionPlans?.name || course?.required_plan_name || "Starter";
+    course?.SubscriptionPlans?.name || course?.required_plan_name;
+
+  const hasRequiredPlan = !!requiredPlan;
 
   const isPremium = Number(course?.price) > 0;
   
@@ -631,7 +633,7 @@ const CourseDetails = () => {
                 /* UPSell UI (Subscription vs Purchase) */
                 <div className="flex flex-col">
                   {/* SUBSCRIPTION SECTION */}
-                  <div className="space-y-3 pb-4">
+                  {/* <div className="space-y-3 pb-4">
                     <div className="flex items-start gap-2">
                       <div className="bg-purple-100 p-1 rounded">
                         <Star className="w-4 h-4 text-purple-700 fill-current" />
@@ -666,16 +668,68 @@ const CourseDetails = () => {
                         Cancel anytime
                       </p>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* DIVIDER */}
-                  <div className="flex items-center my-2">
+                  {/* <div className="flex items-center my-2">
                     <div className="flex-grow border-t border-gray-300"></div>
                     <span className="px-3 text-xs text-gray-500 font-medium uppercase">
                       or
                     </span>
                     <div className="flex-grow border-t border-gray-300"></div>
-                  </div>
+                  </div> */}
+
+                  {/* SUBSCRIPTION SECTION */}
+{hasRequiredPlan && (
+  <>
+    <div className="space-y-3 pb-4">
+      <div className="flex items-start gap-2">
+        <div className="bg-purple-100 p-1 rounded">
+          <Star className="w-4 h-4 text-purple-700 fill-current" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-900 leading-tight">
+            Included in{" "}
+            <span className="text-purple-700">
+              {requiredPlan}
+            </span>
+          </p>
+          <p className="text-[12px] text-gray-600 mt-1">
+            Unlock this premium course and all others in the{" "}
+            {requiredPlan}.
+          </p>
+        </div>
+      </div>
+
+      <Button
+        fullWidth
+        className="w-full py-3 bg-purple-700 hover:bg-purple-800 text-white font-bold h-12 rounded-md shadow-sm"
+        onClick={() => navigate("/pricing")}
+      >
+        Upgrade to {requiredPlan}
+      </Button>
+
+      <div className="text-center">
+        <p className="text-[11px] text-gray-500 font-medium">
+          Plans starting at ${starterPrice}/mo
+        </p>
+        <p className="text-[11px] text-gray-500">
+          Cancel anytime
+        </p>
+      </div>
+    </div>
+
+    {/* DIVIDER */}
+    <div className="flex items-center my-2">
+      <div className="flex-grow border-t border-gray-300"></div>
+      <span className="px-3 text-xs text-gray-500 font-medium uppercase">
+        or
+      </span>
+      <div className="flex-grow border-t border-gray-300"></div>
+    </div>
+  </>
+)}
+
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-3xl font-bold text-gray-900">
                       ${course.price}
