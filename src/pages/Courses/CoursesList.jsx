@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
   Search,
   Filter,
   SlidersHorizontal,
   ChevronDown,
-  X,
   Loader2,
 } from "lucide-react";
 import CourseCard from "../../components/CourseCard";
@@ -13,8 +13,9 @@ import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
+import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 
-// We will keep the categories fixed for now
 const CATEGORIES = ["All", "Development", "Business", "Design"];
 
 const SORT_OPTIONS = [
@@ -26,15 +27,15 @@ const SORT_OPTIONS = [
 
 const CoursesList = () => {
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { fetchCartCount } = useCart();
   const urlSearchQuery = searchParams.get("search");
 
-  // --- STATE ---
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [error, setError] = useState(null);
 
-  // Filter States
   const [filters, setFilters] = useState({
     search: urlSearchQuery || "",
     category: "All",
@@ -42,78 +43,20 @@ const CoursesList = () => {
     sortBy: "newest",
   });
 
-  // // --- REAL BACKEND API CALL ---
-  // useEffect(() => {
-  //   const fetchCourses = async () => {
-  //     setIsLoading(true);
-  //     setError(null);
-
-  //     try {
-  //       const queryParams = new URLSearchParams();
-
-  //       if (filters.search) queryParams.append("search", filters.search);
-  //       if (filters.category !== "All") queryParams.append("category", filters.category);
-  //       if (filters.sortBy) queryParams.append("sort", filters.sortBy);
-
-  //       // Request to the real backend
-  //       const response = await fetch(`http://localhost:5001/api/courses?${queryParams.toString()}`);
-
-  //       if (!response.ok) throw new Error("Failed to fetch courses");
-
-  //       const data = await response.json();
-
-  //       // Price filter on the client side (because the backend doesn't have it yet)
-  //       let result = data;
-  //       if (filters.priceRange.length > 0) {
-  //         result = result.filter(c => {
-  //           const price = Number(c.price);
-  //           if (filters.priceRange.includes('free') && price === 0) return true;
-  //           if (filters.priceRange.includes('under_20') && price > 0 && price < 20) return true;
-  //           if (filters.priceRange.includes('mid') && price >= 20 && price <= 100) return true;
-  //           if (filters.priceRange.includes('high') && price > 100) return true;
-  //           return false;
-  //         });
-  //       }
-
-  //       setCourses(result);
-  //     } catch (err) {
-  //       console.error("API Error:", err);
-  //       setError("Could not load courses. Is the server running?");
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
-
-  //   // Debounce logic
-  //   const timeoutId = setTimeout(() => {
-  //     fetchCourses();
-  //   }, 500);
-
-  //   return () => clearTimeout(timeoutId);
-
-  // }, [filters]);
-
-  // --- REAL BACKEND API CALL ---
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Prepare query parameters as an object
         const params = {};
         if (filters.search) params.search = filters.search;
         if (filters.category !== "All") params.category = filters.category;
         if (filters.sortBy) params.sort = filters.sortBy;
 
-        // Use the api utility (baseURL and Auth headers are handled automatically)
         const response = await api.get("/courses", { params });
-
-        // Axios stores the response body in .data
-        // Based on your refresh logic (response.data.data), your courses might be in data.data or data
         const data = response.data.data || response.data;
 
-        // Keep your client-side price filter logic
         let result = data;
         if (filters.priceRange.length > 0) {
           result = result.filter((c) => {
@@ -139,21 +82,16 @@ const CoursesList = () => {
         setCourses(result);
       } catch (err) {
         console.error("API Error:", err);
-        // Use the message from your backend if available
         setError(err.response?.data?.message || "Could not load courses.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      fetchCourses();
-    }, 500);
-
+    const timeoutId = setTimeout(fetchCourses, 500);
     return () => clearTimeout(timeoutId);
   }, [filters]);
 
-  // --- HANDLERS ---
   const handlePriceChange = (value) => {
     setFilters((prev) => {
       const current = prev.priceRange;
@@ -169,13 +107,41 @@ const CoursesList = () => {
     setShowSortMenu(false);
   };
 
-  const handleAddToCart = async (courseId) => {
+  const handleAddToCart = async (course) => {
     try {
-      await addToCart(courseId);
-      alert("Course added to cart successfully!");
+      if (user) {
+        // Logged-in user: backend cart
+        await addToCart(course.id);
+        toast.success("Course added to your cart!");
+      } else {
+        // Guest: localStorage cart
+        const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+        const isAlreadyInCart = guestCart.some(
+          (item) => String(item.id) === String(course.id),
+        );
+
+        if (!isAlreadyInCart) {
+          guestCart.push({
+            id: course.id,
+            title: course.title,
+            price: course.price,
+            thumbnail: course.thumbnail_url || course.image,
+            instructor_id: course.Users?.id,
+            instructor_name: course.Users
+              ? `${course.Users.first_name} ${course.Users.last_name}`
+              : "Instructor",
+          });
+          localStorage.setItem("cart", JSON.stringify(guestCart));
+          toast.success("Course added to your cart!");
+        } else {
+          toast("This course is already in your cart.", { icon: "ℹ️" });
+        }
+      }
+
+      await fetchCartCount();
     } catch (err) {
       console.error("Add to cart error:", err);
-      alert(err.response?.data?.message || "Failed to add course to cart.");
+      toast.error(err.response?.data?.message || "Failed to add course to cart.");
     }
   };
 
@@ -221,7 +187,11 @@ const CoursesList = () => {
                     <button
                       key={opt.value}
                       onClick={() => handleSortChange(opt.value)}
-                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${filters.sortBy === opt.value ? "text-primary font-bold bg-purple-50" : "text-gray-700"}`}
+                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${
+                        filters.sortBy === opt.value
+                          ? "text-primary font-bold bg-purple-50"
+                          : "text-gray-700"
+                      }`}
                     >
                       {opt.label}
                     </button>
@@ -241,7 +211,7 @@ const CoursesList = () => {
 
         {/* MAIN LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* SIDEBAR FILTERS - SAME AS YOUR CODE */}
+          {/* SIDEBAR FILTERS */}
           <div className="hidden lg:block space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -294,8 +264,6 @@ const CoursesList = () => {
 
           {/* RESULTS GRID */}
           <div className="lg:col-span-3">
-            {/* Tags area omitted for brevity */}
-
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -306,7 +274,8 @@ const CoursesList = () => {
                   <CourseCard
                     key={course.id}
                     course={course}
-                    onAddToCart={() => handleAddToCart(course.id)}
+                    onAddToCart={() => handleAddToCart(course)}
+                    isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
                   />
                 ))}
               </div>

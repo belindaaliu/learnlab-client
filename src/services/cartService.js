@@ -1,8 +1,8 @@
-import api from '../utils/Api'; 
+import api from "../utils/Api";
 
 const getCart = async () => {
-  const res = await api.get('/cart'); 
-  return res.data.data; 
+  const res = await api.get("/cart");
+  return res.data?.data || res.data;
 };
 
 const removeCartItem = async (cartItemId) => {
@@ -10,9 +10,10 @@ const removeCartItem = async (cartItemId) => {
   return res.data;
 };
 
+// Only for logged-in users
 const addToCart = async (courseId) => {
-  const res = await api.post('/cart', { courseId });
-  return res.data;
+  const response = await api.post("/cart", { courseId });
+  return response.data;
 };
 
 export { getCart, removeCartItem, addToCart };

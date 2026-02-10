@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-// import { useNavigate } from "react-router-dom";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import axios from "axios";
+import api from "../utils/Api";
 
 const AuthContext = createContext(null);
 
@@ -16,8 +23,37 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(true);
-  // const navigate = useNavigate();
+  const [userPlan, setUserPlan] = useState(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [hasMergedCart, setHasMergedCart] = useState(false);
 
+  // --- Global Subscription Fetcher ---
+  const fetchUserPlan = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token || !user) {
+      setUserPlan(null);
+      return;
+    }
+
+    try {
+      setPlanLoading(true);
+      const res = await api.get("/subscription/overview");
+      const planInfo = res.data?.data || res.data;
+      setUserPlan(planInfo);
+    } catch (err) {
+      console.error("Global subscription fetch failed:", err);
+      setUserPlan(null);
+    } finally {
+      setPlanLoading(false);
+    }
+  }, [user]);
+
+  // Fetch plan whenever user changes
+  useEffect(() => {
+    fetchUserPlan();
+  }, [fetchUserPlan]);
+
+  // --- Sync Auth Logic ---
   useEffect(() => {
     const syncAuth = () => {
       const token = localStorage.getItem("accessToken");
@@ -41,7 +77,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     syncAuth();
-
     window.addEventListener("storage", syncAuth);
     const interval = setInterval(syncAuth, 500);
 
@@ -51,28 +86,69 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // --- Cart Merge Logic ---
+  useEffect(() => {
+    const mergeCartOnLogin = async () => {
+      const token = localStorage.getItem("accessToken");
+      const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+
+      if (user && user.role === "student" && guestCart.length > 0 && token &&
+        !hasMergedCart) {
+        try {
+          await Promise.all(
+            guestCart.map((item) =>
+              axios.post(
+                `${import.meta.env.VITE_API_URL}/cart`,
+                { courseId: item.id },
+                { headers: { Authorization: `Bearer ${token}` } },
+              ),
+            ),
+          );
+          localStorage.removeItem("cart");
+          // Notify the app that the server cart changed
+          window.dispatchEvent(new Event("cartUpdate"));
+        } catch (err) {
+          console.error("Cart merge failed:", err);
+        }
+      }
+    };
+    mergeCartOnLogin();
+  }, [user, hasMergedCart]);
+
+  // --- Checkout Recovery ---
   useEffect(() => {
     const pendingData = localStorage.getItem("pending_checkout");
-
     if (user && pendingData) {
-      // Move data to sessionStorage so Checkout can find it without state
       sessionStorage.setItem("checkout_recovery", pendingData);
       localStorage.removeItem("pending_checkout");
-
-      // Use a hard redirect to bypass the Login.jsx redirect
       window.location.href = "/checkout";
     }
   }, [user]);
 
+  // --- Logout ---
   const logout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    
     setUser(null);
+    setUserPlan(null);
+    setHasMergedCart(false);
+    window.location.href = "/";
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        logout,
+        loading,
+        userPlan,
+        planLoading,
+        fetchUserPlan,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,50 +1,28 @@
 import React, { useState, useEffect } from "react";
+import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, PlayCircle, Search, Loader2 } from "lucide-react";
 import CourseCard from "../../components/CourseCard";
 import api from "../../utils/Api";
+import { toast } from "react-hot-toast";
+import { addToCart } from "../../services/cartService";
 
 const Home = () => {
+  const { user } = useAuth();
+  const { fetchCartCount } = useCart();
   const navigate = useNavigate();
 
-  // --- STATES ---
   const [featuredCourses, setFeaturedCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-  // --- FETCH DATA ---
-  // useEffect(() => {
-  //   const fetchFeaturedCourses = async () => {
-  //     try {
-  //       const response = await fetch('http://localhost:5001/api/courses');
-  //       const data = await response.json();
-
-  //       // We are currently only displaying the first 3 lessons as "special".
-  //       setFeaturedCourses(data.slice(0, 3));
-  //     } catch (error) {
-  //       console.error("Failed to fetch courses:", error);
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
-
-  //   fetchFeaturedCourses();
-  // }, []);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
   useEffect(() => {
     const fetchFeaturedCourses = async () => {
       try {
-        // Use your api utility instead of fetch
-        // No need to specify the full URL or port here anymore
         const response = await api.get("/courses");
-
-        // Axios stores data in response.data
-        // If your backend sends { data: [...] }, use response.data.data
         const data = response.data.data || response.data;
-
-        // We are currently only displaying the first 3 lessons as "featured"
         setFeaturedCourses(data.slice(0, 3));
       } catch (error) {
         console.error("Failed to fetch featured courses:", error);
@@ -56,7 +34,6 @@ const Home = () => {
     fetchFeaturedCourses();
   }, []);
 
-  // --- HANDLERS ---
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -68,11 +45,49 @@ const Home = () => {
     navigate("/courses");
   };
 
+  const handleAddToCart = async (course) => {
+    try {
+      if (user) {
+        await addToCart(course.id);
+        toast.success("Course added to your cart!");
+      } else {
+        const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+        const isAlreadyInCart = guestCart.some(
+          (item) => String(item.id) === String(course.id),
+        );
+
+        if (!isAlreadyInCart) {
+          guestCart.push({
+            id: course.id,
+            title: course.title,
+            price: course.price,
+            thumbnail: course.thumbnail_url || course.image,
+            instructor_id: course.Users?.id,
+            instructor_name: course.Users
+              ? `${course.Users.first_name} ${course.Users.last_name}`
+              : "Instructor",
+          });
+          localStorage.setItem("cart", JSON.stringify(guestCart));
+          toast.success("Added to cart as guest!");
+        } else {
+          toast("This course is already in your cart.", { icon: "ℹ️" });
+        }
+      }
+
+      await fetchCartCount();
+    } catch (err) {
+      console.error("Add to cart error:", err);
+      toast.error(
+        err.response?.data?.message || "Failed to add course to cart.",
+      );
+    }
+  };
+
   return (
     <div className="pb-20">
-      {/* --- HERO SECTION --- */}
+      
+      {/* HERO SECTION */}
       <section className="bg-gradient-to-r from-primary to-purple-800 text-white py-20 lg:py-28 relative overflow-hidden">
-        {/* Background Pattern */}
         <div className="absolute top-0 right-0 w-1/2 h-full bg-white/5 skew-x-12 transform origin-bottom-left"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid lg:grid-cols-2 gap-12 items-center">
@@ -92,7 +107,7 @@ const Home = () => {
               industry-leading courses in Tech, Business, and more.
             </p>
 
-            {/* --- SEARCH BAR --- */}
+            {/* SEARCH BAR */}
             <form
               onSubmit={handleSearch}
               className="bg-white/10 backdrop-blur-md p-2 rounded-2xl flex items-center border border-white/20 mb-8 max-w-lg shadow-lg"
@@ -123,7 +138,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Hero Image */}
           <div className="hidden lg:block relative">
             <div className="absolute inset-0 bg-primary/30 blur-3xl rounded-full"></div>
             <img
@@ -135,7 +149,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- STATS SECTION --- */}
+      {/* STATS SECTION */}
       <section className="bg-white py-10 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center md:justify-between gap-8 text-center md:text-left">
           {[
@@ -156,7 +170,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- FEATURED COURSES --- */}
+      {/* FEATURED COURSES */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="flex items-end justify-between mb-12">
           <div>
@@ -173,7 +187,6 @@ const Home = () => {
           </button>
         </div>
 
-        {/* Grid of Cards */}
         {isLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -182,7 +195,11 @@ const Home = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredCourses.length > 0 ? (
               featuredCourses.map((course) => (
-                <CourseCard key={course.id} course={course} />
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onAddToCart={() => handleAddToCart(course)}
+                />
               ))
             ) : (
               <p className="col-span-3 text-center text-gray-500">

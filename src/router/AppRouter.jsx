@@ -49,6 +49,7 @@ import AdminCourses from "../pages/Admin/AdminCourses";
 import AdminAnalytics from "../pages/Admin/AdminAnalytics";
 import Users from "../pages/Admin/Users";
 import UserDetail from "../pages/Admin/UserDetail";
+import Subscriptions from "../pages/Admin/Subscriptions";
 
 // INSTRUCTOR PAGES
 import InstructorDashboard from "../pages/Instructor/Dashboard";
@@ -58,6 +59,8 @@ import EditCourse from "../pages/Instructor/EditCourse";
 import InstructorMessages from "../pages/Instructor/Messages";
 
 import CoursePlayer from "../pages/Student/CoursePlayer";
+
+import InstructorPerformance from '../pages/Instructor/InstructorPerformance';
 
 export const router = createBrowserRouter([
   // ===================================
@@ -133,6 +136,10 @@ export const router = createBrowserRouter([
       { path: "edit-profile", element: <EditProfile /> },
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "messages", element: <Messages /> },
+      { path: "cart", element: <Cart /> },
+      // { path: "security", element: <AccountSecurity /> },
+      // { path: "notifications", element: <NotificationSettings /> },
+      // { path: "privacy", element: <PrivacySettings /> },
       
       // Certificate Routes
       { path: "certificates", element: <StudentCertificates /> },
@@ -152,8 +159,20 @@ export const router = createBrowserRouter([
         path: "payment",
         children: [{ path: "history", element: <PaymentHistory /> }],
       },
+
+      // { path: "course/:courseId/learn", element: <CoursePlayer /> },
     ],
   },
+
+  {
+  path: "/course/:courseId/learn",
+  element: (
+    <ProtectedRoute allowedRoles="student">
+      <CoursePlayer />
+    </ProtectedRoute>
+  ),
+},
+
 
   // ===================================
   // INSTRUCTOR LAYOUT
@@ -176,9 +195,14 @@ export const router = createBrowserRouter([
       
       // Edit a course
       { path: "courses/edit/:id", element: <EditCourse /> },
+
+      // Performance
+      { path: "performance", element: <InstructorPerformance /> },
       
       // Messages
       { path: "messages", element: <InstructorMessages /> },
+      { path: "edit-profile", element: <EditProfile /> },
+      { path: "edit-photo", element: <EditPhoto /> },
     ],
   },
 
@@ -193,6 +217,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  
 
   // ===================================
   // ADMIN LAYOUT
@@ -212,6 +237,7 @@ export const router = createBrowserRouter([
       { path: "courses", element: <AdminCourses /> },
       { path: "users", element: <Users /> },
       { path: "users/:userId", element: <UserDetail /> },
+      { path: "subscriptions", element: <Subscriptions /> },
     ],
   },
 ]);
