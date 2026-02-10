@@ -100,10 +100,10 @@ export default function StudentLayout() {
                         {course.title}
                       </p>
                       <Link
-                        to={`/course/${course.id}`}
+                        to={`/course/${course.id}/learn`}
                         className="text-xs text-primary font-semibold hover:underline"
                       >
-                        Start learning
+                        {course.progress_percentage > 0 ? 'Continue learning' : 'Start learning'}
                       </Link>
                     </div>
                   </div>
@@ -146,10 +146,10 @@ export default function StudentLayout() {
                         {course.title}
                       </p>
                       <Link
-                        to={`/course/${course.id}`}
+                        to={`/courses/${course.id}`}
                         className="text-xs text-primary font-semibold hover:underline"
                       >
-                        View course
+                        View course details
                       </Link>
                     </div>
                   </div>
