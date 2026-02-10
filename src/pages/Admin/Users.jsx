@@ -21,6 +21,8 @@ const Users = () => {
     totalPages: 0
   });
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,7 +34,7 @@ const Users = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await axios.get('http://localhost:5000/api/admin/users', {
+      const response = await axios.get(`${API_URL}/admin/users`, {
         params: {
           page: pagination.page,
           limit: pagination.limit,
