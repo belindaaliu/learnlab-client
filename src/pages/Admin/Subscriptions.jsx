@@ -138,7 +138,7 @@ const Subscriptions = () => {
       // Extract the error details
       const status = err.response?.status;
       const backendMessage = err.response?.data?.message;
-      const validationErrors = err.response?.data?.errors; 
+      const validationErrors = err.response?.data?.errors;
 
       if (status === 400) {
         // Logic for validation errors (e.g., Slug already exists)
@@ -329,65 +329,6 @@ const Subscriptions = () => {
             </div>
 
             {/* Tags for Courses */}
-            {/* <div className="mb-4">
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-                Subscriber Only Courses (IDs)
-              </label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.features.subscriber_only_courses?.map((id, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1"
-                  >
-                    {id}
-                    <X
-                      size={12}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        const filtered =
-                          formData.features.subscriber_only_courses.filter(
-                            (_, i) => i !== idx,
-                          );
-                        setFormData({
-                          ...formData,
-                          features: {
-                            ...formData.features,
-                            subscriber_only_courses: filtered,
-                          },
-                        });
-                      }}
-                    />
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Type ID and press Enter"
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none transition-all"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const val = e.target.value.trim();
-                    if (val) {
-                      setFormData({
-                        ...formData,
-                        features: {
-                          ...formData.features,
-                          subscriber_only_courses: [
-                            ...(formData.features.subscriber_only_courses ||
-                              []),
-                            val,
-                          ],
-                        },
-                      });
-                      e.target.value = "";
-                    }
-                  }
-                }}
-              />
-            </div> */}
-
-            {/* Replace the old Subscriber Only Courses section with this */}
             <div className="mb-4">
               <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
                 Included Courses
