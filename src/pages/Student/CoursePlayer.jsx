@@ -94,6 +94,10 @@ export default function CoursePlayer() {
       try {
         setLoading(true);
         
+        // Check URL for specific lesson parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonIdFromUrl = urlParams.get('lesson');
+        
         // Fetch course info
         const courseRes = await axios.get(
           `${API_URL}/course-player/${courseId}`,
@@ -125,23 +129,30 @@ export default function CoursePlayer() {
         const completedIds = await fetchCompletedLessons();
         setCompletedLessons(new Set(completedIds));
 
-        // Get next lesson
-        const nextRes = await axios.get(
-          `${API_URL}/course-player/${courseId}/next`,
-          config
-        );
-        console.log("Next lesson:", nextRes.data);
-        
-        if (nextRes.data) {
-          setCurrentLesson(nextRes.data);
-        } else if (lessonsRes.data?.length > 0) {
-          // Try to find first lesson from the sections
+        // If there's a lesson ID in the URL, use it
+        if (lessonIdFromUrl) {
+          console.log("Found lesson ID in URL:", lessonIdFromUrl);
+          // Find the lesson in the sections
+          let foundLesson = null;
           for (const section of lessonsRes.data) {
-            if (section.children && section.children.length > 0) {
-              setCurrentLesson(section.children[0]);
-              break;
+            if (section.children) {
+              foundLesson = section.children.find(lesson => 
+                lesson.id.toString() === lessonIdFromUrl
+              );
+              if (foundLesson) break;
             }
           }
+          
+          if (foundLesson) {
+            console.log("Setting lesson from URL:", foundLesson);
+            setCurrentLesson(foundLesson);
+          } else {
+            // Fallback to getting next lesson
+            await getNextLessonFallback();
+          }
+        } else {
+          // No URL parameter, get next lesson normally
+          await getNextLessonFallback();
         }
 
       } catch (err) {
@@ -150,6 +161,31 @@ export default function CoursePlayer() {
         setLoading(false);
       }
     }
+
+    // Helper function to get next lesson
+    const getNextLessonFallback = async () => {
+      try {
+        const nextRes = await axios.get(
+          `${API_URL}/course-player/${courseId}/next`,
+          config
+        );
+        console.log("Next lesson from API:", nextRes.data);
+        
+        if (nextRes.data) {
+          setCurrentLesson(nextRes.data);
+        } else if (sections.length > 0) {
+          // Try to find first lesson from the sections
+          for (const section of sections) {
+            if (section.children && section.children.length > 0) {
+              setCurrentLesson(section.children[0]);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error getting next lesson:", error);
+      }
+    };
 
     loadData();
   }, [courseId, userId]);
@@ -319,79 +355,6 @@ const initializeProgress = async () => {
     console.error("Error initializing progress:", err);
   }
 };
-
-// In your useEffect, call initializeProgress after fetching course data
-// useEffect(() => {
-//   if (!userId) {
-//     window.location.href = "/login";
-//     return;
-//   }
-
-//   async function loadData() {
-//     try {
-//       setLoading(true);
-      
-//       // Initialize progress first
-//       await initializeProgress();
-      
-//       // Then fetch course info
-//       const courseRes = await axios.get(
-//         `${API_URL}/course-player/${courseId}`,
-//         config
-//       );
-//       setCourse(courseRes.data);
-
-//       // Fetch organized lessons/sections
-//       const lessonsRes = await axios.get(
-//         `${API_URL}/course-player/${courseId}/lessons`,
-//         config
-//       );
-//       console.log("Lessons/sections data:", lessonsRes.data);
-      
-//       // Backend already organizes data, just use it directly
-//       setSections(lessonsRes.data || []);
-      
-//       // Expand all sections by default
-//       const defaultExpanded = new Set();
-//       lessonsRes.data?.forEach(section => {
-//         if (section.id !== "standalone") {
-//           defaultExpanded.add(section.id);
-//         }
-//       });
-//       setExpandedSections(defaultExpanded);
-
-//       // Get completed lessons IDs
-//       const completedIds = await fetchCompletedLessons();
-//       setCompletedLessons(new Set(completedIds));
-
-//       // Get next lesson
-//       const nextRes = await axios.get(
-//         `${API_URL}/course-player/${courseId}/next`,
-//         config
-//       );
-//       console.log("Next lesson:", nextRes.data);
-      
-//       if (nextRes.data) {
-//         setCurrentLesson(nextRes.data);
-//       } else if (lessonsRes.data?.length > 0) {
-//         // Try to find first lesson from the sections
-//         for (const section of lessonsRes.data) {
-//           if (section.children && section.children.length > 0) {
-//             setCurrentLesson(section.children[0]);
-//             break;
-//           }
-//         }
-//       }
-
-//     } catch (err) {
-//       console.error("COURSE PLAYER ERROR:", err.response?.data || err.message);
-//     } finally {
-//       setLoading(false);
-//     }
-//   }
-
-//   loadData();
-// }, [courseId, userId]);
 
 
   return (
