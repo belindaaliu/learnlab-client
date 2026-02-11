@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
   Save, ArrowLeft, Plus, Trash2, Edit2, Check, X,
   BookOpen, Users, FileText, Loader2, Layout,
@@ -165,7 +166,7 @@ const EditCourse = () => {
     } finally {
       setSaving(false);
     }
-};
+  };
 
   // =========================================
   // 3. CURRICULUM HELPERS & ACTIONS
@@ -192,6 +193,51 @@ const EditCourse = () => {
     }
   };
 
+  // START: DRAG & DROP LOGIC
+  const onDragEnd = async (result) => {
+    const { source, destination } = result;
+
+    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) {
+      return;
+    }
+
+    if (source.droppableId !== destination.droppableId) {
+        alert("Moving lessons between sections is not fully implemented on the backend yet.");
+        return;
+    }
+
+    const sectionId = source.droppableId.replace('section-', '');
+    const sectionIndex = sections.findIndex(s => s.id.toString() === sectionId);
+    
+    if (sectionIndex === -1) return;
+
+    const section = sections[sectionIndex];
+    const newLessons = Array.from(section.lessons);
+    const [reorderedItem] = newLessons.splice(source.index, 1);
+    newLessons.splice(destination.index, 0, reorderedItem);
+
+    const newSections = [...sections];
+    newSections[sectionIndex] = { ...section, lessons: newLessons };
+    setSections(newSections);
+
+    try {
+
+      const reorderedIds = newLessons.map(l => l.id.toString());
+        
+        await axios.put(
+            `${API_URL}/courses/${courseId}/sections/${sectionId}/reorder`, 
+            { lessonIds: reorderedIds }, 
+            config
+        );
+        
+        console.log("New order saved to database successfully.");
+    } catch (error) {
+        console.error("Reorder failed", error);
+        alert("Failed to save new order. Reverting changes...");
+        fetchData(); 
+    }
+  };
+
   // --- SECTION ACTIONS ---
   const handleAddSection = async (e) => {
     e.preventDefault();
@@ -200,7 +246,7 @@ const EditCourse = () => {
       await axios.post(`${API_URL}/courses/${courseId}/sections`, { title: newSectionTitle }, config);
       setNewSectionTitle("");
       setIsAddingSection(false);
-      fetchData(); // Refresh data
+      fetchData();
     } catch (error) {
       console.error("Error adding section:", error);
       alert("Error adding section");
@@ -478,111 +524,135 @@ const EditCourse = () => {
                     <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{sections.length} Sections</div>
                 </div>
                 
-                {/* --- SECTIONS LIST --- */}
-                <div className="space-y-4 mb-8">
-                    {sections.length === 0 && <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-xl">Start by adding your first section!</div>}
-                    
-                    {sections.map((section, idx) => (
-                      <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                        {/* Section Header */}
-                        <div className="bg-gray-50 p-3 flex items-center justify-between group select-none">
-                          <div className="flex items-center gap-3 flex-1">
-                            <GripVertical className="text-gray-400 cursor-move" size={20} />
-                            <div className="cursor-pointer" onClick={() => toggleSection(section.id)}>
-                               {expandedSections[section.id] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                {/* --- SECTIONS LIST (Wrapped in DND) --- */}
+                <DragDropContext onDragEnd={onDragEnd}>
+                    <div className="space-y-4 mb-8">
+                        {sections.length === 0 && <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-xl">Start by adding your first section!</div>}
+                        
+                        {sections.map((section, idx) => (
+                        <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                            {/* Section Header (No Drag Handle) */}
+                            <div className="bg-gray-50 p-3 flex items-center justify-between group select-none">
+                            <div className="flex items-center gap-3 flex-1">
+                                {/* GripVertical REMOVED from here */}
+                                <div className="cursor-pointer" onClick={() => toggleSection(section.id)}>
+                                    {expandedSections[section.id] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                </div>
+                                {editingSectionId === section.id ? (
+                                <div className="flex items-center gap-2 flex-1">
+                                    <input autoFocus className="flex-1 px-2 py-1 border rounded" value={editSectionTitle} onChange={(e) => setEditSectionTitle(e.target.value)} />
+                                    <button onClick={handleUpdateSection} className="p-1 bg-green-100 text-green-700 rounded"><Check size={14}/></button>
+                                    <button onClick={() => setEditingSectionId(null)} className="p-1 bg-red-100 text-red-700 rounded"><X size={14}/></button>
+                                </div>
+                                ) : (
+                                <span className="font-bold text-gray-800 cursor-pointer" onClick={() => toggleSection(section.id)}>Section {idx + 1}: {section.title}</span>
+                                )}
                             </div>
-                            {editingSectionId === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <input autoFocus className="flex-1 px-2 py-1 border rounded" value={editSectionTitle} onChange={(e) => setEditSectionTitle(e.target.value)} />
-                                <button onClick={handleUpdateSection} className="p-1 bg-green-100 text-green-700 rounded"><Check size={14}/></button>
-                                <button onClick={() => setEditingSectionId(null)} className="p-1 bg-red-100 text-red-700 rounded"><X size={14}/></button>
-                              </div>
-                            ) : (
-                              <span className="font-bold text-gray-800 cursor-pointer" onClick={() => toggleSection(section.id)}>Section {idx + 1}: {section.title}</span>
+                            {editingSectionId !== section.id && (
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => {setEditingSectionId(section.id); setEditSectionTitle(section.title);}} className="p-2 text-gray-500 hover:text-blue-600"><Edit2 size={16} /></button>
+                                    <button onClick={() => handleDeleteSection(section.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={16} /></button>
+                                </div>
                             )}
-                          </div>
-                          {editingSectionId !== section.id && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <button onClick={() => {setEditingSectionId(section.id); setEditSectionTitle(section.title);}} className="p-2 text-gray-500 hover:text-blue-600"><Edit2 size={16} /></button>
-                               <button onClick={() => handleDeleteSection(section.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={16} /></button>
                             </div>
-                          )}
-                        </div>
 
-                        {/* Section Content */}
-                        {expandedSections[section.id] && (
-                          <div className="border-t border-gray-100 bg-white p-2 space-y-1">
-                            {section.lessons && section.lessons.map(lesson => (
-                              <div key={lesson.id} className="flex items-center justify-between pl-10 pr-4 py-3 hover:bg-purple-50 rounded-lg group border-b border-gray-50 last:border-0">
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getLessonBadgeColor(lesson.type)}`}>{getLessonIcon(lesson.type)}</div>
-                                    {editingLessonId === lesson.id ? (
-                                      <div className="flex items-center gap-2 flex-1">
-                                        <input autoFocus className="flex-1 px-2 py-1 border rounded text-sm" value={editLessonTitle} onChange={(e) => setEditLessonTitle(e.target.value)} />
-                                        <button onClick={handleUpdateLesson} className="p-1 bg-green-100 rounded"><Check size={12}/></button>
-                                        <button onClick={() => setEditingLessonId(null)} className="p-1 bg-red-100 rounded"><X size={12}/></button>
-                                      </div>
-                                    ) : (
-                                      <div className="flex flex-col">
-                                        <span className="text-sm font-medium">{lesson.title}</span>
-                                        {/* Status Text Logic */}
-                                        {lesson.type === 'video' && <span className="text-xs text-gray-400">{lesson.video_url ? "Video Uploaded" : "No Content"}</span>}
-                                        {lesson.type === 'note' && <span className="text-xs text-gray-400">{lesson.note_content ? "Content Added" : "Empty Note"}</span>}
-                                        {lesson.type === 'assessment' && <span className="text-xs text-gray-400">Quiz</span>}
-                                      </div>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {lesson.type === 'video' && (
-                                    <div className="relative">
-                                      {uploadingLessonId === lesson.id ? (
-                                        <div className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full">
-                                          <Loader2 size={14} className="animate-spin text-purple-600"/>
-                                          <span className="text-xs font-bold text-gray-600">{uploadProgress}%</span>
+                            {/* Section Content */}
+                            {expandedSections[section.id] && (
+                            <div className="border-t border-gray-100 bg-white p-2 space-y-1">
+
+                                <Droppable droppableId={`section-${section.id}`}>
+                                    {(provided) => (
+                                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1">
+                                            {section.lessons && section.lessons.map((lesson, index) => (
+                                                /* ✨ START: Draggable ✨ */
+                                                <Draggable key={lesson.id} draggableId={lesson.id.toString()} index={index}>
+                                                    {(provided, snapshot) => (
+                                                        <div 
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            className={`flex items-center justify-between pl-2 pr-4 py-3 rounded-lg group border-b border-gray-50 last:border-0 ${snapshot.isDragging ? "bg-purple-100 shadow-lg" : "hover:bg-purple-50"}`}
+                                                        >
+                                                            <div className="flex items-center gap-3 flex-1">
+                                                                {/* ✅ LESSON DRAG HANDLE */}
+                                                                <div {...provided.dragHandleProps} className="text-gray-400 cursor-grab hover:text-gray-600 p-1">
+                                                                    <GripVertical size={20} />
+                                                                </div>
+
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getLessonBadgeColor(lesson.type)}`}>{getLessonIcon(lesson.type)}</div>
+                                                                {editingLessonId === lesson.id ? (
+                                                                <div className="flex items-center gap-2 flex-1">
+                                                                    <input autoFocus className="flex-1 px-2 py-1 border rounded text-sm" value={editLessonTitle} onChange={(e) => setEditLessonTitle(e.target.value)} />
+                                                                    <button onClick={handleUpdateLesson} className="p-1 bg-green-100 rounded"><Check size={12}/></button>
+                                                                    <button onClick={() => setEditingLessonId(null)} className="p-1 bg-red-100 rounded"><X size={12}/></button>
+                                                                </div>
+                                                                ) : (
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-medium">{lesson.title}</span>
+                                                                    {/* Status Text Logic */}
+                                                                    {lesson.type === 'video' && <span className="text-xs text-gray-400">{lesson.video_url ? "Video Uploaded" : "No Content"}</span>}
+                                                                    {lesson.type === 'note' && <span className="text-xs text-gray-400">{lesson.note_content ? "Content Added" : "Empty Note"}</span>}
+                                                                    {lesson.type === 'assessment' && <span className="text-xs text-gray-400">Quiz</span>}
+                                                                </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {lesson.type === 'video' && (
+                                                                <div className="relative">
+                                                                    {uploadingLessonId === lesson.id ? (
+                                                                    <div className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full">
+                                                                        <Loader2 size={14} className="animate-spin text-purple-600"/>
+                                                                        <span className="text-xs font-bold text-gray-600">{uploadProgress}%</span>
+                                                                    </div>
+                                                                    ) : (
+                                                                    <>
+                                                                        <input type="file" id={`up-${lesson.id}`} className="hidden" accept="video/*" onChange={(e) => handleFileUpload(e, lesson.id)} />
+                                                                        <label htmlFor={`up-${lesson.id}`} className="cursor-pointer text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-blue-100"><UploadCloud size={12}/> {lesson.video_url ? "Re-upload" : "Upload"}</label>
+                                                                    </>
+                                                                    )}
+                                                                </div>
+                                                                )}
+                                                                {lesson.type === 'note' && <button onClick={() => openNoteEditor(lesson)} className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-orange-100"><FileEdit size={12}/> Edit</button>}
+                                                                {lesson.type === 'assessment' && <button onClick={() => openQuizManager(lesson)} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-purple-100"><ListChecks size={12}/> Questions</button>}
+                                                                
+                                                                {editingLessonId !== lesson.id && (
+                                                                <>
+                                                                    <button onClick={() => {setEditingLessonId(lesson.id); setEditLessonTitle(lesson.title);}} className="text-gray-400 hover:text-blue-500 p-1"><Edit2 size={14}/></button>
+                                                                    <button onClick={() => handleDeleteLesson(lesson.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                                                                </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
                                         </div>
-                                      ) : (
-                                        <>
-                                          <input type="file" id={`up-${lesson.id}`} className="hidden" accept="video/*" onChange={(e) => handleFileUpload(e, lesson.id)} />
-                                          <label htmlFor={`up-${lesson.id}`} className="cursor-pointer text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-blue-100"><UploadCloud size={12}/> {lesson.video_url ? "Re-upload" : "Upload"}</label>
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
-                                  {lesson.type === 'note' && <button onClick={() => openNoteEditor(lesson)} className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-orange-100"><FileEdit size={12}/> Edit</button>}
-                                  {lesson.type === 'assessment' && <button onClick={() => openQuizManager(lesson)} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-purple-100"><ListChecks size={12}/> Questions</button>}
-                                  
-                                  {editingLessonId !== lesson.id && (
-                                    <>
-                                      <button onClick={() => {setEditingLessonId(lesson.id); setEditLessonTitle(lesson.title);}} className="text-gray-400 hover:text-blue-500 p-1"><Edit2 size={14}/></button>
-                                      <button onClick={() => handleDeleteLesson(lesson.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14}/></button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+                                    )}
+                                </Droppable>
 
-                            {/* Add Lesson Form */}
-                            <div className="bg-gray-50 p-3 mt-2 rounded border border-dashed flex items-center gap-2">
-                               {addingLessonToSectionId === section.id ? (
-                                 <form onSubmit={(e) => handleAddLesson(e, section.id)} className="flex items-center gap-2 flex-1 animate-in fade-in">
-                                   <select value={newLessonType} onChange={(e) => setNewLessonType(e.target.value)} className="text-xs p-2 border rounded">
-                                     <option value="video">Video</option>
-                                     <option value="note">Article</option>
-                                     <option value="assessment">Quiz</option>
-                                   </select>
-                                   <input autoFocus placeholder="Lesson title..." className="flex-1 text-sm p-2 border rounded" value={newLessonTitle} onChange={(e) => setNewLessonTitle(e.target.value)} />
-                                   <button type="submit" className="bg-purple-600 text-white text-xs px-3 py-1.5 rounded">Add</button>
-                                   <button type="button" onClick={() => setAddingLessonToSectionId(null)} className="text-gray-500 text-xs px-2">Cancel</button>
-                                 </form>
-                               ) : (
-                                 <button onClick={() => setAddingLessonToSectionId(section.id)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-purple-600 ml-4"><Plus size={16} /> Add Lesson Content</button>
-                               )}
+                                {/* Add Lesson Form */}
+                                <div className="bg-gray-50 p-3 mt-2 rounded border border-dashed flex items-center gap-2">
+                                {addingLessonToSectionId === section.id ? (
+                                    <form onSubmit={(e) => handleAddLesson(e, section.id)} className="flex items-center gap-2 flex-1 animate-in fade-in">
+                                    <select value={newLessonType} onChange={(e) => setNewLessonType(e.target.value)} className="text-xs p-2 border rounded">
+                                        <option value="video">Video</option>
+                                        <option value="note">Article</option>
+                                        <option value="assessment">Quiz</option>
+                                    </select>
+                                    <input autoFocus placeholder="Lesson title..." className="flex-1 text-sm p-2 border rounded" value={newLessonTitle} onChange={(e) => setNewLessonTitle(e.target.value)} />
+                                    <button type="submit" className="bg-purple-600 text-white text-xs px-3 py-1.5 rounded">Add</button>
+                                    <button type="button" onClick={() => setAddingLessonToSectionId(null)} className="text-gray-500 text-xs px-2">Cancel</button>
+                                    </form>
+                                ) : (
+                                    <button onClick={() => setAddingLessonToSectionId(section.id)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-purple-600 ml-4"><Plus size={16} /> Add Lesson Content</button>
+                                )}
+                                </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
+                            )}
+                        </div>
+                        ))}
+                    </div>
+                </DragDropContext>
 
                 {/* Add Section Button */}
                 {isAddingSection ? (
