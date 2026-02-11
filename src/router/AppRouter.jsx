@@ -68,6 +68,8 @@ import InstructorStudentsList from "../pages/Instructor/InstructorStudentsList";
 
 import InstructorQuizReview from "../pages/Instructor/InstructorQuizReview";
 
+import Teach from "../pages/Home/Teach";
+
 export const router = createBrowserRouter([
   // ===================================
   // PUBLIC LAYOUT
@@ -77,6 +79,7 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { path: "/", element: <Home /> },
+      { path: "teach", element: <Teach /> },
 
       { path: "/courses", element: <CoursesList /> },
       { path: "/courses/search", element: <CoursesList /> },
