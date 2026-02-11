@@ -34,7 +34,9 @@ const CourseDetails = () => {
   // Cart States
   const [addingToCart, setAddingToCart] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
-  const [isSubscriberCourse, setIsSubscriberCourse] = useState(false);
+  // const [isSubscriberCourse, setIsSubscriberCourse] = useState(false);
+  const [isSubscriberOnlyCourse, setIsSubscriberOnlyCourse] = useState(false);
+  const [hasSubscriberAccess, setHasSubscriberAccess] = useState(false);
   const [starterPrice, setStarterPrice] = useState("0");
 
   // Preview States
@@ -96,9 +98,9 @@ const CourseDetails = () => {
           courseData.required_plan_name &&
           courseData.required_plan_name !== "Standard"
         ) {
-          setIsSubscriberCourse(true);
+          setIsSubscriberOnlyCourse(true);
         } else {
-          setIsSubscriberCourse(false);
+          setIsSubscriberOnlyCourse(false);
         }
 
         setParsedRequirements(safelyParseJSON(courseData.requirements));
@@ -120,13 +122,16 @@ const CourseDetails = () => {
     const checkAllStatuses = async () => {
       if (!id) return;
 
+      if (!course) return;
+
       const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
       const inGuestCart = guestCart.some(
         (item) => Number(item.id) === Number(id),
       );
 
       setIsEnrolled(false);
-      setIsSubscriberCourse(false);
+      // setIsSubscriberCourse(false);
+      setHasSubscriberAccess(false);
 
       if (user) {
         try {
@@ -150,21 +155,31 @@ const CourseDetails = () => {
 
           setIsInCart(inGuestCart || inBackendCart);
 
-          // Subscription Logic
           const subData = subRes.data?.data || subRes.data;
+
           if (subData?.hasActiveSubscription) {
-            const features =
-              typeof subData.features === "string"
-                ? JSON.parse(subData.features)
-                : subData.features;
+            const userPlanName = String(
+              subData.plan_name || subData.planName || "",
+            )
+              .trim()
+              .toLowerCase();
+
+            const coursePlanName = String(
+              course?.SubscriptionPlans?.name ||
+                course?.required_plan_name ||
+                "",
+            )
+              .trim()
+              .toLowerCase();
 
             const hasSubAccess =
-              features?.all_courses_access === true ||
-              features?.subscriber_only_courses
-                ?.map(String)
-                .includes(String(id));
+              !!coursePlanName &&
+              !!userPlanName &&
+              userPlanName === coursePlanName;
 
-            setIsSubscriberCourse(!!hasSubAccess);
+            setHasSubscriberAccess(hasSubAccess);
+          } else {
+            setHasSubscriberAccess(false);
           }
 
           // Enrollment & Wishlist
@@ -179,7 +194,7 @@ const CourseDetails = () => {
             if (prev) return prev;
 
             const onServer = wishlistData.some(
-              (item) => Number(item.id) === courseId, 
+              (item) => Number(item.id) === courseId,
             );
 
             return !!onServer;
@@ -193,7 +208,7 @@ const CourseDetails = () => {
     };
 
     checkAllStatuses();
-  }, [id, user]);
+  }, [id, user, course]);
 
   useEffect(() => {
     api
@@ -217,7 +232,7 @@ const CourseDetails = () => {
   const isActuallyFree = course && Number(course.price) === 0;
 
   const hasAccess =
-    isActuallyFree || (!!user && (isEnrolled || isSubscriberCourse));
+    isActuallyFree || (!!user && (isEnrolled || hasSubscriberAccess));
 
   const requiredPlan =
     course?.SubscriptionPlans?.name || course?.required_plan_name;
@@ -679,7 +694,7 @@ const CourseDetails = () => {
                           Open for all students
                         </p>
                       </>
-                    ) : isSubscriberCourse && !isEnrolled ? (
+                    ) : hasSubscriberAccess && !isEnrolled ? (
                       <>
                         <Star className="w-8 h-8 text-blue-600 mx-auto mb-2 fill-current" />
                         <p className="text-blue-800 font-bold">
@@ -710,7 +725,7 @@ const CourseDetails = () => {
               ) : (
                 // UPSell UI (Subscription vs Purchase)
                 <div className="flex flex-col">
-                  {hasRequiredPlan && (
+                  {isSubscriberOnlyCourse && hasRequiredPlan && (
                     <>
                       <div className="space-y-3 pb-4">
                         <div className="flex items-start gap-2">
@@ -718,7 +733,7 @@ const CourseDetails = () => {
                             <Star className="w-4 h-4 text-purple-700 fill-current" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-gray-900 leading-tight">
+                            {/* <p className="text-sm font-bold text-gray-900 leading-tight">
                               Included in{" "}
                               <span className="text-purple-700">
                                 {requiredPlan}
@@ -727,6 +742,17 @@ const CourseDetails = () => {
                             <p className="text-[12px] text-gray-600 mt-1">
                               Unlock this premium course and all others in the{" "}
                               {requiredPlan}.
+                            </p> */}
+
+                            <p className="text-sm font-bold text-gray-900 leading-tight">
+                              Get access with{" "}
+                              <span className="text-purple-700">
+                                {requiredPlan}
+                              </span>
+                            </p>
+                            <p className="text-[12px] text-gray-600 mt-1">
+                              Upgrade your plan to watch this course and others
+                              in {requiredPlan}.
                             </p>
                           </div>
                         </div>

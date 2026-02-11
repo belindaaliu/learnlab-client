@@ -17,7 +17,6 @@ const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
       : "Unknown Instructor");
 
   // --- PLAN / FEATURES ---
-  // userPlan is the subscription overview: { hasActiveSubscription, features, ... }
   const rawFeatures = userPlan?.features;
 
   let features = {};
@@ -30,28 +29,39 @@ const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
     features = {};
   }
 
-  const currentCourseId = String(course.id);
+  const userPlanName = String(
+    userPlan?.plan_name || userPlan?.planName || "",
+  )
+    .trim()
+    .toLowerCase();
 
-  const subscriberOnlyList = Array.isArray(features?.subscriber_only_courses)
-    ? features.subscriber_only_courses.map((id) => String(id))
-    : [];
+  const coursePlanName = String(
+    course?.SubscriptionPlans?.name || course?.required_plan_name || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const userPlanMatchesCourse =
+    !!userPlanName && !!coursePlanName && userPlanName === coursePlanName;
+
+  const hasAllCoursesAccess = features?.all_courses_access === true;
 
   // --- IDENTITY LOGIC ---
   const isActuallyFree = Number(course.price) === 0;
   const isActuallyPremium = Boolean(
     course.is_premium ||
-    course.is_subscriber_only ||
-    course.isPremium ||
-    Number(course.price) > 0,
+      course.is_subscriber_only ||
+      course.isPremium ||
+      Number(course.price) > 0,
   );
 
   // --- ACCESS LOGIC ---
+  // CHANGED: userHasAccess uses plan-name match or all_courses_access
   const userHasAccess = !!(
     isActuallyFree ||
     (user &&
       userPlan?.hasActiveSubscription === true &&
-      (features?.all_courses_access === true ||
-        subscriberOnlyList.includes(currentCourseId)))
+      (hasAllCoursesAccess || userPlanMatchesCourse))
   );
 
   // --- BADGE LOGIC ---

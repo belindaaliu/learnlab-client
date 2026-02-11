@@ -36,8 +36,8 @@ const SubscriptionPlans = () => {
     const list = [];
     if (f.all_courses_access) {
       list.push("Unlimited access to ALL premium courses");
-    } else if (f.subscriber_only_courses?.length > 0) {
-      list.push(`Access to ${f.subscriber_only_courses.length} exclusive courses`);
+    } else if (f.subscriber_only_courses > 0) {
+      list.push(`Access to over ${f.subscriber_only_courses} exclusive courses`);
     }
 
     if (f.discount_percent > 0) list.push(`${f.discount_percent}% off additional content`);

@@ -359,6 +359,7 @@ export default function StudentDashboard() {
                 key={course.id}
                 course={course}
                 onAddToCart={() => handleAddToCart(course.id)}
+                isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
               />
             ))}
           </div>
