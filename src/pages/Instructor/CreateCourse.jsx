@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Layout, DollarSign, BarChart, Globe, UploadCloud, Loader2 } from 'lucide-react';
+import { Layout, DollarSign, BarChart, Globe, UploadCloud, Loader2, Tag } from 'lucide-react'; // Added Tag icon
 import Button from '../../components/common/Button'; 
 import CategorySelector from '../../components/common/CategorySelector';
 
@@ -17,7 +17,8 @@ const CreateCourse = () => {
     category_id: '',
     level: 'beginner',
     thumbnail_url: '',
-    language: 'English'
+    language: 'English',
+    tags: ''
   });
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -29,13 +30,12 @@ const CreateCourse = () => {
   };
 
   const handleImageUpload = async (e) => {
+
     const file = e.target.files[0];
     if (!file) return;
-
     setUploadingImage(true);
     const uploadData = new FormData();
     uploadData.append('file', file);
-
     try {
       const res = await axios.post(`${API_URL}/upload`, uploadData, {
         headers: { ...config.headers, 'Content-Type': 'multipart/form-data' }
@@ -51,7 +51,6 @@ const CreateCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
 
     if (!formData.category_id) {
         alert("Please select a category.");
@@ -64,19 +63,21 @@ const CreateCourse = () => {
 
     setLoading(true);
     try {
+      // Prepare Payload: Convert comma-separated tags string to Array
+      const payload = {
+          ...formData,
+          tags: formData.tags 
+            ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== "") 
+            : []
+      };
 
-      const res = await axios.post(`${API_URL}/courses`, formData, config);
-      
-      console.log("Course Created Response:", res.data); 
-
-
+      const res = await axios.post(`${API_URL}/courses`, payload, config);
       const newCourseId = res.data.id || res.data.data?.id;
 
       if (newCourseId) {
-
         navigate(`/instructor/courses/edit/${newCourseId}`);
       } else {
-        throw new Error("Course created but ID is missing in response.");
+        throw new Error("Course created but ID is missing.");
       }
       
     } catch (error) {
@@ -100,13 +101,10 @@ const CreateCourse = () => {
             <div className="relative">
               <Layout className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
               <input 
-                type="text" 
-                name="title"
-                required
+                type="text" name="title" required
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                 placeholder="e.g. Complete React Guide 2026"
-                value={formData.title}
-                onChange={handleChange}
+                value={formData.title} onChange={handleChange}
               />
             </div>
           </div>
@@ -115,13 +113,28 @@ const CreateCourse = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
             <textarea 
-              name="description"
-              rows="3"
+              name="description" rows="3"
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
               placeholder="Brief summary..."
-              value={formData.description}
-              onChange={handleChange}
+              value={formData.description} onChange={handleChange}
             />
+          </div>
+
+          {/* Tags Field (New) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tags (Keywords)</label>
+            <div className="relative">
+              <Tag className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+              <input 
+                type="text" 
+                name="tags"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="e.g. React, Web Development, Programming (comma separated)"
+                value={formData.tags} 
+                onChange={handleChange}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -131,15 +144,10 @@ const CreateCourse = () => {
               <div className="relative">
                 <DollarSign className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
                 <input 
-                  type="number" 
-                  name="price"
-                  required
-                  min="0"
-                  step="0.01"
+                  type="number" name="price" required min="0" step="0.01"
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   placeholder="29.99"
-                  value={formData.price}
-                  onChange={handleChange}
+                  value={formData.price} onChange={handleChange}
                 />
               </div>
             </div>
@@ -152,8 +160,7 @@ const CreateCourse = () => {
                 <select 
                   name="level"
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white"
-                  value={formData.level}
-                  onChange={handleChange}
+                  value={formData.level} onChange={handleChange}
                 >
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
@@ -165,12 +172,9 @@ const CreateCourse = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
-               <CategorySelector 
-                 selectedId={formData.category_id}
-                 onChange={handleChange}
-               />
-            </div>
+              <div>
+                <CategorySelector selectedId={formData.category_id} onChange={handleChange} />
+             </div>
 
             {/* Language */}
             <div>
@@ -180,8 +184,7 @@ const CreateCourse = () => {
                 <select 
                   name="language"
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white"
-                  value={formData.language}
-                  onChange={handleChange}
+                  value={formData.language} onChange={handleChange}
                 >
                   <option value="English">English</option>
                   <option value="French">French</option>
@@ -196,7 +199,6 @@ const CreateCourse = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail Image</label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition relative">
-              
               {uploadingImage ? (
                 <div className="flex items-center gap-2 text-purple-600 font-bold">
                     <Loader2 className="animate-spin" /> Uploading...
@@ -217,8 +219,7 @@ const CreateCourse = () => {
                   <UploadCloud className="w-10 h-10 text-gray-400 mb-2" />
                   <p className="text-sm text-gray-500 mb-2">Click to upload or drag and drop</p>
                   <input 
-                    type="file" 
-                    accept="image/*" 
+                    type="file" accept="image/*" 
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     onChange={handleImageUpload}
                   />
