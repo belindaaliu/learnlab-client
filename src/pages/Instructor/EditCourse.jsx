@@ -6,7 +6,8 @@ import {
   Save, ArrowLeft, Plus, Trash2, Edit2, Check, X,
   BookOpen, Users, FileText, Loader2, Layout,
   PlayCircle, HelpCircle, GripVertical, Video, 
-  UploadCloud, Link as LinkIcon, FileEdit, ListChecks, CheckCircle, ChevronDown, ChevronRight, Tag
+  UploadCloud, Link as LinkIcon, FileEdit, ListChecks, CheckCircle, ChevronDown, ChevronRight, Tag,
+  Eye, EyeOff // Added Eye icons
 } from "lucide-react";
 import CategorySelector from '../../components/common/CategorySelector';
 
@@ -30,10 +31,9 @@ const EditCourse = () => {
     language: "English",
     requirements: [""],
     target_audience: [""],
-    tags: [] // <--- New State for tags Array
+    tags: [] 
   });
 
-  // Local state for adding a new tag in the UI
   const [newTagInput, setNewTagInput] = useState("");
 
   // --- CURRICULUM STATES ---
@@ -81,13 +81,11 @@ const EditCourse = () => {
       const res = await axios.get(`${API_URL}/courses/${courseId}`, config);
       const course = res.data;
 
-      // Basic Info Parsing
       let parsedReqs = [];
       let parsedAudience = [];
       try { parsedReqs = course.requirements ? JSON.parse(course.requirements) : [""]; } catch (e) { console.warn(e); parsedReqs = [""]; }
       try { parsedAudience = course.target_audience ? JSON.parse(course.target_audience) : [""]; } catch (e) { console.warn(e); parsedAudience = [""]; }
 
-      // Parse tags from DB response
       const existingTags = course.CourseTags ? course.CourseTags.map(t => t.tag_name) : [];
 
       setFormData({
@@ -100,10 +98,9 @@ const EditCourse = () => {
         language: course.language || "English",
         requirements: parsedReqs.length ? parsedReqs : [""],
         target_audience: parsedAudience.length ? parsedAudience : [""],
-        tags: existingTags // Set Tags
+        tags: existingTags 
       });
 
-      // Curriculum Organization
       if (course.CourseContent) {
           const rawSections = course.CourseContent.filter(item => item.type === 'section').sort((a,b) => a.order_index - b.order_index);
           const organized = rawSections.map(section => {
@@ -127,7 +124,7 @@ const EditCourse = () => {
   }, [courseId]);
 
   // =========================================
-  // 2. BASIC INFO HANDLERS
+  // 2. HANDLERS
   // =========================================
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -180,12 +177,11 @@ const EditCourse = () => {
         target_audience: cleanAudience,
         price: parseFloat(formData.price),
         category_id: parseInt(formData.category_id),
-        tags: formData.tags // Send tags array to backend
+        tags: formData.tags
       };
 
       await axios.put(`${API_URL}/courses/${courseId}`, payload, config);
       alert("Course basic info updated successfully!");
-      
       navigate("/instructor/courses");
 
     } catch (error) {
@@ -196,7 +192,7 @@ const EditCourse = () => {
     }
   };
 
-  // ... [Curriculum logic: toggleSection, onDragEnd, handleAddSection, etc. remain unchanged] ...
+  // --- CURRICULUM ACTIONS ---
   const toggleSection = (sectionId) => {
     setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
@@ -216,6 +212,22 @@ const EditCourse = () => {
       case 'note': return 'bg-orange-100 text-orange-600';
       case 'assessment': return 'bg-purple-100 text-purple-600';
       default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  // --- PREVIEW TOGGLE ---
+  const handleTogglePreview = async (lesson) => {
+    try {
+        const newStatus = !lesson.is_preview;
+        await axios.put(
+            `${API_URL}/courses/${courseId}/lessons/${lesson.id}`, 
+            { is_preview: newStatus }, 
+            config
+        );
+        fetchData(); 
+    } catch (error) {
+        console.error("Error toggling preview:", error);
+        alert("Failed to update preview status");
     }
   };
 
@@ -308,7 +320,18 @@ const EditCourse = () => {
   };
 
   const openNoteEditor = (lesson) => { setCurrentNoteLesson(lesson); setNoteContent(lesson.note_content || ""); setIsNoteModalOpen(true); };
-  const handleSaveNote = async () => { try { await axios.put(`${API_URL}/courses/${courseId}/lessons/${currentNoteLesson.id}`, { note_content: noteContent }, config); setIsNoteModalOpen(false); fetchData(); alert("Note saved!"); } catch (error) { console.error(error); alert("Failed to save note"); } };
+  
+  const handleSaveNote = async () => { 
+    try { 
+        await axios.put(`${API_URL}/courses/${courseId}/lessons/${currentNoteLesson.id}`, { note_content: noteContent }, config); 
+        setIsNoteModalOpen(false); 
+        fetchData(); 
+        alert("Note saved!"); 
+    } catch (error) { 
+        console.error("Save note error:", error); 
+        alert("Failed to save note"); 
+    } 
+  };
 
   const openQuizManager = async (lesson) => {
     setCurrentQuizLesson(lesson);
@@ -319,13 +342,11 @@ const EditCourse = () => {
         id: q.id,
         question_text: q.question_text,
         question_type: q.question_type,
-
         options: (q.AssessmentOptions || []).map(opt => ({
           option_text: opt.option_text,
           is_correct: opt.is_correct
         }))
       }));
-
       setQuizQuestions(questions);
       setIsQuizModalOpen(true);
     } catch (error) {
@@ -346,14 +367,22 @@ const EditCourse = () => {
     removeOption: (qIdx, oIdx) => { const u = [...quizQuestions]; u[qIdx].options.splice(oIdx, 1); setQuizQuestions(u); }
   };
 
-  const handleSaveQuiz = async () => { try { await axios.put(`${API_URL}/courses/${courseId}/lessons/${currentQuizLesson.id}/quiz`, { questions: quizQuestions }, config); setIsQuizModalOpen(false); alert("Quiz saved!"); } catch (error) { console.error(error); alert("Failed to save quiz"); } };
+  const handleSaveQuiz = async () => { 
+    try { 
+        await axios.put(`${API_URL}/courses/${courseId}/lessons/${currentQuizLesson.id}/quiz`, { questions: quizQuestions }, config); 
+        setIsQuizModalOpen(false); 
+        alert("Quiz saved!"); 
+    } catch (error) { 
+        console.error("Save quiz error:", error); 
+        alert("Failed to save quiz"); 
+    } 
+  };
 
 
   if (loading) return <div className="p-10 text-center">Loading...</div>;
 
   return (
     <div className="max-w-7xl mx-auto pb-20 px-4">
-      
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-4">
@@ -377,9 +406,7 @@ const EditCourse = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* ========================================= */}
         {/* LEFT COLUMN: BASIC INFO */}
-        {/* ========================================= */}
         <div className="lg:col-span-4 space-y-8">
             <form onSubmit={handleSubmitBasicInfo} className="space-y-6">
                 
@@ -416,7 +443,7 @@ const EditCourse = () => {
                     </div>
                 </div>
 
-                {/* --- TAGS SECTION (Added) --- */}
+                {/* --- TAGS SECTION --- */}
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
                     <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2 border-b pb-2 mb-4">
                         <Tag size={20} className="text-purple-600"/> Tags & Keywords
@@ -481,10 +508,7 @@ const EditCourse = () => {
             </form>
         </div>
 
-        {/* ... [Right Column (Curriculum) remains identical to the existing code] ... */}
-        {/* ========================================= */}
         {/* RIGHT COLUMN: CURRICULUM BUILDER */}
-        {/* ========================================= */}
         <div className="lg:col-span-8">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-full">
                 <div className="flex items-center justify-between mb-6">
@@ -576,12 +600,29 @@ const EditCourse = () => {
                                                                 {lesson.type === 'note' && <button onClick={() => openNoteEditor(lesson)} className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-orange-100"><FileEdit size={12}/> Edit</button>}
                                                                 {lesson.type === 'assessment' && <button onClick={() => openQuizManager(lesson)} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded flex items-center gap-1 hover:bg-purple-100"><ListChecks size={12}/> Questions</button>}
                                                                 
-                                                                {editingLessonId !== lesson.id && (
-                                                                <>
-                                                                    <button onClick={() => {setEditingLessonId(lesson.id); setEditLessonTitle(lesson.title);}} className="text-gray-400 hover:text-blue-500 p-1"><Edit2 size={14}/></button>
-                                                                    <button onClick={() => handleDeleteLesson(lesson.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14}/></button>
-                                                                </>
-                                                                )}
+                                                                <div className="flex items-center gap-3 justify-end">
+                                                                    {/* PREVIEW TOGGLE BUTTON */}
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleTogglePreview(lesson)}
+                                                                        className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold ${
+                                                                            lesson.is_preview 
+                                                                            ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
+                                                                            : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                                        }`}
+                                                                        title={lesson.is_preview ? "Public Preview Enabled" : "Set as Preview"}
+                                                                    >
+                                                                        {lesson.is_preview ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                                        {lesson.is_preview ? "Preview On" : "Preview Off"}
+                                                                    </button>
+
+                                                                    {editingLessonId !== lesson.id && (
+                                                                    <>
+                                                                        <button onClick={() => {setEditingLessonId(lesson.id); setEditLessonTitle(lesson.title);}} className="text-gray-400 hover:text-blue-500 p-1"><Edit2 size={14}/></button>
+                                                                        <button onClick={() => handleDeleteLesson(lesson.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                                                                    </>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}

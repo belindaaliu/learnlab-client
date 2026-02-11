@@ -14,6 +14,8 @@ import {
   Heart,
   Video,
   FileText,
+  HelpCircle,
+  Lock
 } from "lucide-react";
 
 import Button from "../../components/common/Button";
@@ -34,15 +36,13 @@ const CourseDetails = () => {
   // Cart States
   const [addingToCart, setAddingToCart] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
-  // const [isSubscriberCourse, setIsSubscriberCourse] = useState(false);
   const [isSubscriberOnlyCourse, setIsSubscriberOnlyCourse] = useState(false);
   const [hasSubscriberAccess, setHasSubscriberAccess] = useState(false);
   const [starterPrice, setStarterPrice] = useState("0");
 
   // Preview States
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewTitle, setPreviewTitle] = useState("Course Introduction");
-  const [previewVideoUrl, setPreviewVideoUrl] = useState("");
+  const [activePreviewLesson, setActivePreviewLesson] = useState(null);
 
   // UI States
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -56,20 +56,7 @@ const CourseDetails = () => {
   const [parsedRequirements, setParsedRequirements] = useState([]);
   const [parsedAudience, setParsedAudience] = useState([]);
 
-  // Modal Config
-  const [modalConfig, setModalConfig] = useState({
-    isOpen: false,
-    title: "",
-    message: "",
-    type: "info",
-    confirmText: "Close",
-    onConfirm: null,
-  });
-
-  const closeModal = () =>
-    setModalConfig((prev) => ({ ...prev, isOpen: false }));
-
-  // --- Utility: Safe JSON Parse (Fix applied here) ---
+  // --- Utility: Safe JSON Parse ---
   const safelyParseJSON = (data) => {
     if (!data) return [];
     try {
@@ -78,7 +65,6 @@ const CourseDetails = () => {
       return Array.isArray(parsed) ? parsed : [parsed];
     } catch (error) {
       console.error("JSON Parse fallback:", error);
-
       return [data];
     }
   };
@@ -130,7 +116,6 @@ const CourseDetails = () => {
       );
 
       setIsEnrolled(false);
-      // setIsSubscriberCourse(false);
       setHasSubscriberAccess(false);
 
       if (user) {
@@ -290,6 +275,7 @@ const CourseDetails = () => {
         await fetchCartCount();
         toast.success("Course added to your cart!");
       } catch (err) {
+        console.error(err);
         toast.error("Could not add to cart. It may already be there.");
       } finally {
         setAddingToCart(false);
@@ -347,14 +333,7 @@ const CourseDetails = () => {
       });
     } catch (err) {
       console.error("Checkout failed:", err);
-      setModalConfig({
-        isOpen: true,
-        title: "Checkout Error",
-        message: "We encountered an issue starting your checkout.",
-        type: "warning",
-        confirmText: "Go to Cart",
-        onConfirm: () => navigate("/cart"),
-      });
+      toast.error("We encountered an issue starting your checkout.");
     }
   };
 
@@ -391,23 +370,58 @@ const CourseDetails = () => {
     }
   };
 
-  const openPreview = (title = "Course Introduction", videoUrl = "") => {
-    if (videoUrl) {
-      setPreviewTitle(title);
-      setPreviewVideoUrl(videoUrl);
-    } else {
-      const firstPreview = course?.CourseContent?.find(
-        (c) => c.is_preview && c.type === "video",
-      );
-      if (firstPreview) {
-        setPreviewTitle(firstPreview.title);
-        setPreviewVideoUrl(firstPreview.video_url);
-      } else {
-        setPreviewTitle(course.title);
-        setPreviewVideoUrl("");
-      }
+  // --- Open Preview Logic ---
+  const openPreview = (lesson) => {
+    if (lesson && lesson.is_preview) {
+        setActivePreviewLesson(lesson);
+        setIsPreviewOpen(true);
+    } 
+    else if (!lesson) {
+        const firstPreview = course?.CourseContent?.find(c => c.is_preview);
+        if (firstPreview) {
+            setActivePreviewLesson(firstPreview);
+            setIsPreviewOpen(true);
+        } else {
+            toast("No preview content available for this course.");
+        }
     }
-    setIsPreviewOpen(true);
+  };
+
+  // --- Modal Unlock Logic ---
+  const handleModalUnlock = async () => {
+    // If Subscription-only course
+    if (isSubscriberOnlyCourse) {
+      navigate("/pricing"); 
+      return;
+    }
+
+    // Purchase Logic
+    if (user) {
+      try {
+        await addToCart(course.id);
+        await fetchCartCount();
+        toast.success("Course added to cart! Redirecting...");
+        navigate("/cart");
+      } catch (err) {
+        console.error("Not added to Cart!",err)
+        navigate("/cart");
+      }
+    } else {
+      // Guest Logic
+      const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
+      if (!guestCart.find((item) => item.id === course.id)) {
+        guestCart.push({
+          id: course.id,
+          title: course.title,
+          price: course.price,
+          thumbnail: course.thumbnail_url,
+          instructor_id: course.Users?.id,
+          instructor_name: `${course.Users?.first_name} ${course.Users?.last_name}`,
+        });
+        localStorage.setItem("cart", JSON.stringify(guestCart));
+      }
+      navigate("/cart");
+    }
   };
 
   if (loading)
@@ -418,12 +432,19 @@ const CourseDetails = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 relative animate-in fade-in duration-500">
+      
       <VideoPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
-        course={course}
-        title={previewTitle}
-        videoUrl={previewVideoUrl}
+        activeLesson={activePreviewLesson} 
+        courseContent={course?.CourseContent || []} 
+        courseTitle={course?.title}
+        courseImage={course?.thumbnail_url}
+        onChangeLesson={(lesson) => setActivePreviewLesson(lesson)}
+        // Props for smart Unlock Button
+        onUnlock={handleModalUnlock}
+        unlockLabel={isSubscriberOnlyCourse ? "Get Subscription Access" : "Buy This Course"}
+        coursePrice={course?.price}
       />
 
       {/* HERO HEADER */}
@@ -553,11 +574,10 @@ const CourseDetails = () => {
                               className="flex justify-between text-sm text-gray-600 group"
                             >
                               <div className="flex items-center gap-3">
-                                {lesson.type === "video" ? (
-                                  <Video className="w-4 h-4 text-gray-400" />
-                                ) : (
-                                  <FileText className="w-4 h-4 text-gray-400" />
-                                )}
+                                {lesson.type === "video" && <Video className="w-4 h-4 text-gray-400" />}
+                                {lesson.type === "note" && <FileText className="w-4 h-4 text-gray-400" />}
+                                {lesson.type === "assessment" && <HelpCircle className="w-4 h-4 text-gray-400" />}
+                                
                                 <span
                                   className={
                                     lesson.is_preview
@@ -565,23 +585,17 @@ const CourseDetails = () => {
                                       : ""
                                   }
                                   onClick={() =>
-                                    lesson.is_preview &&
-                                    openPreview(lesson.title, lesson.video_url)
+                                    lesson.is_preview && openPreview(lesson)
                                   }
                                 >
                                   {lIdx + 1}. {lesson.title}
                                 </span>
                               </div>
-                              {lesson.is_preview && (
+                              {lesson.is_preview ? (
                                 <div className="flex items-center gap-4">
                                   <span
                                     className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline"
-                                    onClick={() =>
-                                      openPreview(
-                                        lesson.title,
-                                        lesson.video_url,
-                                      )
-                                    }
+                                    onClick={() => openPreview(lesson)}
                                   >
                                     Preview
                                   </span>
@@ -592,6 +606,8 @@ const CourseDetails = () => {
                                     </span>
                                   )}
                                 </div>
+                              ) : (
+                                <Lock className="w-3 h-3 text-gray-400" />
                               )}
                             </div>
                           ))}
@@ -733,17 +749,6 @@ const CourseDetails = () => {
                             <Star className="w-4 h-4 text-purple-700 fill-current" />
                           </div>
                           <div>
-                            {/* <p className="text-sm font-bold text-gray-900 leading-tight">
-                              Included in{" "}
-                              <span className="text-purple-700">
-                                {requiredPlan}
-                              </span>
-                            </p>
-                            <p className="text-[12px] text-gray-600 mt-1">
-                              Unlock this premium course and all others in the{" "}
-                              {requiredPlan}.
-                            </p> */}
-
                             <p className="text-sm font-bold text-gray-900 leading-tight">
                               Get access with{" "}
                               <span className="text-purple-700">
@@ -790,7 +795,7 @@ const CourseDetails = () => {
                     <span className="text-3xl font-bold text-gray-900">
                       ${course.price}
                     </span>
-                    {Number(course.price) > 0 && (
+                    {isPremium && (
                       <>
                         <span className="text-lg text-gray-400 line-through">
                           {(Number(course.price) * 1.2).toFixed(2)}
@@ -841,7 +846,7 @@ const CourseDetails = () => {
                     : "Add to Wishlist"}
               </button>
 
-              {!isActuallyFree && (
+              {isPremium && (
                 <p className="text-center text-xs text-gray-500 mt-4">
                   30-Day Money-Back Guarantee
                 </p>
