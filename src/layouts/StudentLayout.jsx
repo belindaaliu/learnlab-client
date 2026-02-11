@@ -103,7 +103,9 @@ export default function StudentLayout() {
                         to={`/course/${course.id}/learn`}
                         className="text-xs text-primary font-semibold hover:underline"
                       >
-                        {course.progress_percentage > 0 ? 'Continue learning' : 'Start learning'}
+                        {course.progress_percentage > 0
+                          ? "Continue learning"
+                          : "Start learning"}
                       </Link>
                     </div>
                   </div>
@@ -227,7 +229,17 @@ export default function StudentLayout() {
                 >
                   My learning
                 </Link>
-                <Link to="/student/cart" className="block px-4 py-2 hover:bg-gray-100">
+                <Link
+                  to="/student/certificates"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  Certificates
+                </Link>
+
+                <Link
+                  to="/student/cart"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
                   My cart
                 </Link>
                 <Link

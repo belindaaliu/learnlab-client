@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../utils/Api";
-import { Download, ChevronLeft } from "lucide-react";
-import CopyCertificateLink from "../../components/CopyCertificateLink"; 
+import { Download, ChevronLeft, Award, Linkedin, Share2 } from "lucide-react";
+import CopyCertificateLink from "../../components/CopyCertificateLink";
 
 const CertificateDetail = () => {
   const { courseId } = useParams();
@@ -10,15 +10,55 @@ const CertificateDetail = () => {
 
   useEffect(() => {
     api.get(`/student/certificates`).then((res) => {
-      const found = res.data.data.find((c) => c.courseId === courseId);
-      setCert(found);
+      const found = res.data.data.find(
+        (c) => c.courseId?.toString() === courseId.toString(),
+      );
+      setCert(found || null);
     });
   }, [courseId]);
 
-  if (!cert)
+  if (!cert) {
     return (
-      <div className="p-10 text-center">Loading certificate details...</div>
+      <div className="p-10 text-center">
+        No certificate found for this course.
+      </div>
     );
+  }
+
+  const handleDownload = async (courseIdParam) => {
+    try {
+      const response = await api.get(
+        `/student/certificates/${courseIdParam}/download`,
+        { responseType: "blob" },
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Certificate-${courseIdParam}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert("Download failed");
+    }
+  };
+
+  const addToLinkedInProfile = () => {
+    if (!cert) return;
+    const linkedInUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME`;
+    window.open(linkedInUrl, "_blank");
+  };
+
+  const shareToLinkedIn = () => {
+    if (!cert) return;
+    const frontendUrl =
+      import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+    const certUrl = `${frontendUrl}/verify/${cert.id}`;
+    const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+      certUrl,
+    )}`;
+    window.open(linkedInShareUrl, "_blank");
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -26,7 +66,7 @@ const CertificateDetail = () => {
         onClick={() => window.history.back()}
         className="flex items-center gap-2 text-gray-600 mb-6 hover:text-black"
       >
-        <ChevronLeft size={20} /> Back to My Certificates
+        <ChevronLeft size={20} /> Back to Course page
       </button>
 
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
@@ -39,23 +79,14 @@ const CertificateDetail = () => {
           </p>
         </div>
 
-        {/* Certificate Preview Placeholder */}
-        <div className="bg-gray-50 p-12 flex justify-center">
-          <div className="w-full max-w-2xl aspect-[1.414/1] bg-white shadow-2xl border-[12px] border-double border-primary/20 flex flex-col items-center justify-center p-8 relative">
-            <div className="absolute top-4 left-4 text-primary opacity-20">
-              <Award size={64} />
-            </div>
-            <h2 className="text-primary font-serif text-4xl mb-4">
-              Certificate of Completion
-            </h2>
-            <p className="italic text-gray-600">This is presented to</p>
-            <p className="text-2xl font-bold my-4 border-b-2 border-gray-200 pb-2 px-10">
-              Your Name
-            </p>
-            <p className="text-center text-gray-600 max-w-sm">
-              For demonstrating exceptional dedication and mastery in completing
-              the course "{cert.courseTitle}"
-            </p>
+        {/* Certificate Preview (PDF) */}
+        <div className="bg-gray-50 p-6 flex justify-center">
+          <div className="w-full max-w-3xl h-[600px] border border-gray-200 rounded-xl overflow-hidden shadow-lg">
+            <iframe
+              src={`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/public/certificates/${cert.id}/download`}
+              title="Certificate Preview"
+              className="w-full h-full"
+            />
           </div>
         </div>
 

@@ -24,7 +24,7 @@ const CopyCertificateLink = ({ certId }) => {
         className="flex items-center gap-2 border border-gray-300 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-50 transition"
       >
         {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
-        {copied ? "Link Copied!" : "Copy Link"}
+        {copied ? "Link Copied!" : "Copy Verification Link"}
       </button>
 
       {/* Tooltip Popup */}
