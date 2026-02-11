@@ -25,6 +25,7 @@ const AdminLayout = () => {
     { label: 'Courses', path: '/admin/courses', icon: BookOpen },
     { label: 'Instructors', path: '/admin/instructors', icon: Users },
     { label: 'Subscriptions', path: '/admin/subscriptions', icon: Layers },
+    { label: 'Users', path: '/admin/users', icon: Users },
   ];
 
   return (

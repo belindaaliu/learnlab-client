@@ -35,9 +35,6 @@ import PublicProfile from "../pages/Student/PublicProfile";
 import EditProfile from "../pages/Student/EditProfile";
 import EditPhoto from "../pages/Student/EditPhoto";
 import Messages from "../pages/Student/Messages";
-// import AccountSecurity from "../pages/Student/AccountSecurity";
-// import NotificationSettings from "../pages/Student/NotificationSettings";
-// import PrivacySettings from "../pages/Student/PrivacySettings";
 
 // SUBSCRIPTION & PAYMENT PAGES
 import SubscriptionOverview from "../pages/Subscription/Overview";
@@ -50,6 +47,8 @@ import AdminInstructorReview from "../pages/Admin/AdminInstructorReview";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import AdminCourses from "../pages/Admin/AdminCourses";
 import AdminAnalytics from "../pages/Admin/AdminAnalytics";
+import Users from "../pages/Admin/Users";
+import UserDetail from "../pages/Admin/UserDetail";
 import Subscriptions from "../pages/Admin/Subscriptions";
 
 // INSTRUCTOR PAGES
@@ -137,6 +136,7 @@ export const router = createBrowserRouter([
       { path: "edit-profile", element: <EditProfile /> },
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "messages", element: <Messages /> },
+      { path: "cart", element: <Cart /> },
       // { path: "security", element: <AccountSecurity /> },
       // { path: "notifications", element: <NotificationSettings /> },
       // { path: "privacy", element: <PrivacySettings /> },
@@ -205,10 +205,22 @@ export const router = createBrowserRouter([
       { path: "edit-photo", element: <EditPhoto /> },
     ],
   },
+
+  // ===================================
+  // COURSE PLAYER (FULL PAGE)
+  // ===================================
+  {
+    path: "/course/:courseId/learn",
+    element: (
+      <ProtectedRoute allowedRoles="student">
+        <CoursePlayer />
+      </ProtectedRoute>
+    ),
+  },
   
 
   // ===================================
-  // ADMIN LAYOUT (From Main Branch)
+  // ADMIN LAYOUT
   // ===================================
   {
     path: "/admin",
@@ -220,11 +232,12 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <AdminDashboard /> },
       { path: "instructors", element: <AdminInstructors /> },
-      { path: "instructors/:instructorId/review", element: <AdminInstructorReview />, },
-      { path: "analytics", element: < AdminAnalytics /> },
+      { path: "instructors/:instructorId/review", element: <AdminInstructorReview /> },
+      { path: "analytics", element: <AdminAnalytics /> },
       { path: "courses", element: <AdminCourses /> },
+      { path: "users", element: <Users /> },
+      { path: "users/:userId", element: <UserDetail /> },
       { path: "subscriptions", element: <Subscriptions /> },
     ],
   },
-  
 ]);

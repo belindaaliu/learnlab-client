@@ -86,7 +86,7 @@ const SubscriptionPlans = () => {
               <div className="mb-8">
                 <h3 className="text-2xl font-black text-gray-900 mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-gray-900">${Number(plan.price).toFixed(0)}</span>
+                  <span className="text-5xl font-black text-gray-900">${Number(plan.price).toFixed(2)}</span>
                   <span className="text-gray-400 font-bold text-lg">/ {plan.duration_days === 30 ? "mo" : `${plan.duration_days}d`}</span>
                 </div>
                 <p className="mt-4 text-gray-500 leading-relaxed text-sm font-medium">{plan.description}</p>
