@@ -63,6 +63,10 @@ import CoursePlayer from "../pages/Student/CoursePlayer";
 import InstructorPerformance from '../pages/Instructor/InstructorPerformance';
 
 import QuizReview from "../pages/Student/QuizReview";
+import StudentProgressDetail from "../pages/Instructor/StudentProgressDetail";
+import InstructorStudentsList from "../pages/Instructor/InstructorStudentsList";
+
+import InstructorQuizReview from "../pages/Instructor/InstructorQuizReview";
 
 export const router = createBrowserRouter([
   // ===================================
@@ -212,6 +216,10 @@ export const router = createBrowserRouter([
       { path: "messages", element: <InstructorMessages /> },
       { path: "edit-profile", element: <EditProfile /> },
       { path: "edit-photo", element: <EditPhoto /> },
+      { path: "courses/:courseId/students/:studentId/progress", element: <StudentProgressDetail /> },
+      { path: "courses/:courseId/students", element: <InstructorStudentsList /> },
+      { path: "quiz-review/:attemptId", element: <InstructorQuizReview />,}
+
     ],
   },
 

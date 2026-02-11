@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, UploadCloud, Loader2, RotateCcw, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const InstructorCoursesList = () => {
   const [courses, setCourses] = useState([]);
@@ -15,6 +16,8 @@ const InstructorCoursesList = () => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const defaultImage = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
   const config = { headers: { Authorization: `Bearer ${token}` } };
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -161,6 +164,7 @@ const InstructorCoursesList = () => {
                 <tr>
                   <th className="p-4">Course</th>
                   <th className="p-4">Price</th>
+                  <th className="p-4">Students</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -201,6 +205,20 @@ const InstructorCoursesList = () => {
                       </div>
                     </td>
                     <td className="p-4 font-medium text-sm">${course.price}</td>
+                    <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">
+                        {course.student_count || 0}
+                      </span>
+                      <button
+                        onClick={() => navigate(`/instructor/courses/${course.id}/students`)}
+                        className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 transition flex items-center gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        View Students
+                      </button>
+                    </div>
+                  </td>
                     <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Active</span></td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">

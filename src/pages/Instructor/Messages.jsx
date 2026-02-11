@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import api from "../../utils/Api";
 import { Search, Send, ArrowLeft, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useLocation } from "react-router-dom";
 
 export default function Communication() {
   const [conversations, setConversations] = useState([]);
@@ -13,12 +14,36 @@ export default function Communication() {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
+  const location = useLocation();
 
   const user = JSON.parse(localStorage.getItem("user"));
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+   // handle starting a conversation from navigation state
+  useEffect(() => {
+    // Check if we have state from navigation
+    if (location.state?.startConversation && location.state?.recipient) {
+      const recipient = location.state.recipient;
+      
+      // Format recipient to match your user format
+      const userToStartConversation = {
+        id: recipient.id,
+        name: recipient.name,
+        email: recipient.email,
+        photo_url: recipient.photo,
+        role: recipient.role || 'student'
+      };
+      
+      // Start conversation with this user
+      startConversation(userToStartConversation);
+      
+      // Clear the state so it doesn't trigger again on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     loadConversations();
