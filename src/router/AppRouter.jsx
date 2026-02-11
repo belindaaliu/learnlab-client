@@ -62,6 +62,8 @@ import CoursePlayer from "../pages/Student/CoursePlayer";
 
 import InstructorPerformance from '../pages/Instructor/InstructorPerformance';
 
+import QuizReview from "../pages/Student/QuizReview";
+
 export const router = createBrowserRouter([
   // ===================================
   // PUBLIC LAYOUT
@@ -145,6 +147,13 @@ export const router = createBrowserRouter([
       { path: "certificates", element: <StudentCertificates /> },
       { path: "certificates/:courseId", element: <CertificateDetail /> },
 
+
+      // QUIZ REVIEW ROUTE
+      {
+        path: "quiz-review/:attemptId",
+        element: <QuizReview />,
+      },
+
       // Subscription Routes
       {
         path: "subscription",
@@ -214,6 +223,18 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles="student">
         <CoursePlayer />
+      </ProtectedRoute>
+    ),
+  },
+
+  // ===================================
+  // QUIZ REVIEW STANDALONE ROUTE
+  // ===================================
+  {
+    path: "/quiz-review/:attemptId",
+    element: (
+      <ProtectedRoute allowedRoles="student">
+        <QuizReview />
       </ProtectedRoute>
     ),
   },

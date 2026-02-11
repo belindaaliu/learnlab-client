@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { PlayCircle, ChevronDown, ChevronRight, CheckCircle, Check } from "lucide-react";
 import logo from "../../assets/images/logo.png";
+import QuizPlayer from "./QuizPlayer";
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
@@ -81,6 +82,51 @@ export default function CoursePlayer() {
     });
   };
 
+  // Helper function to find lesson by ID (needs to be declared before useEffect)
+  const findLessonById = (lessonId) => {
+    if (!sections || sections.length === 0) return null;
+    
+    for (const section of sections) {
+      if (section.children) {
+        const found = section.children.find(lesson => 
+          lesson.id.toString() === lessonId.toString()
+        );
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // ============================
+  // Handle browser back/forward buttons
+  // ============================
+  useEffect(() => {
+    // Handle browser back/forward buttons
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const lessonId = urlParams.get('lesson');
+      
+      console.log("Popstate triggered, lessonId from URL:", lessonId);
+      
+      if (lessonId) {
+        const foundLesson = findLessonById(lessonId);
+        if (foundLesson) {
+          console.log("Found lesson from popstate:", foundLesson);
+          setCurrentLesson(foundLesson);
+        } else {
+          console.log("Lesson not found in sections:", lessonId);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [sections]); // Re-run when sections change
+
   // ============================
   // Fetch course, lessons, next lesson
   // ============================
@@ -114,11 +160,12 @@ export default function CoursePlayer() {
         console.log("Lessons/sections data:", lessonsRes.data);
         
         // Backend already organizes data, just use it directly
-        setSections(lessonsRes.data || []);
+        const sectionsData = lessonsRes.data || [];
+        setSections(sectionsData);
         
         // Expand all sections by default
         const defaultExpanded = new Set();
-        lessonsRes.data?.forEach(section => {
+        sectionsData?.forEach(section => {
           if (section.id !== "standalone") {
             defaultExpanded.add(section.id);
           }
@@ -134,7 +181,7 @@ export default function CoursePlayer() {
           console.log("Found lesson ID in URL:", lessonIdFromUrl);
           // Find the lesson in the sections
           let foundLesson = null;
-          for (const section of lessonsRes.data) {
+          for (const section of sectionsData) {
             if (section.children) {
               foundLesson = section.children.find(lesson => 
                 lesson.id.toString() === lessonIdFromUrl
@@ -148,11 +195,11 @@ export default function CoursePlayer() {
             setCurrentLesson(foundLesson);
           } else {
             // Fallback to getting next lesson
-            await getNextLessonFallback();
+            await getNextLessonFallback(sectionsData);
           }
         } else {
           // No URL parameter, get next lesson normally
-          await getNextLessonFallback();
+          await getNextLessonFallback(sectionsData);
         }
 
       } catch (err) {
@@ -163,7 +210,7 @@ export default function CoursePlayer() {
     }
 
     // Helper function to get next lesson
-    const getNextLessonFallback = async () => {
+    const getNextLessonFallback = async (sectionsData) => {
       try {
         const nextRes = await axios.get(
           `${API_URL}/course-player/${courseId}/next`,
@@ -173,9 +220,9 @@ export default function CoursePlayer() {
         
         if (nextRes.data) {
           setCurrentLesson(nextRes.data);
-        } else if (sections.length > 0) {
+        } else if (sectionsData && sectionsData.length > 0) {
           // Try to find first lesson from the sections
-          for (const section of sections) {
+          for (const section of sectionsData) {
             if (section.children && section.children.length > 0) {
               setCurrentLesson(section.children[0]);
               break;
@@ -240,6 +287,8 @@ export default function CoursePlayer() {
   // Handle lesson click
   const handleLessonClick = (lesson) => {
     setCurrentLesson(lesson);
+    // Update URL without page reload
+    window.history.pushState({}, '', `/course/${courseId}/learn?lesson=${lesson.id}`);
   };
 
   // ============================
@@ -457,11 +506,40 @@ const initializeProgress = async () => {
             {/* ❓ QUIZ */}
             {currentLesson?.type === "assessment" && (
               <div className="h-full flex flex-col bg-white">
-                <div className="flex-1 overflow-y-auto p-8">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-900">{currentLesson.title}</h2>
-                  <p className="text-gray-600">Quiz content goes here</p>
-                  {/* Add your quiz components here */}
-                </div>
+                <QuizPlayer
+                  lessonId={currentLesson.id}
+                  courseId={courseId}
+                  onQuizComplete={() => {
+                    // Update local completed lessons state
+                    const newCompleted = new Set(completedLessons);
+                    newCompleted.add(currentLesson.id);
+                    setCompletedLessons(newCompleted);
+                    
+                    // Refresh course data to update progress
+                    const refreshCourseData = async () => {
+                      try {
+                        const courseRes = await axios.get(
+                          `${API_URL}/course-player/${courseId}`,
+                          config
+                        );
+                        setCourse(courseRes.data);
+                        
+                        // Get next lesson
+                        const nextRes = await axios.get(
+                          `${API_URL}/course-player/${courseId}/next`,
+                          config
+                        );
+                        if (nextRes.data) {
+                          setCurrentLesson(nextRes.data);
+                        }
+                      } catch (error) {
+                        console.error("Error refreshing course data:", error);
+                      }
+                    };
+                    
+                    refreshCourseData();
+                  }}
+                />
               </div>
             )}
           </div>
