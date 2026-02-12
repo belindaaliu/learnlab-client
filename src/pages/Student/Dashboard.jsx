@@ -111,7 +111,17 @@ export default function StudentDashboard() {
         setFeaturedCurrentPage(0);
       } catch (error) {
         console.error("Error fetching featured courses:", error);
-        toast.error("Failed to load featured courses");
+        
+        // Check if it's a 404 - feature not available
+        if (error.response?.status === 404) {
+          console.log("Featured courses feature not available on this server");
+          // Set empty array to hide the section
+          setFeaturedCourses([]);
+          // Don't show error toast - silently fail
+        } else {
+          toast.error("Failed to load featured courses");
+          setFeaturedCourses([]);
+        }
       } finally {
         setFeaturedLoading(false);
       }
