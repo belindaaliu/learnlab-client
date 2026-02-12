@@ -35,6 +35,7 @@ const CoursesList = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [error, setError] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   const [filters, setFilters] = useState({
     search: urlSearchQuery || "",
@@ -65,6 +66,22 @@ const CoursesList = () => {
     };
 
     fetchEnrolled();
+  }, [user]);
+
+  useEffect(() => {
+    const fetchWishlist = async () => {
+      if (user) {
+        try {
+          const response = await api.get(`/student/${user.id}/wishlist`);
+          const ids = response.data.map(item => item.course_id || item.Course?.id || item.id);
+          setWishlistIds(ids);
+        } catch (err) {
+          console.error("Failed to fetch wishlist:", err);
+        }
+      }
+    };
+    
+    fetchWishlist();
   }, [user]);
 
   useEffect(() => {
@@ -187,6 +204,7 @@ const CoursesList = () => {
       }
 
       await api.post(`/student/${user.id}/wishlist`, { course_id: courseId });
+      setWishlistIds(prev => [...prev, courseId]);
       toast.success("Added to wishlist!");
     } catch (err) {
       console.error("Wishlist error:", err);
@@ -198,6 +216,19 @@ const CoursesList = () => {
           err.response?.data?.message || "Failed to add to wishlist"
         );
       }
+    }
+  };
+
+  const handleRemoveFromWishlist = async (courseId) => {
+    try {
+      if (!user) return;
+
+      await api.delete(`/student/${user.id}/wishlist/${courseId}`);
+      setWishlistIds(prev => prev.filter(id => id !== courseId));
+      toast.success("Removed from wishlist");
+    } catch (err) {
+      console.error("Remove from wishlist error:", err);
+      toast.error("Failed to remove from wishlist");
     }
   };
 

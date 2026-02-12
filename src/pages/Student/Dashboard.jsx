@@ -77,9 +77,12 @@ export default function StudentDashboard() {
       axios.get(`${API_URL}/student/${userId}/recommendations`),
       axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`)
     ])
-    .then(([profileRes, recommendationsRes, enrolledRes]) => {
+    .then(([profileRes, recommendationsRes, enrolledRes, wishlistRes]) => {
       setProfile(profileRes.data);
       setRecommended(recommendationsRes.data || []);
+      
+      const ids = wishlistRes.data.map(item => item.course_id || item.Course?.id || item.id);
+      setWishlistIds(ids);
       
       const allCourses = enrolledRes.data || [];
       
