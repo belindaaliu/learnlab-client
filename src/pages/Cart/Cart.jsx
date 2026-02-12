@@ -5,12 +5,9 @@ import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import CourseCard from "../../components/CourseCard";
 import { useAuth } from "../../context/AuthContext";
-import { getCart, removeCartItem } from "../../services/cartService.js";
+import { getCart, removeCartItem, addToCart } from "../../services/cartService.js";
 import { useCart } from "../../context/CartContext";
-
-const RECOMMENDATIONS = [
-  /* TODO: add recommendations */
-];
+import api from "../../utils/Api";
 
 const Cart = () => {
   const { user } = useAuth();
@@ -18,9 +15,15 @@ const Cart = () => {
   const [cartData, setCartData] = useState({
     items: [],
     total: 0,
+    subtotal: 0,
+    discount_total: 0,
     itemCount: 0,
   });
   const [loading, setLoading] = useState(true);
+
+  const [recommendations, setRecommendations] = useState([]);
+  const [recsLoading, setRecsLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const fetchCart = async () => {
@@ -29,7 +32,13 @@ const Cart = () => {
       if (user && user.id) {
         // LOGGED IN: Get from API
         const data = await getCart();
-        setCartData(data || { items: [], total: 0, itemCount: 0 });
+        setCartData({
+          items: data.items || [],
+          total: data.total ?? 0,
+          subtotal: data.subtotal ?? data.total ?? 0,
+          discount_total: data.discount_total ?? 0,
+          itemCount: data.itemCount ?? 0,
+        });
       } else {
         // GUEST: Get from LocalStorage
         const localCart = localStorage.getItem("cart");
@@ -55,6 +64,8 @@ const Cart = () => {
         setCartData({
           items: formattedItems,
           total: total,
+          subtotal: total,
+          discount_total: 0,
           itemCount: localItems.length,
         });
       }
@@ -65,8 +76,27 @@ const Cart = () => {
     }
   };
 
+  const fetchRecommendations = async () => {
+    if (!user || !user.id) {
+      setRecommendations([]);
+      return;
+    }
+    try {
+      setRecsLoading(true);
+      const res = await api.get(`/student/${user.id}/recommendations`);
+      const data = res.data?.data || res.data || [];
+      setRecommendations(data);
+    } catch (err) {
+      console.error("Recommendations fetch error:", err);
+      setRecommendations([]);
+    } finally {
+      setRecsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchCart();
+    fetchRecommendations();
     window.addEventListener("storage", fetchCart);
 
     return () => window.removeEventListener("storage", fetchCart);
@@ -119,6 +149,41 @@ const Cart = () => {
       </div>
     );
 
+  const handleAddRecommendationToCart = async (course) => {
+    try {
+      if (user && user.id) {
+        // LOGGED IN: call your existing cart service
+        await addToCart(course.id); 
+      } else {
+        // GUEST: add to localStorage cart
+        const localCart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+        const exists = localCart.some((item) => item.id === course.id);
+        if (!exists) {
+          localCart.push({
+            id: course.id,
+            title: course.title,
+            price: course.price,
+            thumbnail_url: course.thumbnail_url,
+            image: course.image,
+            instructor_name:
+              course.instructor ||
+              (course.Users
+                ? `${course.Users.first_name} ${course.Users.last_name}`
+                : "Unknown Instructor"),
+            Users: course.Users,
+          });
+          localStorage.setItem("cart", JSON.stringify(localCart));
+        }
+      }
+
+      await fetchCart();
+      await fetchCartCount();
+    } catch (err) {
+      console.error("Add recommendation to cart error:", err);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-white">
       <h1 className="text-4xl font-bold text-gray-900 mb-8 font-sans">
@@ -154,12 +219,18 @@ const Cart = () => {
             <span className="text-4xl font-extrabold text-gray-900">
               CA${cartData.total.toFixed(2)}
             </span>
-            {cartData.total > 0 && (
+
+            {cartData.subtotal > cartData.total && (
               <>
                 <span className="text-gray-500 line-through text-lg">
-                  CA${(cartData.total * 5.5).toFixed(2)}
+                  CA${cartData.subtotal.toFixed(2)}
                 </span>
-                <span className="text-gray-700 text-sm">82% off</span>
+                <span className="text-gray-700 text-sm">
+                  {Math.round(
+                    (cartData.discount_total / cartData.subtotal) * 100,
+                  )}
+                  % off
+                </span>
               </>
             )}
 
@@ -172,22 +243,6 @@ const Cart = () => {
               Proceed to Checkout
             </Button>
           </div>
-
-          <div className="mt-8 border-t pt-6">
-            <p className="font-bold text-sm mb-2 text-gray-800">Promotions</p>
-            <div className="flex gap-0">
-              <Input
-                placeholder="Enter Coupon"
-                className="rounded-r-none border-gray-300"
-              />
-              <Button
-                variant="outline"
-                className="rounded-l-none border-l-0 px-4 h-[46px] border-gray-300 text-primary"
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -195,15 +250,29 @@ const Cart = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           You might also like
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {RECOMMENDATIONS.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
+
+        {recsLoading ? (
+          <p className="text-gray-500 text-sm">Loading recommendations...</p>
+        ) : !recommendations || recommendations.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            No recommendations yet. Browse courses to get personalized
+            suggestions.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recommendations.slice(0, 4).map((course) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
+                onAddToCart={() => handleAddRecommendationToCart(course)}
+              />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
 };
 
 export default Cart;
-
