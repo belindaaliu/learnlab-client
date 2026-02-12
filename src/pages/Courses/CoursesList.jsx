@@ -43,6 +43,30 @@ const CoursesList = () => {
     sortBy: "newest",
   });
 
+  // Track which courses the logged-in user is enrolled in
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
+
+  // Fetch enrolled courses once when user changes
+  useEffect(() => {
+    if (!user) {
+      setEnrolledCourseIds([]);
+      return;
+    }
+
+    const fetchEnrolled = async () => {
+      try {
+        const res = await api.get(`/student/${user.id}/courses`);
+        const data = res.data?.data || res.data || [];
+        const ids = data.map((c) => Number(c.id));
+        setEnrolledCourseIds(ids);
+      } catch (err) {
+        console.error("Failed to fetch enrolled courses:", err);
+      }
+    };
+
+    fetchEnrolled();
+  }, [user]);
+
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoading(true);
@@ -109,7 +133,15 @@ const CoursesList = () => {
 
   const handleAddToCart = async (course) => {
     try {
+      const courseIdNum = Number(course.id);
+
       if (user) {
+        // Block adding if already enrolled
+        if (enrolledCourseIds.includes(courseIdNum)) {
+          toast("You already own this course.", { icon: "ℹ️" });
+          return;
+        }
+
         // Logged-in user: backend cart
         await addToCart(course.id);
         toast.success("Course added to your cart!");
@@ -141,7 +173,9 @@ const CoursesList = () => {
       await fetchCartCount();
     } catch (err) {
       console.error("Add to cart error:", err);
-      toast.error(err.response?.data?.message || "Failed to add course to cart.");
+      toast.error(
+        err.response?.data?.message || "Failed to add course to cart.",
+      );
     }
   };
 
@@ -275,7 +309,12 @@ const CoursesList = () => {
                     key={course.id}
                     course={course}
                     onAddToCart={() => handleAddToCart(course)}
-                    isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
+                    isPremiumCourse={
+                      !!course.plan_id || !!course.SubscriptionPlans
+                    }
+                    isOwned={
+                      user && enrolledCourseIds.includes(Number(course.id))
+                    }
                   />
                 ))}
               </div>

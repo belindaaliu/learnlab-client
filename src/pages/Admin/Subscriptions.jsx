@@ -30,6 +30,12 @@ const Subscriptions = () => {
     button_text: "Subscribe",
     slug: "",
     features: defaultFeatures,
+    courseIds: [],
+    discount_active: false,
+    discount_type: "",
+    discount_value: "",
+    discount_starts_at: "",
+    discount_ends_at: "",
   });
 
   const fetchPlans = async () => {
@@ -79,6 +85,15 @@ const Subscriptions = () => {
         ...plan,
         courseIds: assignedCourseIds,
         features: { ...defaultFeatures, ...(currentFeatures || {}) },
+        discount_active: !!plan.discount_active,
+        discount_type: plan.discount_type || "",
+        discount_value: plan.discount_value ?? "",
+        discount_starts_at: plan.discount_starts_at
+          ? plan.discount_starts_at.slice(0, 16)
+          : "",
+        discount_ends_at: plan.discount_ends_at
+          ? plan.discount_ends_at.slice(0, 16)
+          : "",
       });
     } else {
       setEditingPlanId(null);
@@ -123,6 +138,22 @@ const Subscriptions = () => {
         ...formData,
         price: Number(formData.price),
         duration_days: Number(formData.duration_days),
+        discount_active: !!formData.discount_active,
+        discount_type: formData.discount_active
+          ? formData.discount_type || null
+          : null,
+        discount_value:
+          formData.discount_active && formData.discount_value !== ""
+            ? Number(formData.discount_value)
+            : null,
+        discount_starts_at:
+          formData.discount_active && formData.discount_starts_at
+            ? new Date(formData.discount_starts_at).toISOString()
+            : null,
+        discount_ends_at:
+          formData.discount_active && formData.discount_ends_at
+            ? new Date(formData.discount_ends_at).toISOString()
+            : null,
       };
 
       const response = isEditing
@@ -290,6 +321,90 @@ const Subscriptions = () => {
                 setFormData({ ...formData, slug: e.target.value })
               }
             />
+          </div>
+
+          <div className="border-t pt-4 mt-2">
+            <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">
+              Plan Discount
+            </h3>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+              <input
+                type="checkbox"
+                checked={formData.discount_active}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    discount_active: e.target.checked,
+                  })
+                }
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Enable discount for this plan
+            </label>
+
+            {formData.discount_active && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                      Discount Type
+                    </label>
+                    <select
+                      value={formData.discount_type}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          discount_type: e.target.value,
+                        })
+                      }
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="">Select type</option>
+                      <option value="percent">Percent (%)</option>
+                      <option value="fixed">Fixed amount</option>
+                    </select>
+                  </div>
+
+                  <Input
+                    label="Discount Value"
+                    type="number"
+                    value={formData.discount_value}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        discount_value: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Starts At"
+                    type="datetime-local"
+                    value={formData.discount_starts_at}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        discount_starts_at: e.target.value,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Ends At"
+                    type="datetime-local"
+                    value={formData.discount_ends_at}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        discount_ends_at: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="border-t pt-4 mt-2">

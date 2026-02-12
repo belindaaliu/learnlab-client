@@ -7,6 +7,14 @@ const CartItem = ({ item, onRemove }) => {
   const courseId = course.id || item.course_id;
   const itemIdToRemove = item.id;
 
+  // Price Section
+  const originalPrice = course.original_price ?? course.price;
+  const finalPrice = course.price; 
+  const hasDiscount = originalPrice > finalPrice;
+  const discountPercent = hasDiscount
+    ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+    : 0;
+
   const instructorId =
     course.instructor_id || course.Users?.id || course.user_id;
   const instructorName =
@@ -99,9 +107,6 @@ const CartItem = ({ item, onRemove }) => {
             Remove
           </button>
           <button className="text-primary hover:text-indigo-800 transition-colors">
-            Save for Later
-          </button>
-          <button className="text-primary hover:text-indigo-800 transition-colors">
             Move to Wishlist
           </button>
         </div>
@@ -110,14 +115,19 @@ const CartItem = ({ item, onRemove }) => {
       {/* Price Section */}
       <div className="flex flex-col items-end min-w-[120px]">
         <div className="text-primary font-bold text-lg">
-          CA${Number(course.price).toFixed(2)}
+          CA${Number(finalPrice).toFixed(2)}
         </div>
-        <div className="text-gray-400 line-through text-sm">
-          CA${(Number(course.price) * 5.5).toFixed(2)}
-        </div>
-        <div className="text-gray-700 text-xs mt-1 italic font-medium">
-          Price includes discount
-        </div>
+
+        {hasDiscount && (
+          <>
+            <div className="text-gray-400 line-through text-sm">
+              CA${Number(originalPrice).toFixed(2)}
+            </div>
+            <div className="text-gray-700 text-xs mt-1 italic font-medium">
+              {discountPercent}% off
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
