@@ -3,6 +3,7 @@ import axios from "axios";
 import { Search, X, PlayCircle, CheckCircle, BookOpen, Clock } from "lucide-react";
 import { useSearchParams, Link } from "react-router-dom";
 import CourseCard from "../../components/CourseCard";
+import { toast } from "react-hot-toast";
 
 export default function MyLearning() {
   const [activeTab, setActiveTab] = useState("courses");
@@ -10,6 +11,7 @@ export default function MyLearning() {
   const [wishlistCourses, setWishlistCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState({ courses: true, wishlist: true });
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -53,7 +55,13 @@ export default function MyLearning() {
     axios
       .get(`${API_URL}/student/${userId}/wishlist`, config)
       .then((res) => {
-        setWishlistCourses(res.data);
+        const wishlist = res.data;
+        setWishlistCourses(wishlist);
+        
+        // Extract course IDs for wishlist state
+        const ids = wishlist.map(item => item.course_id || item.Course?.id || item.id);
+        setWishlistIds(ids);
+        
         setLoading(prev => ({ ...prev, wishlist: false }));
       })
       .catch((err) => {
@@ -67,20 +75,52 @@ export default function MyLearning() {
 
     try {
       await axios.delete(`${API_URL}/student/${userId}/wishlist/${courseId}`, config);
-      // Refresh wishlist by filtering out the removed course
-      setWishlistCourses((prev) => prev.filter((course) => course.id !== courseId));
+      
+      // Update both wishlist courses and IDs
+      setWishlistCourses((prev) => prev.filter((course) => {
+        const id = course.course_id || course.Course?.id || course.id;
+        return id !== courseId;
+      }));
+      setWishlistIds(prev => prev.filter(id => id !== courseId));
+      
+      toast.success("Removed from wishlist");
     } catch (err) {
       console.error("Error removing from wishlist:", err);
-      alert("Failed to remove from wishlist");
+      toast.error("Failed to remove from wishlist");
+    }
+  };
+
+  const handleAddToWishlist = async (courseId) => {
+    try {
+      if (!user) {
+        toast.error("Please login to add courses to your wishlist");
+        return;
+      }
+
+      await axios.post(`${API_URL}/student/${userId}/wishlist`, { course_id: courseId }, config);
+      setWishlistIds(prev => [...prev, courseId]);
+      toast.success("Added to wishlist!");
+    } catch (err) {
+      console.error("Wishlist error:", err);
+      
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
+        toast("This course is already in your wishlist", { icon: "ℹ️" });
+      } else {
+        toast.error(
+          err.response?.data?.message || "Failed to add to wishlist"
+        );
+      }
     }
   };
 
   const coursesToShow = activeTab === "courses" ? purchasedCourses : wishlistCourses;
 
-  const filteredCourses = coursesToShow.filter((course) =>
-    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (course.instructor && course.instructor.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCourses = coursesToShow.filter((course) => {
+    const title = course.title || course.Course?.title || "";
+    const instructor = course.instructor || course.Course?.instructor || "";
+    return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           instructor.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const getProgressPercent = (course) => {
     if (!course.total_lessons || course.total_lessons === 0) return 0;
@@ -117,44 +157,29 @@ export default function MyLearning() {
     return `${hours}h ${mins}m`;
   };
 
-  // Add this function to your MyLearning component
-const getFirstIncompleteLesson = async (courseId) => {
-  try {
-    const response = await axios.get(
-      `${API_URL}/course-player/${courseId}/first-incomplete`,
-      config
-    );
-    return response.data.lessonId;
-  } catch (error) {
-    console.error("Error getting first incomplete lesson:", error);
-    return null;
-  }
-};
-
-// Update the "Continue Learning" button/link:
-const handleContinueLearning = async (courseId, e) => {
-  e.preventDefault();
-  
-  try {
-    // Get the next (first incomplete) lesson
-    const response = await axios.get(
-      `${API_URL}/course-player/${courseId}/next`,
-      config
-    );
+  const handleContinueLearning = async (courseId, e) => {
+    e.preventDefault();
     
-    if (response.data && response.data.id) {
-      // Navigate to course player with the specific lesson
-      window.location.href = `/course/${courseId}/learn?lesson=${response.data.id}`;
-    } else {
-      // No next lesson found, go to course overview
+    try {
+      // Get the next (first incomplete) lesson
+      const response = await axios.get(
+        `${API_URL}/course-player/${courseId}/next`,
+        config
+      );
+      
+      if (response.data && response.data.id) {
+        // Navigate to course player with the specific lesson
+        window.location.href = `/course/${courseId}/learn?lesson=${response.data.id}`;
+      } else {
+        // No next lesson found, go to course overview
+        window.location.href = `/course/${courseId}/learn`;
+      }
+    } catch (error) {
+      console.error("Error getting next lesson:", error);
+      // Fallback
       window.location.href = `/course/${courseId}/learn`;
     }
-  } catch (error) {
-    console.error("Error getting next lesson:", error);
-    // Fallback
-    window.location.href = `/course/${courseId}/learn`;
-  }
-};
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -247,19 +272,22 @@ const handleContinueLearning = async (courseId, e) => {
           <>
             {filteredCourses.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredCourses.map((course) => (
-                  <div key={course.id} className="relative group">
-                    <button
-                      onClick={() => handleRemoveFromWishlist(course.id)}
-                      className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg 
-                               hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
-                      title="Remove from wishlist"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    <CourseCard course={course} />
-                  </div>
-                ))}
+                {filteredCourses.map((course) => {
+                  // Handle both direct course objects and wishlist items with nested Course
+                  const courseData = course.Course || course;
+                  const courseId = course.course_id || courseData.id;
+                  
+                  return (
+                    <div key={courseId}>
+                      <CourseCard 
+                        course={courseData}
+                        onAddToWishlist={() => handleAddToWishlist(courseId)}
+                        onRemoveFromWishlist={() => handleRemoveFromWishlist(courseId)}
+                        isInWishlist={wishlistIds.includes(courseId)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-16 bg-gray-50 rounded-2xl">
@@ -268,7 +296,7 @@ const handleContinueLearning = async (courseId, e) => {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Your wishlist is empty</h3>
                 <p className="text-gray-600 max-w-md mx-auto mb-8">
-                  Browse courses and click the heart icon to save them for later!
+                  Browse courses and click the star icon to save them for later!
                 </p>
                 <Link
                   to="/courses"

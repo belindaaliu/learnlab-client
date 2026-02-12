@@ -13,6 +13,7 @@ export default function StudentDashboard() {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [wishlistIds, setWishlistIds] = useState([]);
   
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const navigate = useNavigate();
@@ -33,12 +34,15 @@ export default function StudentDashboard() {
     Promise.all([
       axios.get(`${API_URL}/student/me/${userId}`),
       axios.get(`${API_URL}/student/${userId}/recommendations`),
-      // Get all enrolled courses (both completed and uncompleted)
-      axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`)
+      axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`),
+      axios.get(`${API_URL}/student/${userId}/wishlist`, config)
     ])
-    .then(([profileRes, recommendationsRes, enrolledRes]) => {
+    .then(([profileRes, recommendationsRes, enrolledRes, wishlistRes]) => {
       setProfile(profileRes.data);
       setRecommended(recommendationsRes.data);
+      
+      const ids = wishlistRes.data.map(item => item.course_id || item.Course?.id || item.id);
+      setWishlistIds(ids);
       
       const allCourses = enrolledRes.data || [];
       
@@ -100,6 +104,7 @@ export default function StudentDashboard() {
       }
 
       await axios.post(`${API_URL}/student/${userId}/wishlist`, { course_id: courseId }, config);
+      setWishlistIds(prev => [...prev, courseId]);
       toast.success("Added to wishlist!");
     } catch (err) {
       console.error("Wishlist error:", err);
@@ -111,6 +116,19 @@ export default function StudentDashboard() {
           err.response?.data?.message || "Failed to add to wishlist"
         );
       }
+    }
+  };
+
+  const handleRemoveFromWishlist = async (courseId) => {
+    try {
+      if (!user) return;
+
+      await axios.delete(`${API_URL}/student/${userId}/wishlist/${courseId}`, config);
+      setWishlistIds(prev => prev.filter(id => id !== courseId));
+      toast.success("Removed from wishlist");
+    } catch (err) {
+      console.error("Remove from wishlist error:", err);
+      toast.error("Failed to remove from wishlist");
     }
   };
 
@@ -382,6 +400,8 @@ export default function StudentDashboard() {
                 course={course}
                 onAddToCart={() => handleAddToCart(course.id)}
                 onAddToWishlist={() => handleAddToWishlist(course.id)}
+                onRemoveFromWishlist={() => handleRemoveFromWishlist(course.id)}
+                isInWishlist={wishlistIds.includes(course.id)}
                 isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
               />
             ))}
