@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Star, Check, Crown } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
+const CourseCard = ({ course, onAddToCart, onAddToWishlist, isPremiumCourse }) => {
   const navigate = useNavigate();
   const { user, userPlan } = useAuth();
 
@@ -83,7 +83,6 @@ const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
   );
 
   // --- ACCESS LOGIC ---
-  // CHANGED: userHasAccess uses plan-name match or all_courses_access
   const userHasAccess = !!(
     isActuallyFree ||
     (user &&
@@ -109,6 +108,14 @@ const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
       } else {
         console.error("onAddToCart prop was not passed to CourseCard");
       }
+    }
+  };
+
+  const handleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof onAddToWishlist === "function") {
+      onAddToWishlist();
     }
   };
 
@@ -279,7 +286,10 @@ const CourseCard = ({ course, onAddToCart, isPremiumCourse }) => {
           >
             {userHasAccess ? "View Course" : "Add to cart"}
           </button>
-          <button className="p-3 border border-gray-300 rounded-full hover:bg-gray-50">
+          <button 
+            onClick={handleWishlist}
+            className="p-3 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+          >
             <Star className="w-4 h-4 text-gray-600" />
           </button>
         </div>

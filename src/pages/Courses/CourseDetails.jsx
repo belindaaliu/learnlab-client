@@ -503,18 +503,18 @@ const CourseDetails = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 relative animate-in fade-in duration-500">
+      
       <VideoPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
-        activeLesson={activePreviewLesson}
-        courseContent={course?.CourseContent || []}
+        activeLesson={activePreviewLesson} 
+        courseContent={course?.CourseContent || []} 
         courseTitle={course?.title}
         courseImage={course?.thumbnail_url}
         onChangeLesson={(lesson) => setActivePreviewLesson(lesson)}
+        // Props for smart Unlock Button
         onUnlock={handleModalUnlock}
-        unlockLabel={
-          isSubscriberOnlyCourse ? "Get Subscription Access" : "Buy This Course"
-        }
+        unlockLabel={isSubscriberOnlyCourse ? "Get Subscription Access" : "Buy This Course"}
         coursePrice={course?.price}
       />
 
@@ -645,16 +645,10 @@ const CourseDetails = () => {
                               className="flex justify-between text-sm text-gray-600 group"
                             >
                               <div className="flex items-center gap-3">
-                                {lesson.type === "video" && (
-                                  <Video className="w-4 h-4 text-gray-400" />
-                                )}
-                                {lesson.type === "note" && (
-                                  <FileText className="w-4 h-4 text-gray-400" />
-                                )}
-                                {lesson.type === "assessment" && (
-                                  <HelpCircle className="w-4 h-4 text-gray-400" />
-                                )}
-
+                                {lesson.type === "video" && <Video className="w-4 h-4 text-gray-400" />}
+                                {lesson.type === "note" && <FileText className="w-4 h-4 text-gray-400" />}
+                                {lesson.type === "assessment" && <HelpCircle className="w-4 h-4 text-gray-400" />}
+                                
                                 <span
                                   className={
                                     lesson.is_preview
