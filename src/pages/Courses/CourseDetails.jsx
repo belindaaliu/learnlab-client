@@ -15,7 +15,7 @@ import {
   Video,
   FileText,
   HelpCircle,
-  Lock
+  Lock,
 } from "lucide-react";
 
 import Button from "../../components/common/Button";
@@ -33,28 +33,31 @@ const CourseDetails = () => {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cart States
+  // Cart / subscription states
   const [addingToCart, setAddingToCart] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [isSubscriberOnlyCourse, setIsSubscriberOnlyCourse] = useState(false);
   const [hasSubscriberAccess, setHasSubscriberAccess] = useState(false);
   const [starterPrice, setStarterPrice] = useState("0");
 
-  // Preview States
+  // Preview
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [activePreviewLesson, setActivePreviewLesson] = useState(null);
 
-  // UI States
+  // UI
   const [showFullDesc, setShowFullDesc] = useState(false);
 
-  // Wishlist & Enrollment States
+  // Wishlist / enrollment
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
-  // Parsed Data States
+  // Parsed data
   const [parsedRequirements, setParsedRequirements] = useState([]);
   const [parsedAudience, setParsedAudience] = useState([]);
+
+  // Status ready flag to ensure we know enrollment before allowing click
+  const [statusReady, setStatusReady] = useState(false);
 
   // --- Utility: Safe JSON Parse ---
   const safelyParseJSON = (data) => {
@@ -75,8 +78,6 @@ const CourseDetails = () => {
       try {
         setLoading(true);
         const response = await api.get(`/courses/${id}`);
-        console.log("Full API Response:", response.data);
-
         const courseData = response.data.data || response.data;
         setCourse(courseData);
 
@@ -104,11 +105,12 @@ const CourseDetails = () => {
     if (id) fetchCourse();
   }, [id]);
 
+  // --- Check enrollment / wishlist / cart / subscription ---
   useEffect(() => {
     const checkAllStatuses = async () => {
-      if (!id) return;
+      if (!id || !course) return;
 
-      if (!course) return;
+      setStatusReady(false);
 
       const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
       const inGuestCart = guestCart.some(
@@ -120,32 +122,45 @@ const CourseDetails = () => {
 
       if (user) {
         try {
-          const [coursesRes, wishlistRes, cartRes, subRes] = await Promise.all([
+          const [coursesRes, wishlistRes, subRes] = await Promise.all([
             api.get(`/student/${user.id}/courses`),
             api.get(`/student/${user.id}/wishlist`),
-            api.get("/cart"),
             api.get("/subscription/overview"),
           ]);
 
-          const cartData = cartRes.data?.data || cartRes.data;
-          const cartItems = Array.isArray(cartData?.items)
-            ? cartData.items
-            : Array.isArray(cartData)
-              ? cartData
-              : [];
-
-          const inBackendCart = cartItems.some(
-            (item) => Number(item.course_id || item.courseId) === Number(id),
-          );
+          let inBackendCart = false;
+          try {
+            const cartRes = await api.get("/cart");
+            const cartData = cartRes.data?.data || cartRes.data;
+            const cartItems = Array.isArray(cartData?.items)
+              ? cartData.items
+              : Array.isArray(cartData)
+                ? cartData
+                : [];
+            inBackendCart = cartItems.some(
+              (item) => Number(item.course_id || item.courseId) === Number(id),
+            );
+          } catch (cartErr) {
+            console.error("Cart load failed (ignored for access):", cartErr);
+          }
 
           setIsInCart(inGuestCart || inBackendCart);
 
           const subData = subRes.data?.data || subRes.data;
-
           if (subData?.hasActiveSubscription) {
-            const userPlanName = String(
-              subData.plan_name || subData.planName || "",
-            )
+            let features = {};
+            try {
+              features =
+                typeof subData.features === "string"
+                  ? JSON.parse(subData.features)
+                  : subData.features || {};
+            } catch {
+              features = {};
+            }
+
+            const hasAllCoursesAccess = features.all_courses_access === true;
+
+            const userPlanName = String(subData.planName || "")
               .trim()
               .toLowerCase();
 
@@ -157,44 +172,45 @@ const CourseDetails = () => {
               .trim()
               .toLowerCase();
 
-            const hasSubAccess =
+            const planNamesMatch =
               !!coursePlanName &&
               !!userPlanName &&
               userPlanName === coursePlanName;
 
+            const hasSubAccess = hasAllCoursesAccess || planNamesMatch;
             setHasSubscriberAccess(hasSubAccess);
           } else {
             setHasSubscriberAccess(false);
           }
 
-          // Enrollment & Wishlist
           setIsEnrolled(
             coursesRes.data?.some((item) => item.id === parseInt(id)),
           );
 
           const wishlistData = wishlistRes.data?.data || wishlistRes.data || [];
           const courseId = Number(id);
-
           setIsInWishlist((prev) => {
             if (prev) return prev;
-
             const onServer = wishlistData.some(
               (item) => Number(item.id) === courseId,
             );
-
             return !!onServer;
           });
         } catch (err) {
-          console.error("Status check failed:", err);
+          console.error("Status check failed (non-cart):", err);
+          setIsInCart(inGuestCart);
         }
       } else {
         setIsInCart(inGuestCart);
       }
+
+      setStatusReady(true);
     };
 
     checkAllStatuses();
   }, [id, user, course]);
 
+  // --- Fetch starter plan price for upsell text ---
   useEffect(() => {
     api
       .get("/subscription/plans")
@@ -226,7 +242,35 @@ const CourseDetails = () => {
 
   const isPremium = Number(course?.price) > 0;
 
-  // --- Dynamic Calculations ---
+  // --- Discount pricing (for upsell) ---
+  const basePrice = Number(course?.price || 0);
+  const hasDiscount =
+    course?.discount_active &&
+    course?.discount_type &&
+    course?.discount_value != null &&
+    (!course?.discount_starts_at ||
+      new Date(course.discount_starts_at) <= new Date()) &&
+    (!course?.discount_ends_at ||
+      new Date(course.discount_ends_at) >= new Date());
+
+  let finalPrice = basePrice;
+  let discountPercent = 0;
+
+  if (hasDiscount) {
+    if (course.discount_type === "percent") {
+      discountPercent = Number(course.discount_value);
+      finalPrice = Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+    } else if (course.discount_type === "fixed") {
+      const discountValue = Number(course.discount_value);
+      finalPrice = Math.max(0, Number((basePrice - discountValue).toFixed(2)));
+      discountPercent =
+        basePrice > 0
+          ? Math.round(((basePrice - finalPrice) / basePrice) * 100)
+          : 0;
+    }
+  }
+
+  // --- Course stats ---
   const courseStats = useMemo(() => {
     if (!course?.CourseContent)
       return { totalHours: 0, totalMinutes: 0, articles: 0, lectures: 0 };
@@ -264,10 +308,15 @@ const CourseDetails = () => {
   // --- Handlers ---
 
   const handleAddToCart = async () => {
-    if (!course || isEnrolled) return;
+    if (!course || !statusReady) return;
+
+    // Block if already enrolled
+    if (isEnrolled) {
+      toast("You already own this course.", { icon: "ℹ️" });
+      return;
+    }
 
     if (user) {
-      // LOGGED IN: backend cart
       setAddingToCart(true);
       try {
         await addToCart(course.id);
@@ -275,13 +324,16 @@ const CourseDetails = () => {
         await fetchCartCount();
         toast.success("Course added to your cart!");
       } catch (err) {
-        console.error(err);
-        toast.error("Could not add to cart. It may already be there.");
+        console.error("Add to cart failed:", err);
+        const msg =
+          err.response?.data?.message ||
+          err.message ||
+          "Could not add to cart. It may already be in your cart or you already enrolled.";
+        toast.error(msg);
       } finally {
         setAddingToCart(false);
       }
     } else {
-      // Guest Logic: localStorage only
       const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
       if (!guestCart.find((item) => item.id === course.id)) {
         guestCart.push({
@@ -303,6 +355,8 @@ const CourseDetails = () => {
   };
 
   const handleBuyNow = async () => {
+    if (!course || !statusReady) return;
+
     if (!user) {
       toast.error("Please log in to buy this course.");
       navigate("/login", {
@@ -312,6 +366,12 @@ const CourseDetails = () => {
           courseId: id,
         },
       });
+      return;
+    }
+
+    // Block immediate purchase if already enrolled
+    if (isEnrolled) {
+      toast("You already own this course.", { icon: "ℹ️" });
       return;
     }
 
@@ -333,11 +393,14 @@ const CourseDetails = () => {
       });
     } catch (err) {
       console.error("Checkout failed:", err);
-      toast.error("We encountered an issue starting your checkout.");
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "We encountered an issue starting your checkout.";
+      toast.error(msg);
     }
   };
 
-  // Wishlist Toggle
   const handleWishlistToggle = async () => {
     if (!user) {
       alert("Please log in to manage your wishlist");
@@ -370,44 +433,52 @@ const CourseDetails = () => {
     }
   };
 
-  // --- Open Preview Logic ---
   const openPreview = (lesson) => {
     if (lesson && lesson.is_preview) {
-        setActivePreviewLesson(lesson);
+      setActivePreviewLesson(lesson);
+      setIsPreviewOpen(true);
+    } else if (!lesson) {
+      const firstPreview = course?.CourseContent?.find((c) => c.is_preview);
+      if (firstPreview) {
+        setActivePreviewLesson(firstPreview);
         setIsPreviewOpen(true);
-    } 
-    else if (!lesson) {
-        const firstPreview = course?.CourseContent?.find(c => c.is_preview);
-        if (firstPreview) {
-            setActivePreviewLesson(firstPreview);
-            setIsPreviewOpen(true);
-        } else {
-            toast("No preview content available for this course.");
-        }
+      } else {
+        toast("No preview content available for this course.");
+      }
     }
   };
 
-  // --- Modal Unlock Logic ---
   const handleModalUnlock = async () => {
-    // If Subscription-only course
     if (isSubscriberOnlyCourse) {
-      navigate("/pricing"); 
+      navigate("/pricing");
       return;
     }
 
-    // Purchase Logic
     if (user) {
+      if (!statusReady) return;
+
+      // Also respect enrollment here
+      if (isEnrolled) {
+        toast("You already own this course.", { icon: "ℹ️" });
+        navigate(`/course/${course.id}/learn`);
+        return;
+      }
+
       try {
         await addToCart(course.id);
         await fetchCartCount();
         toast.success("Course added to cart! Redirecting...");
         navigate("/cart");
       } catch (err) {
-        console.error("Not added to Cart!",err)
+        console.error("Not added to Cart!", err);
+        const msg =
+          err.response?.data?.message ||
+          err.message ||
+          "Could not add to cart.";
+        toast.error(msg);
         navigate("/cart");
       }
     } else {
-      // Guest Logic
       const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
       if (!guestCart.find((item) => item.id === course.id)) {
         guestCart.push({
@@ -559,7 +630,7 @@ const CourseDetails = () => {
                         key={section.id}
                         className="border-b border-gray-100 last:border-0"
                       >
-                        <div className="bg-gray-50 px-4 py-3 font-bold text-gray-800 flex justify-between items-center cursor-default">
+                        <div className="bg_gray-50 px-4 py-3 font-bold text-gray-800 flex justify-between items-center cursor-default">
                           <span>
                             Section {idx + 1}: {section.title}
                           </span>
@@ -601,7 +672,9 @@ const CourseDetails = () => {
                                   </span>
                                   {lesson.duration_seconds && (
                                     <span className="text-xs">
-                                      {Math.floor(lesson.duration_seconds / 60)}
+                                      {Math.floor(
+                                        lesson.duration_seconds / 60,
+                                      )}
                                       :00
                                     </span>
                                   )}
@@ -739,7 +812,6 @@ const CourseDetails = () => {
                   </Button>
                 </div>
               ) : (
-                // UPSell UI (Subscription vs Purchase)
                 <div className="flex flex-col">
                   {isSubscriberOnlyCourse && hasRequiredPlan && (
                     <>
@@ -780,7 +852,6 @@ const CourseDetails = () => {
                         </div>
                       </div>
 
-                      {/* DIVIDER */}
                       <div className="flex items-center my-2">
                         <div className="flex-grow border-t border-gray-300"></div>
                         <span className="px-3 text-xs text-gray-500 font-medium uppercase">
@@ -792,25 +863,39 @@ const CourseDetails = () => {
                   )}
 
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-3xl font-bold text-gray-900">
-                      ${course.price}
-                    </span>
-                    {isPremium && (
+                    {basePrice === 0 ? (
+                      <span className="text-3xl font-bold text-gray-900">
+                        Free
+                      </span>
+                    ) : hasDiscount ? (
                       <>
-                        <span className="text-lg text-gray-400 line-through">
-                          {(Number(course.price) * 1.2).toFixed(2)}
+                        <span className="text-3xl font-bold text-gray-900">
+                          ${finalPrice.toFixed(2)}
                         </span>
-                        <span className="text-sm text-gray-500">20% off</span>
+                        <span className="text-lg text-gray-400 line-through">
+                          ${basePrice.toFixed(2)}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {discountPercent}% off
+                        </span>
                       </>
+                    ) : (
+                      <span className="text-3xl font-bold text-gray-900">
+                        ${basePrice.toFixed(2)}
+                      </span>
                     )}
                   </div>
 
                   <Button
                     fullWidth
                     onClick={
-                      isInCart ? () => navigate("/cart") : handleAddToCart
+                      !statusReady
+                        ? undefined
+                        : isInCart
+                        ? () => navigate("/cart")
+                        : handleAddToCart
                     }
-                    isLoading={addingToCart}
+                    isLoading={addingToCart || !statusReady}
                     variant={isInCart ? "outline" : "primary"}
                     className="w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2"
                   >
@@ -818,15 +903,16 @@ const CourseDetails = () => {
                   </Button>
 
                   <button
-                    onClick={handleBuyNow}
-                    className="w-full py-3 my-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition"
+                    onClick={statusReady ? handleBuyNow : undefined}
+                    className={`w-full py-3 my-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition ${
+                      !statusReady ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                   >
                     Buy Now
                   </button>
                 </div>
               )}
 
-              {/* Wishlist button – always visible */}
               <button
                 onClick={handleWishlistToggle}
                 disabled={wishlistLoading}
@@ -852,7 +938,6 @@ const CourseDetails = () => {
                 </p>
               )}
 
-              {/* Sidebar Stats */}
               <div className="space-y-2 text-sm text-gray-700 pt-2">
                 <p className="font-bold">This course includes:</p>
                 <div className="flex gap-2 items-center">

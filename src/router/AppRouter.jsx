@@ -50,6 +50,8 @@ import AdminAnalytics from "../pages/Admin/AdminAnalytics";
 import Users from "../pages/Admin/Users";
 import UserDetail from "../pages/Admin/UserDetail";
 import Subscriptions from "../pages/Admin/Subscriptions";
+import AdminCourseDetail from "../pages/Admin/AdminCourseDetail";
+
 
 // INSTRUCTOR PAGES
 import InstructorDashboard from "../pages/Instructor/Dashboard";
@@ -267,6 +269,7 @@ export const router = createBrowserRouter([
       { path: "instructors/:instructorId/review", element: <AdminInstructorReview /> },
       { path: "analytics", element: <AdminAnalytics /> },
       { path: "courses", element: <AdminCourses /> },
+      { path: "courses/:courseId", element: <AdminCourseDetail /> },
       { path: "users", element: <Users /> },
       { path: "users/:userId", element: <UserDetail /> },
       { path: "subscriptions", element: <Subscriptions /> },

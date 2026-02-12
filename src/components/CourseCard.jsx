@@ -16,6 +16,35 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
       ? `${course.Users.first_name} ${course.Users.last_name}`
       : "Unknown Instructor");
 
+  // Dynamic pricing from course discount fields
+  const basePrice = Number(course.price || 0);
+
+  const hasDiscount =
+    course.discount_active &&
+    course.discount_type &&
+    course.discount_value != null &&
+    (!course.discount_starts_at ||
+      new Date(course.discount_starts_at) <= new Date()) &&
+    (!course.discount_ends_at ||
+      new Date(course.discount_ends_at) >= new Date());
+
+  let finalPrice = basePrice;
+  let discountPercent = 0;
+
+  if (hasDiscount) {
+    if (course.discount_type === "percent") {
+      discountPercent = Number(course.discount_value);
+      finalPrice = Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+    } else if (course.discount_type === "fixed") {
+      const discountValue = Number(course.discount_value);
+      finalPrice = Math.max(0, Number((basePrice - discountValue).toFixed(2)));
+      discountPercent =
+        basePrice > 0
+          ? Math.round(((basePrice - finalPrice) / basePrice) * 100)
+          : 0;
+    }
+  }
+
   // --- PLAN / FEATURES ---
   const rawFeatures = userPlan?.features;
 
@@ -29,9 +58,7 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
     features = {};
   }
 
-  const userPlanName = String(
-    userPlan?.plan_name || userPlan?.planName || "",
-  )
+  const userPlanName = String(userPlan?.plan_name || userPlan?.planName || "")
     .trim()
     .toLowerCase();
 
@@ -50,9 +77,9 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
   const isActuallyFree = Number(course.price) === 0;
   const isActuallyPremium = Boolean(
     course.is_premium ||
-      course.is_subscriber_only ||
-      course.isPremium ||
-      Number(course.price) > 0,
+    course.is_subscriber_only ||
+    course.isPremium ||
+    Number(course.price) > 0,
   );
 
   // --- ACCESS LOGIC ---
@@ -65,10 +92,9 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
 
   // --- BADGE LOGIC ---
   const showFreeBadge = isActuallyFree;
-  const hasPlan =
-    Boolean(course.plan_id) || Boolean(course.SubscriptionPlans);
-  const showPremiumBadge =
-    isActuallyPremium && !isActuallyFree && hasPlan;
+  const hasPlan = Boolean(course.plan_id) || Boolean(course.SubscriptionPlans);
+  // const showPremiumBadge = isActuallyPremium && !isActuallyFree;
+  const showPremiumBadge = isActuallyPremium && !isActuallyFree && hasPlan;
 
   const handleAction = (e) => {
     e.preventDefault();
@@ -133,20 +159,46 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
           <div className="mt-1">
             {userHasAccess ? (
               <div className="flex items-center gap-2">
-                {Number(course.price) > 0 ? (
+                {basePrice > 0 ? (
                   <>
                     <span className="font-bold text-purple-700">Included</span>
-                    <span className="text-xs text-gray-400 line-through">
-                      ${course.price}
-                    </span>
+                    {/* show original price crossed out if there is a discount */}
+                    {hasDiscount ? (
+                      <>
+                        <span className="text-xs text-gray-400 line-through">
+                          ${basePrice.toFixed(2)}
+                        </span>
+                        <span className="text-[11px] text-gray-500">
+                          {discountPercent}% off
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400 line-through">
+                        ${basePrice.toFixed(2)}
+                      </span>
+                    )}
                   </>
                 ) : (
                   <span className="font-bold text-green-600">Free</span>
                 )}
               </div>
             ) : (
-              <div className="font-bold text-gray-900 mt-1">
-                ${course.price}
+              <div className="flex items-center gap-2 font-bold text-gray-900 mt-1">
+                {basePrice === 0 ? (
+                  <span>Free</span>
+                ) : hasDiscount ? (
+                  <>
+                    <span>${finalPrice.toFixed(2)}</span>
+                    <span className="text-sm text-gray-400 line-through">
+                      ${basePrice.toFixed(2)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {discountPercent}% off
+                    </span>
+                  </>
+                ) : (
+                  <span>${basePrice.toFixed(2)}</span>
+                )}
               </div>
             )}
 

@@ -1,10 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import CourseCard from "../../components/CourseCard";
 import { Link, useNavigate } from "react-router-dom";
 import { addToCart } from "../../services/cartService";
 import { toast } from "react-hot-toast";
-import { Play, FileText, CheckCircle, Clock, Download, ChevronRight } from "lucide-react";
+import { 
+  Play, 
+  FileText, 
+  CheckCircle, 
+  Clock, 
+  Download, 
+  ChevronRight,
+  ChevronLeft,
+  BookOpen,
+  TrendingUp,
+  Sparkles,
+  Search,
+  Award,
+  ArrowRight,
+  UserCircle,
+  Zap,
+  Flame,
+  Star,
+  BarChart
+} from "lucide-react";
 
 export default function StudentDashboard() {
   const [profile, setProfile] = useState(null);
@@ -13,7 +32,21 @@ export default function StudentDashboard() {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [wishlistIds, setWishlistIds] = useState([]);
+  const [greeting, setGreeting] = useState("");
+  
+  // Featured courses state
+  const [featuredCourses, setFeaturedCourses] = useState([]);
+  const [activeTab, setActiveTab] = useState("popular");
+  const [featuredLoading, setFeaturedLoading] = useState(false);
+  const [featuredCurrentPage, setFeaturedCurrentPage] = useState(0);
+  const featuredCoursesPerPage = 4;
+  const featuredRef = useRef(null);
+  
+  // Recommendations state with pagination
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedCurrentPage, setRecommendedCurrentPage] = useState(0);
+  const recommendedPerPage = 4; // Changed from 3 to 4 to match featured
+  const recommendedRef = useRef(null);
   
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const navigate = useNavigate();
@@ -27,6 +60,14 @@ export default function StudentDashboard() {
     headers: { Authorization: `Bearer ${token}` },
   };
 
+  // Set greeting based on time of day
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good morning");
+    else if (hour < 18) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
+  }, []);
+
   // Fetch profile, recommendations, and enrolled courses
   useEffect(() => {
     if (!userId) return;
@@ -34,12 +75,11 @@ export default function StudentDashboard() {
     Promise.all([
       axios.get(`${API_URL}/student/me/${userId}`),
       axios.get(`${API_URL}/student/${userId}/recommendations`),
-      axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`),
-      axios.get(`${API_URL}/student/${userId}/wishlist`, config)
+      axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`)
     ])
     .then(([profileRes, recommendationsRes, enrolledRes, wishlistRes]) => {
       setProfile(profileRes.data);
-      setRecommended(recommendationsRes.data);
+      setRecommended(recommendationsRes.data || []);
       
       const ids = wishlistRes.data.map(item => item.course_id || item.Course?.id || item.id);
       setWishlistIds(ids);
@@ -56,31 +96,46 @@ export default function StudentDashboard() {
     })
     .catch((err) => {
       console.error("Fetch error:", err);
-      // Fallback if the new endpoint fails
-      axios.get(`${API_URL}/student/${userId}/purchased-courses`)
-        .then(res => {
-          const allCourses = res.data || [];
-          const uncompleted = allCourses.filter(course => {
-            const progress = course.total_lessons > 0 
-              ? Math.round((course.completed_lessons / course.total_lessons) * 100)
-              : 0;
-            return progress < 100;
-          });
-          setEnrolledCourses(uncompleted.slice(0, 3));
-        })
-        .catch(e => console.error("Fallback fetch error:", e));
     })
     .finally(() => setLoading(false));
   }, [userId]);
 
-  // Handle search
-  const handleSearch = async (e) => {
-    if (e.key === "Enter" && searchQuery.trim() !== "") {
-      navigate(`/courses?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
+  // Fetch featured courses when tab changes
+  useEffect(() => {
+    if (!userId) return;
+    
+    const fetchFeaturedCourses = async () => {
+      setFeaturedLoading(true);
+      try {
+        const response = await axios.get(
+          `${API_URL}/student/${userId}/featured-courses?tab=${activeTab}`
+        );
+        setFeaturedCourses(response.data.courses || []);
+        setFeaturedCurrentPage(0);
+      } catch (error) {
+        console.error("Error fetching featured courses:", error);
+        
+        // Check if it's a 404 - feature not available
+        if (error.response?.status === 404) {
+          console.log("Featured courses feature not available on this server");
+          // Set empty array to hide the section
+          setFeaturedCourses([]);
+          // Don't show error toast - silently fail
+        } else {
+          toast.error("Failed to load featured courses");
+          setFeaturedCourses([]);
+        }
+      } finally {
+        setFeaturedLoading(false);
+      }
+    };
 
-  const handleSearchClick = () => {
+    fetchFeaturedCourses();
+  }, [userId, activeTab]);
+
+  // Handle search
+  const handleSearch = (e) => {
+    e.preventDefault();
     if (searchQuery.trim() !== "") {
       navigate(`/courses?search=${encodeURIComponent(searchQuery.trim())}`);
     }
@@ -89,7 +144,7 @@ export default function StudentDashboard() {
   const handleAddToCart = async (courseId) => {
     try {
       await addToCart(courseId);
-      toast.success("Course added to your cart!");
+      toast.success("✨ Course added to cart!");
     } catch (err) {
       console.error("Add to cart error:", err);
       toast.error(err.response?.data?.message || "Failed to add course to cart.");
@@ -104,50 +159,76 @@ export default function StudentDashboard() {
       }
 
       await axios.post(`${API_URL}/student/${userId}/wishlist`, { course_id: courseId }, config);
-      setWishlistIds(prev => [...prev, courseId]);
-      toast.success("Added to wishlist!");
+      toast.success("❤️ Added to wishlist!");
     } catch (err) {
       console.error("Wishlist error:", err);
       
       if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
-        toast("This course is already in your wishlist", { icon: "ℹ️" });
+        toast("✨ This course is already in your wishlist", { icon: "📚" });
       } else {
-        toast.error(
-          err.response?.data?.message || "Failed to add to wishlist"
-        );
+        toast.error(err.response?.data?.message || "Failed to add to wishlist");
       }
     }
   };
 
-  const handleRemoveFromWishlist = async (courseId) => {
-    try {
-      if (!user) return;
-
-      await axios.delete(`${API_URL}/student/${userId}/wishlist/${courseId}`, config);
-      setWishlistIds(prev => prev.filter(id => id !== courseId));
-      toast.success("Removed from wishlist");
-    } catch (err) {
-      console.error("Remove from wishlist error:", err);
-      toast.error("Failed to remove from wishlist");
+  // Navigation handlers for featured carousel
+  const handleFeaturedPrevPage = () => {
+    if (featuredCurrentPage > 0) {
+      setFeaturedCurrentPage(featuredCurrentPage - 1);
+      featuredRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
 
-  // Function to get content type icon
+  const handleFeaturedNextPage = () => {
+    if (featuredCurrentPage < Math.ceil(featuredCourses.length / featuredCoursesPerPage) - 1) {
+      setFeaturedCurrentPage(featuredCurrentPage + 1);
+      featuredRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  // Navigation handlers for recommendations carousel
+  const handleRecommendedPrevPage = () => {
+    if (recommendedCurrentPage > 0) {
+      setRecommendedCurrentPage(recommendedCurrentPage - 1);
+      recommendedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const handleRecommendedNextPage = () => {
+    if (recommendedCurrentPage < Math.ceil(recommended.length / recommendedPerPage) - 1) {
+      setRecommendedCurrentPage(recommendedCurrentPage + 1);
+      recommendedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  // Get current courses for featured pagination
+  const getCurrentFeaturedCourses = () => {
+    const startIndex = featuredCurrentPage * featuredCoursesPerPage;
+    return featuredCourses.slice(startIndex, startIndex + featuredCoursesPerPage);
+  };
+
+  // Get current courses for recommendations pagination
+  const getCurrentRecommendedCourses = () => {
+    const startIndex = recommendedCurrentPage * recommendedPerPage;
+    return recommended.slice(startIndex, startIndex + recommendedPerPage);
+  };
+
+  // Function to get content type icon and color
   const getContentIcon = (contentType) => {
     switch (contentType?.toLowerCase()) {
       case "lecture":
       case "video":
-        return <Play className="h-4 w-4 text-blue-500" />;
+        return { icon: Play, color: "text-blue-500", bg: "bg-blue-50" };
       case "article":
       case "note":
-        return <FileText className="h-4 w-4 text-green-500" />;
+        return { icon: FileText, color: "text-green-500", bg: "bg-green-50" };
       case "quiz":
       case "assessment":
-        return <CheckCircle className="h-4 w-4 text-purple-500" />;
+        return { icon: CheckCircle, color: "text-purple-500", bg: "bg-purple-50" };
       case "download":
-        return <Download className="h-4 w-4 text-orange-500" />;
+        return { icon: Download, color: "text-orange-500", bg: "bg-orange-50" };
       default:
-        return <FileText className="h-4 w-4 text-gray-500" />;
+        return { icon: FileText, color: "text-gray-500", bg: "bg-gray-50" };
     }
   };
 
@@ -160,254 +241,561 @@ export default function StudentDashboard() {
       case "note": return "Note";
       case "quiz": return "Quiz";
       case "assessment": return "Assessment";
-      case "download": return "Download";
+      case "download": return "Resource";
       default: return "Content";
     }
   };
 
-  // Function to format time left
-  const formatTimeLeft = (minutes) => {
-    if (!minutes || minutes <= 0) return "";
-    if (minutes < 60) return `${minutes}m left`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m left` : `${hours}h left`;
-  };
-
   // Handle continue learning
   const handleContinueLearning = (courseId, nextContentId, e) => {
-    if (e) e.stopPropagation();
-    
+    e.stopPropagation();
     if (nextContentId) {
-      // Navigate to course player with the specific lesson as query parameter
       navigate(`/course/${courseId}/learn?lesson=${nextContentId}`);
     } else {
-      // No next lesson found, go to course overview
       navigate(`/course/${courseId}/learn`);
     }
   };
 
+  // Tab configuration
+  const tabs = [
+    { 
+      id: "popular", 
+      label: "Most Popular", 
+      icon: Flame,
+      description: "Top-rated courses loved by thousands of learners"
+    },
+    { 
+      id: "new", 
+      label: "New & Trending", 
+      icon: Sparkles,
+      description: "Fresh content added in the last 30 days"
+    },
+    { 
+      id: "intermediate-advanced", 
+      label: "Intermediate & Advanced", 
+      icon: BarChart,
+      description: "Take your skills to the next level"
+    }
+  ];
+
+  // Add global style for hover card z-index
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .group:hover .lg\\:group-hover\\:block {
+        z-index: 9999 !important;
+        position: absolute !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
-    <div className="pb-20 max-w-7xl mx-auto px-4">
-      {/* WELCOME */}
-      <div className="mt-10">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {profile?.first_name}
-        </h1>
-        <p className="text-gray-600 mt-1 flex items-center gap-3">
-          {profile?.occupation || "Learner"}
-          <Link
-            to="/student/edit-profile"
-            className="text-primary font-semibold hover:underline"
-          >
-            Edit occupation & interests
-          </Link>
-        </p>
-      </div>
-
-      {/* SEARCH BAR */}
-      <div className="mt-8 max-w-2xl relative">
-        <input
-          type="text"
-          placeholder="Search for courses..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleSearch}
-          className="w-full pl-4 pr-12 py-3 rounded-full bg-gray-100 border border-gray-300
-                     focus:bg-white focus:border-primary focus:ring-2 focus:ring-purple-100
-                     outline-none transition text-sm"
-        />
-        <button
-          onClick={handleSearchClick}
-          disabled={!searchQuery.trim()}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary disabled:opacity-50"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-          </svg>
-        </button>
-      </div>
-
-      {/* MY LEARNING SECTION - HORIZONTAL LAYOUT */}
-      {enrolledCourses.length > 0 ? (
-        <div className="mt-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Let's start learning
-            </h2>
-            <Link 
-              to="/student/my-courses" 
-              className="text-primary font-semibold hover:underline text-sm flex items-center gap-1"
-            >
-              View all
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">My learning</h3>
-            
-            {loading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* HERO SECTION - Welcome & Stats */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary/10 via-purple-50 to-pink-50 p-8 mt-8 border border-primary/20 shadow-sm">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+          
+          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-primary/80 mb-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Welcome back</span>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {enrolledCourses.map((course) => {
-                  const isInProgress = course.progress > 0 && course.progress < 100;
-                  
-                  return (
-                    <div 
-                      key={course.id}
-                      className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col h-full"
-                      onClick={() => navigate(`/course/${course.id}/learn`)}
-                    >
-                      {/* Course Header */}
-                      <div className="mb-4">
-                        <h4 className="font-bold text-gray-900 line-clamp-2 mb-2 h-12">
-                          {course.title}
-                        </h4>
-                        
-                        {/* Progress bar and stats */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <span>{course.completedContent || 0}/{course.totalContent || 0} completed</span>
-                            <span className="font-semibold">{course.progress || 0}%</span>
-                          </div>
-                          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-primary rounded-full transition-all duration-500"
-                              style={{ width: `${course.progress || 0}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
+              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
+                {greeting}, {profile?.first_name || "Learner"}!
+              </h1>
+              <p className="text-lg text-gray-600 max-w-2xl">
+                {profile?.occupation 
+                  ? `${profile.occupation} · Ready to continue your learning journey?`
+                  : "Ready to continue your learning journey?"}
+              </p>
+              
+            {/* Quick actions */}
+            <div className="flex flex-wrap items-center gap-4 mt-6">
+              <Link
+                to="/courses"
+                className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25"
+              >
+                <BookOpen className="w-5 h-5" />
+                Explore Courses
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              
+              {/* Check if profile is incomplete - missing occupation, skills, OR interests */}
+              {(!profile?.occupation || 
+                !profile?.skills || 
+                (Array.isArray(profile.skills) && profile.skills.length === 0) ||
+                !profile?.interests || 
+                (Array.isArray(profile.interests) && profile.interests.length === 0)) && (
+                <Link
+                  to="/student/edit-profile"
+                  className="inline-flex items-center gap-2 bg-white text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all border border-gray-200 hover:border-primary/30 group"
+                >
+                  <UserCircle className="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" />
+                  Complete Profile
+                </Link>
+              )}
+            </div>
+            </div>
+          </div>
+        </div>
 
-                      {/* Next content item */}
-                      {course.nextContent ? (
-                        <div className="mt-auto">
-                          <div className="pt-4 border-t border-gray-100">
-                            <p className="text-xs text-gray-500 mb-2">Next up:</p>
-                            <div className="flex items-start gap-3">
-                              <div className="mt-0.5">
-                                {getContentIcon(course.nextContent.type)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {course.nextContent.order}. {course.nextContent.title}
-                                </p>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                  <span className="capitalize">
-                                    {getContentTypeLabel(course.nextContent.type)}
-                                  </span>
-                                  {course.nextContent.duration && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {formatTimeLeft(course.nextContent.duration)}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <button 
-                            className="w-full mt-4 bg-primary text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors"
-                            onClick={(e) => handleContinueLearning(course.id, course.nextContent?.id, e)}
-                          >
-                            {isInProgress ? 'Continue Learning' : 'Start Course'}
-                          </button>
-                        </div>
+        {/* SEARCH BAR */}
+        <form onSubmit={handleSearch} className="mt-8 max-w-2xl">
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search for courses, topics, or instructors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-4 rounded-xl bg-white border border-gray-200
+                       focus:border-primary focus:ring-2 focus:ring-primary/20
+                       outline-none transition text-sm placeholder:text-gray-400"
+            />
+            <button
+              type="submit"
+              disabled={!searchQuery.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg
+                       hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+
+        {/* MY LEARNING SECTION - COMPACT WITH THUMBNAILS */}
+        {enrolledCourses.length > 0 ? (
+          <section className="mt-10">
+            <div className="flex items-end justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-1.5 text-primary mb-1">
+                  <Zap className="w-4 h-4" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Continue Learning</span>
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Pick up where you left off
+                </h2>
+                <p className="text-sm text-gray-600">
+                  You're making great progress!
+                </p>
+              </div>
+              
+              <Link 
+                to="/student/learning" 
+                className="hidden sm:flex items-center gap-1 text-sm text-primary font-medium hover:gap-2 transition-all group"
+              >
+                View all
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {enrolledCourses.map((course) => {
+                const isInProgress = course.progress > 0 && course.progress < 100;
+                const contentIcon = course.nextContent ? getContentIcon(course.nextContent.type) : null;
+                const Icon = contentIcon?.icon || Play;
+                const iconColor = contentIcon?.color || "text-primary";
+                const iconBg = contentIcon?.bg || "bg-primary/10";
+                
+                return (
+                  <div 
+                    key={course.id}
+                    className="group bg-white rounded-xl border border-gray-200 hover:border-primary/30 hover:shadow-md transition-all cursor-pointer overflow-hidden flex"
+                    onClick={() => navigate(`/course/${course.id}/learn`)}
+                  >
+                    <div className="w-20 h-20 flex-shrink-0 bg-gray-100">
+                      {course.thumbnail_url ? (
+                        <img 
+                          src={course.thumbnail_url} 
+                          alt={course.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       ) : (
-                        <div className="mt-auto pt-4 border-t border-gray-100">
-                          <div className="mb-4">
-                            <p className="text-xs text-gray-500 mb-2">Get started:</p>
-                            <p className="text-sm text-gray-700">
-                              Begin your learning journey
-                            </p>
-                          </div>
-                          <button 
-                            className="w-full bg-primary text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors"
-                            onClick={(e) => handleContinueLearning(course.id, null, e)}
-                          >
-                            Start Course
-                          </button>
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-purple-600/10">
+                          <BookOpen className="w-6 h-6 text-gray-400" />
                         </div>
                       )}
                     </div>
-                  );
-                })}
+                    
+                    <div className="flex-1 p-3">
+                      <div className="flex items-start justify-between mb-1">
+                        <h3 className="font-medium text-gray-900 text-xs line-clamp-2 flex-1 pr-1">
+                          {course.title}
+                        </h3>
+                        <span className="text-[10px] font-medium text-primary whitespace-nowrap">
+                          {course.completedContent || 0}/{course.totalContent || 0}
+                        </span>
+                      </div>
+                      
+                      <div className="mb-2">
+                        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${course.progress || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {course.nextContent ? (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <div className={`p-0.5 rounded ${iconBg}`}>
+                            <Icon className={`w-2.5 h-2.5 ${iconColor}`} />
+                          </div>
+                          <p className="text-[10px] text-gray-600 truncate flex-1">
+                            {course.nextContent.title}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-gray-500 mb-2">
+                          Ready to start
+                        </p>
+                      )}
+                      
+                      <button 
+                        className="w-full bg-primary/10 hover:bg-primary text-primary hover:text-white text-[10px] font-medium py-1.5 px-2 rounded-lg transition-colors flex items-center justify-center gap-0.5"
+                        onClick={(e) => handleContinueLearning(course.id, course.nextContent?.id, e)}
+                      >
+                        {isInProgress ? 'Continue' : 'Start'}
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-3 text-center sm:hidden">
+              <Link 
+                to="/student/my-courses" 
+                className="inline-flex items-center gap-1 text-sm text-primary font-medium"
+              >
+                View all courses
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </section>
+        ) : !loading && completedCourses.length > 0 ? (
+          <section className="mt-16">
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl border border-green-200 p-12 text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl"></div>
+              
+              <div className="relative">
+                <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Award className="h-12 w-12 text-white" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                  All courses completed! 🎉
+                </h2>
+                <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                  You've successfully completed {completedCourses.length} course{completedCourses.length !== 1 ? 's' : ''}. 
+                  That's an amazing achievement! Ready for your next challenge?
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Link 
+                    to="/courses"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/25 transition-all"
+                  >
+                    Browse More Courses
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  <Link
+                    to="/student/certificates"
+                    className="inline-flex items-center gap-2 bg-white text-gray-700 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all border border-gray-200"
+                  >
+                    View Certificates
+                    <Award className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
+            </div>
+          </section>
+        ) : !loading ? (
+          <section className="mt-16">
+            <div className="bg-gradient-to-br from-gray-50 to-white rounded-3xl border border-gray-200 p-12 text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl"></div>
+              
+              <div className="relative">
+                <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <BookOpen className="h-12 w-12 text-primary/60" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                  Start your learning journey
+                </h2>
+                <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                  You haven't enrolled in any courses yet. Explore our catalog and find the perfect course for you!
+                </p>
+                <Link 
+                  to="/courses"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/25 transition-all"
+                >
+                  Explore Courses
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* RECOMMENDATIONS SECTION - With Carousel */}
+        {recommended.length > 0 && (
+          <section ref={recommendedRef} className="mt-20">
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-2 text-primary mb-2">
+                  <TrendingUp className="w-5 h-5" />
+                  <span className="text-sm font-semibold uppercase tracking-wider">Personalized</span>
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900">
+                  What to learn next
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  Based on your interests and learning history
+                </p>
+              </div>
+              
+              <Link 
+                to="/courses" 
+                className="hidden sm:flex items-center gap-2 text-primary font-semibold hover:gap-3 transition-all group"
+              >
+                View all courses
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            {recommendedLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
+                  <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+                </div>
+              </div>
+            ) : (
+              <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {getCurrentRecommendedCourses().map((course, index) => (
+                  <div key={course.id}>
+                    <CourseCard
+                      course={course}
+                      onAddToCart={() => handleAddToCart(course.id)}
+                      onAddToWishlist={() => handleAddToWishlist(course.id)}
+                      isPremiumCourse={!!course.SubscriptionPlans}
+                    />
+                  </div>
+                ))}
+              </div>
+
+                {recommended.length > recommendedPerPage && (
+                  <div className="flex items-center justify-center gap-4 mt-8">
+                    <button
+                      onClick={handleRecommendedPrevPage}
+                      disabled={recommendedCurrentPage === 0}
+                      className={`
+                        flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+                        transition-all duration-200
+                        ${recommendedCurrentPage === 0
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-primary/30'
+                        }
+                      `}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                      {Array.from({ length: Math.ceil(recommended.length / recommendedPerPage) }).map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setRecommendedCurrentPage(index)}
+                          className={`
+                            w-2 h-2 rounded-full transition-all duration-200
+                            ${recommendedCurrentPage === index 
+                              ? 'w-6 bg-primary' 
+                              : 'bg-gray-300 hover:bg-gray-400'
+                            }
+                          `}
+                          aria-label={`Go to page ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={handleRecommendedNextPage}
+                      disabled={recommendedCurrentPage >= Math.ceil(recommended.length / recommendedPerPage) - 1}
+                      className={`
+                        flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+                        transition-all duration-200
+                        ${recommendedCurrentPage >= Math.ceil(recommended.length / recommendedPerPage) - 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-primary/30'
+                        }
+                      `}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-          </div>
-        </div>
-      ) : !loading && completedCourses.length > 0 ? (
-        // If user has only completed courses
-        <div className="mt-12">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-500" />
+            
+            <div className="mt-6 text-center sm:hidden">
+              <Link 
+                to="/courses" 
+                className="inline-flex items-center gap-2 text-primary font-semibold"
+              >
+                View all courses
+                <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">All courses completed! 🎉</h3>
-            <p className="text-gray-600 mb-4">
-              You've completed {completedCourses.length} course{completedCourses.length !== 1 ? 's' : ''}. 
-              Time to explore something new!
+          </section>
+        )}
+
+        {/* FEATURED COURSES SECTION - Simple, just like CoursesList */}
+        <section ref={featuredRef} className="mt-20">
+          <div className="mb-8">
+            <div className="flex items-center gap-2 text-primary mb-2">
+              <Star className="w-5 h-5" />
+              <span className="text-sm font-semibold uppercase tracking-wider">Featured</span>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900">
+              Discover top courses
+            </h2>
+            <p className="text-gray-600 mt-1">
+              Hand-picked selections for every skill level
             </p>
-            <Link 
-              to="/courses"
-              className="inline-block bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-            >
-              Browse More Courses
-            </Link>
           </div>
-        </div>
-      ) : !loading ? (
-        // If user has no enrolled courses at all
-        <div className="mt-12">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+
+          <div className="flex flex-wrap gap-2 mb-8">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm
+                    transition-all duration-200
+                    ${isActive 
+                      ? 'bg-primary text-white shadow-md shadow-primary/25' 
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                    }
+                  `}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-gray-600 mb-6 text-sm">
+            {tabs.find(t => t.id === activeTab)?.description}
+          </p>
+
+          {featuredLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
+                <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+              </div>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Start your learning journey</h3>
-            <p className="text-gray-600 mb-4">You haven't enrolled in any courses yet.</p>
-            <Link 
-              to="/courses"
-              className="inline-block bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-            >
-              Browse Courses
-            </Link>
-          </div>
-        </div>
-      ) : null}
+          ) : featuredCourses.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {getCurrentFeaturedCourses().map((course, index) => (
+                  <div key={course.id}>
+                    <CourseCard
+                      course={course}
+                      onAddToCart={() => handleAddToCart(course.id)}
+                      onAddToWishlist={() => handleAddToWishlist(course.id)}
+                      isPremiumCourse={!!course.SubscriptionPlans}
+                    />
+                  </div>
+                ))}
+              </div>
 
-      {/* RECOMMENDATIONS */}
-      {recommended.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">
-            What to learn next
-          </h2>
-          <p className="text-gray-500 mb-6">Recommended for you</p>
+              {featuredCourses.length > featuredCoursesPerPage && (
+                <div className="flex items-center justify-center gap-4 mt-8">
+                  <button
+                    onClick={handleFeaturedPrevPage}
+                    disabled={featuredCurrentPage === 0}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+                      transition-all duration-200
+                      ${featuredCurrentPage === 0
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-primary/30'
+                      }
+                    `}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </button>
+                  
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: Math.ceil(featuredCourses.length / featuredCoursesPerPage) }).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setFeaturedCurrentPage(index)}
+                        className={`
+                          w-2 h-2 rounded-full transition-all duration-200
+                          ${featuredCurrentPage === index 
+                            ? 'w-6 bg-primary' 
+                            : 'bg-gray-300 hover:bg-gray-400'
+                          }
+                        `}
+                        aria-label={`Go to page ${index + 1}`}
+                      />
+                    ))}
+                  </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recommended.map((course) => (
-              <CourseCard
-                key={course.id}
-                course={course}
-                onAddToCart={() => handleAddToCart(course.id)}
-                onAddToWishlist={() => handleAddToWishlist(course.id)}
-                onRemoveFromWishlist={() => handleRemoveFromWishlist(course.id)}
-                isInWishlist={wishlistIds.includes(course.id)}
-                isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+                  <button
+                    onClick={handleFeaturedNextPage}
+                    disabled={featuredCurrentPage >= Math.ceil(featuredCourses.length / featuredCoursesPerPage) - 1}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+                      transition-all duration-200
+                      ${featuredCurrentPage >= Math.ceil(featuredCourses.length / featuredCoursesPerPage) - 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-primary/30'
+                      }
+                    `}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-gray-50 rounded-2xl p-12 text-center">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No courses found
+              </h3>
+              <p className="text-gray-600">
+                Check back later for new courses in this category.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
