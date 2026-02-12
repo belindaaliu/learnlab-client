@@ -92,6 +92,28 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleAddToWishlist = async (courseId) => {
+    try {
+      if (!user) {
+        toast.error("Please login to add courses to your wishlist");
+        return;
+      }
+
+      await axios.post(`${API_URL}/student/${userId}/wishlist`, { course_id: courseId }, config);
+      toast.success("Added to wishlist!");
+    } catch (err) {
+      console.error("Wishlist error:", err);
+      
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
+        toast("This course is already in your wishlist", { icon: "ℹ️" });
+      } else {
+        toast.error(
+          err.response?.data?.message || "Failed to add to wishlist"
+        );
+      }
+    }
+  };
+
   // Function to get content type icon
   const getContentIcon = (contentType) => {
     switch (contentType?.toLowerCase()) {
@@ -359,6 +381,7 @@ export default function StudentDashboard() {
                 key={course.id}
                 course={course}
                 onAddToCart={() => handleAddToCart(course.id)}
+                onAddToWishlist={() => handleAddToWishlist(course.id)}
                 isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
               />
             ))}
