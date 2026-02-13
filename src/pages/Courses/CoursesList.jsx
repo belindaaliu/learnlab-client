@@ -35,6 +35,7 @@ const CoursesList = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [error, setError] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   const [filters, setFilters] = useState({
     search: urlSearchQuery || "",
@@ -42,6 +43,46 @@ const CoursesList = () => {
     priceRange: [],
     sortBy: "newest",
   });
+
+  // Track which courses the logged-in user is enrolled in
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
+
+  // Fetch enrolled courses once when user changes
+  useEffect(() => {
+    if (!user) {
+      setEnrolledCourseIds([]);
+      return;
+    }
+
+    const fetchEnrolled = async () => {
+      try {
+        const res = await api.get(`/student/${user.id}/courses`);
+        const data = res.data?.data || res.data || [];
+        const ids = data.map((c) => Number(c.id));
+        setEnrolledCourseIds(ids);
+      } catch (err) {
+        console.error("Failed to fetch enrolled courses:", err);
+      }
+    };
+
+    fetchEnrolled();
+  }, [user]);
+
+  useEffect(() => {
+    const fetchWishlist = async () => {
+      if (user) {
+        try {
+          const response = await api.get(`/student/${user.id}/wishlist`);
+          const ids = response.data.map(item => item.course_id || item.Course?.id || item.id);
+          setWishlistIds(ids);
+        } catch (err) {
+          console.error("Failed to fetch wishlist:", err);
+        }
+      }
+    };
+    
+    fetchWishlist();
+  }, [user]);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -109,7 +150,15 @@ const CoursesList = () => {
 
   const handleAddToCart = async (course) => {
     try {
+      const courseIdNum = Number(course.id);
+
       if (user) {
+        // Block adding if already enrolled
+        if (enrolledCourseIds.includes(courseIdNum)) {
+          toast("You already own this course.", { icon: "ℹ️" });
+          return;
+        }
+
         // Logged-in user: backend cart
         await addToCart(course.id);
         toast.success("Course added to your cart!");
@@ -141,7 +190,45 @@ const CoursesList = () => {
       await fetchCartCount();
     } catch (err) {
       console.error("Add to cart error:", err);
-      toast.error(err.response?.data?.message || "Failed to add course to cart.");
+      toast.error(
+        err.response?.data?.message || "Failed to add course to cart.",
+      );
+    }
+  };
+
+  const handleAddToWishlist = async (courseId) => {
+    try {
+      if (!user) {
+        toast.error("Please login to add courses to your wishlist");
+        return;
+      }
+
+      await api.post(`/student/${user.id}/wishlist`, { course_id: courseId });
+      setWishlistIds(prev => [...prev, courseId]);
+      toast.success("Added to wishlist!");
+    } catch (err) {
+      console.error("Wishlist error:", err);
+      
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
+        toast("This course is already in your wishlist", { icon: "ℹ️" });
+      } else {
+        toast.error(
+          err.response?.data?.message || "Failed to add to wishlist"
+        );
+      }
+    }
+  };
+
+  const handleRemoveFromWishlist = async (courseId) => {
+    try {
+      if (!user) return;
+
+      await api.delete(`/student/${user.id}/wishlist/${courseId}`);
+      setWishlistIds(prev => prev.filter(id => id !== courseId));
+      toast.success("Removed from wishlist");
+    } catch (err) {
+      console.error("Remove from wishlist error:", err);
+      toast.error("Failed to remove from wishlist");
     }
   };
 
@@ -275,7 +362,13 @@ const CoursesList = () => {
                     key={course.id}
                     course={course}
                     onAddToCart={() => handleAddToCart(course)}
-                    isPremiumCourse={!!course.plan_id || !!course.SubscriptionPlans}
+                    onAddToWishlist={() => handleAddToWishlist(course.id)}
+                    isPremiumCourse={
+                      !!course.plan_id || !!course.SubscriptionPlans
+                    }
+                    isOwned={
+                      user && enrolledCourseIds.includes(Number(course.id))
+                    }
                   />
                 ))}
               </div>

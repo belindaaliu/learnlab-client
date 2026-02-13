@@ -17,6 +17,7 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [modalConfig, setModalConfig] = useState({ isOpen: false });
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   useEffect(() => {
     const fetchFeaturedCourses = async () => {
@@ -33,6 +34,22 @@ const Home = () => {
 
     fetchFeaturedCourses();
   }, []);
+
+  useEffect(() => {
+    const fetchWishlist = async () => {
+      if (user) {
+        try {
+          const response = await api.get(`/student/${user.id}/wishlist`);
+          const ids = response.data.map(item => item.course_id || item.Course?.id || item.id);
+          setWishlistIds(ids);
+        } catch (err) {
+          console.error("Failed to fetch wishlist:", err);
+        }
+      }
+    };
+    
+    fetchWishlist();
+  }, [user]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -80,6 +97,42 @@ const Home = () => {
       toast.error(
         err.response?.data?.message || "Failed to add course to cart.",
       );
+    }
+  };
+
+  const handleAddToWishlist = async (courseId) => {
+    try {
+      if (!user) {
+        toast.error("Please login to add courses to your wishlist");
+        return;
+      }
+
+      await api.post(`/student/${user.id}/wishlist`, { course_id: courseId });
+      setWishlistIds(prev => [...prev, courseId]);
+      toast.success("Added to wishlist!");
+    } catch (err) {
+      console.error("Wishlist error:", err);
+      
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
+        toast("This course is already in your wishlist", { icon: "ℹ️" });
+      } else {
+        toast.error(
+          err.response?.data?.message || "Failed to add to wishlist"
+        );
+      }
+    }
+  };
+
+  const handleRemoveFromWishlist = async (courseId) => {
+    try {
+      if (!user) return;
+
+      await api.delete(`/student/${user.id}/wishlist/${courseId}`);
+      setWishlistIds(prev => prev.filter(id => id !== courseId));
+      toast.success("Removed from wishlist");
+    } catch (err) {
+      console.error("Remove from wishlist error:", err);
+      toast.error("Failed to remove from wishlist");
     }
   };
 
@@ -199,6 +252,9 @@ const Home = () => {
                   key={course.id}
                   course={course}
                   onAddToCart={() => handleAddToCart(course)}
+                  onAddToWishlist={() => handleAddToWishlist(course.id)}
+                  onRemoveFromWishlist={() => handleRemoveFromWishlist(course.id)}
+                  isInWishlist={wishlistIds.includes(course.id)}
                 />
               ))
             ) : (

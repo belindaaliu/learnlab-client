@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { PlayCircle, ChevronDown, ChevronRight, CheckCircle, Check } from "lucide-react";
+import {
+  PlayCircle,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle,
+  Check,
+} from "lucide-react";
 import logo from "../../assets/images/logo.png";
 import QuizPlayer from "./QuizPlayer";
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
+  const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -26,6 +33,9 @@ export default function CoursePlayer() {
   const [completedLessons, setCompletedLessons] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [updatingProgress, setUpdatingProgress] = useState(false);
+  const [certificateIssued, setCertificateIssued] = useState(false);
+  const [certificateMessage, setCertificateMessage] = useState("");
+  const [hasCertificate, setHasCertificate] = useState(false);
 
   // Fixed height for all content areas
   const CONTENT_HEIGHT = "70vh";
@@ -85,11 +95,11 @@ export default function CoursePlayer() {
   // Helper function to find lesson by ID (needs to be declared before useEffect)
   const findLessonById = (lessonId) => {
     if (!sections || sections.length === 0) return null;
-    
+
     for (const section of sections) {
       if (section.children) {
-        const found = section.children.find(lesson => 
-          lesson.id.toString() === lessonId.toString()
+        const found = section.children.find(
+          (lesson) => lesson.id.toString() === lessonId.toString(),
         );
         if (found) return found;
       }
@@ -104,10 +114,10 @@ export default function CoursePlayer() {
     // Handle browser back/forward buttons
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const lessonId = urlParams.get('lesson');
-      
+      const lessonId = urlParams.get("lesson");
+
       console.log("Popstate triggered, lessonId from URL:", lessonId);
-      
+
       if (lessonId) {
         const foundLesson = findLessonById(lessonId);
         if (foundLesson) {
@@ -119,13 +129,39 @@ export default function CoursePlayer() {
       }
     };
 
-    window.addEventListener('popstate', handlePopState);
-    
-    // Cleanup
+    window.addEventListener("popstate", handlePopState);
+
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener("popstate", handlePopState);
     };
-  }, [sections]); // Re-run when sections change
+  }, [sections]);
+
+  useEffect(() => {
+    async function checkCertificate() {
+      try {
+        const res = await axios.get(`${API_URL}/student/certificates`, config);
+        const hasCert = res.data?.data?.some(
+          (c) => c.courseId?.toString() === courseId.toString(),
+        );
+        if (hasCert) {
+          setHasCertificate(true);
+          setCertificateMessage("Certificate already issued for this course.");
+        }
+      } catch (e) {
+        console.error("Error checking certificate:", e);
+      }
+    }
+
+    if (userId) {
+      checkCertificate();
+    }
+  }, [courseId, userId]);
+
+  useEffect(() => {
+    if (certificateIssued) {
+      navigate(`/student/certificates/${courseId}`);
+    }
+  }, [certificateIssued, courseId, navigate]);
 
   // ============================
   // Fetch course, lessons, next lesson
@@ -139,15 +175,15 @@ export default function CoursePlayer() {
     async function loadData() {
       try {
         setLoading(true);
-        
+
         // Check URL for specific lesson parameter
         const urlParams = new URLSearchParams(window.location.search);
-        const lessonIdFromUrl = urlParams.get('lesson');
-        
+        const lessonIdFromUrl = urlParams.get("lesson");
+
         // Fetch course info
         const courseRes = await axios.get(
           `${API_URL}/course-player/${courseId}`,
-          config
+          config,
         );
         console.log("Course data:", courseRes.data);
         setCourse(courseRes.data);
@@ -155,17 +191,17 @@ export default function CoursePlayer() {
         // Fetch organized lessons/sections
         const lessonsRes = await axios.get(
           `${API_URL}/course-player/${courseId}/lessons`,
-          config
+          config,
         );
         console.log("Lessons/sections data:", lessonsRes.data);
-        
+
         // Backend already organizes data, just use it directly
         const sectionsData = lessonsRes.data || [];
         setSections(sectionsData);
-        
+
         // Expand all sections by default
         const defaultExpanded = new Set();
-        sectionsData?.forEach(section => {
+        sectionsData?.forEach((section) => {
           if (section.id !== "standalone") {
             defaultExpanded.add(section.id);
           }
@@ -183,13 +219,13 @@ export default function CoursePlayer() {
           let foundLesson = null;
           for (const section of sectionsData) {
             if (section.children) {
-              foundLesson = section.children.find(lesson => 
-                lesson.id.toString() === lessonIdFromUrl
+              foundLesson = section.children.find(
+                (lesson) => lesson.id.toString() === lessonIdFromUrl,
               );
               if (foundLesson) break;
             }
           }
-          
+
           if (foundLesson) {
             console.log("Setting lesson from URL:", foundLesson);
             setCurrentLesson(foundLesson);
@@ -201,9 +237,11 @@ export default function CoursePlayer() {
           // No URL parameter, get next lesson normally
           await getNextLessonFallback(sectionsData);
         }
-
       } catch (err) {
-        console.error("COURSE PLAYER ERROR:", err.response?.data || err.message);
+        console.error(
+          "COURSE PLAYER ERROR:",
+          err.response?.data || err.message,
+        );
       } finally {
         setLoading(false);
       }
@@ -214,10 +252,10 @@ export default function CoursePlayer() {
       try {
         const nextRes = await axios.get(
           `${API_URL}/course-player/${courseId}/next`,
-          config
+          config,
         );
         console.log("Next lesson from API:", nextRes.data);
-        
+
         if (nextRes.data) {
           setCurrentLesson(nextRes.data);
         } else if (sectionsData && sectionsData.length > 0) {
@@ -242,7 +280,7 @@ export default function CoursePlayer() {
     try {
       const response = await axios.get(
         `${API_URL}/course-player/${courseId}/completed`,
-        config
+        config,
       );
       return response.data.completedLessonIds || [];
     } catch (error) {
@@ -268,9 +306,17 @@ export default function CoursePlayer() {
       case "video":
         return <PlayCircle className="w-4 h-4 text-purple-400" />;
       case "note":
-        return <div className="w-4 h-4 bg-yellow-500 rounded flex items-center justify-center text-xs font-bold">T</div>;
+        return (
+          <div className="w-4 h-4 bg-yellow-500 rounded flex items-center justify-center text-xs font-bold">
+            T
+          </div>
+        );
       case "assessment":
-        return <div className="w-4 h-4 bg-red-500 rounded flex items-center justify-center text-xs font-bold">Q</div>;
+        return (
+          <div className="w-4 h-4 bg-red-500 rounded flex items-center justify-center text-xs font-bold">
+            Q
+          </div>
+        );
       default:
         return <PlayCircle className="w-4 h-4 text-gray-400" />;
     }
@@ -281,14 +327,18 @@ export default function CoursePlayer() {
     if (!seconds) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Handle lesson click
   const handleLessonClick = (lesson) => {
     setCurrentLesson(lesson);
     // Update URL without page reload
-    window.history.pushState({}, '', `/course/${courseId}/learn?lesson=${lesson.id}`);
+    window.history.pushState(
+      {},
+      "",
+      `/course/${courseId}/learn?lesson=${lesson.id}`,
+    );
   };
 
   // ============================
@@ -297,39 +347,45 @@ export default function CoursePlayer() {
   const handleManualComplete = async (lessonId, isCurrentlyCompleted) => {
     try {
       setUpdatingProgress(true);
-      
+
       if (isCurrentlyCompleted) {
         // Mark as incomplete
         await axios.delete(
           `${API_URL}/course-player/${courseId}/lessons/${lessonId}/complete`,
-          config
+          config,
         );
-        
+
         // Update local state
         const newCompleted = new Set(completedLessons);
         newCompleted.delete(lessonId);
         setCompletedLessons(newCompleted);
       } else {
         // Mark as complete
-        await axios.post(
+        const res = await axios.post(
           `${API_URL}/course-player/${courseId}/lessons/${lessonId}/complete`,
           {},
-          config
+          config,
         );
-        
+
+        if (res.data?.certificateIssued) {
+          setCertificateIssued(true);
+          setCertificateMessage(
+            res.data.certificateReason || "Certificate issued for this course!",
+          );
+        }
+
         // Update local state
         const newCompleted = new Set(completedLessons);
         newCompleted.add(lessonId);
         setCompletedLessons(newCompleted);
       }
-      
+
       // Refresh course data to update progress
       const courseRes = await axios.get(
         `${API_URL}/course-player/${courseId}`,
-        config
+        config,
       );
       setCourse(courseRes.data);
-      
     } catch (err) {
       console.error("Error updating lesson completion:", err);
       alert("Failed to update lesson completion status");
@@ -344,28 +400,35 @@ export default function CoursePlayer() {
   const handleVideoEnd = async () => {
     try {
       setUpdatingProgress(true);
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/course-player/${courseId}/lessons/${currentLesson.id}/complete`,
         {},
-        config
+        config,
       );
-      
+
+      if (res.data?.certificateIssued) {
+        setCertificateIssued(true);
+        setCertificateMessage(
+          res.data.certificateReason || "Certificate issued for this course!",
+        );
+      }
+
       // Update local state
       const newCompleted = new Set(completedLessons);
       newCompleted.add(currentLesson.id);
       setCompletedLessons(newCompleted);
-      
+
       // Refresh course data
       const courseRes = await axios.get(
         `${API_URL}/course-player/${courseId}`,
-        config
+        config,
       );
       setCourse(courseRes.data);
-      
+
       // Get next lesson
       const nextRes = await axios.get(
         `${API_URL}/course-player/${courseId}/next`,
-        config
+        config,
       );
       setCurrentLesson(nextRes.data);
     } catch (err) {
@@ -389,22 +452,43 @@ export default function CoursePlayer() {
     return <div className="text-white p-10">Course not found</div>;
   }
 
-// ============================
-// Initialize course progress
-// ============================
-const initializeProgress = async () => {
-  try {
-    await axios.post(
-      `${API_URL}/course-player/${courseId}/initialize-progress`,
-      {},
-      config
-    );
-    console.log("Course progress initialized");
-  } catch (err) {
-    console.error("Error initializing progress:", err);
-  }
-};
+  // ============================
+  // Initialize course progress
+  // ============================
+  const initializeProgress = async () => {
+    try {
+      await axios.post(
+        `${API_URL}/course-player/${courseId}/initialize-progress`,
+        {},
+        config,
+      );
+      console.log("Course progress initialized");
+    } catch (err) {
+      console.error("Error initializing progress:", err);
+    }
+  };
 
+  const handleDownloadCertificate = async () => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/student/certificates/${courseId}/download`,
+        {
+          responseType: "blob",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Certificate-${courseId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Certificate download failed:", err);
+      alert("Failed to download certificate");
+    }
+  };
 
   return (
     <div className="bg-slate-900 text-white min-h-screen">
@@ -413,7 +497,11 @@ const initializeProgress = async () => {
         {/* LEFT — Logo + Course Name */}
         <div className="flex items-center gap-4">
           <Link to="/student/dashboard">
-            <img src={logo} alt="LearnLab Logo" className="h-10 w-auto object-contain" />
+            <img
+              src={logo}
+              alt="LearnLab Logo"
+              className="h-10 w-auto object-contain"
+            />
           </Link>
 
           <h1 className="font-bold text-lg truncate max-w-[350px]">
@@ -421,7 +509,7 @@ const initializeProgress = async () => {
           </h1>
         </div>
 
-        {/* RIGHT — Progress + Circle + Rating */}
+        {/* RIGHT — Progress + Circle + Rating + Certificate */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="relative group">
@@ -451,6 +539,24 @@ const initializeProgress = async () => {
           <button className="text-gray-300 text-sm hover:text-white">
             ★ {course.rating || "No rating"}
           </button>
+
+          {(hasCertificate || certificateIssued) && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadCertificate}
+                className="inline-flex items-center px-3 py-1 rounded bg-emerald-600 text-xs font-semibold hover:bg-emerald-500"
+              >
+                Download Certificate
+              </button>
+
+              <button
+                onClick={() => navigate(`/student/certificates/${courseId}`)}
+                className="inline-flex items-center px-3 py-1 rounded bg-slate-700 text-xs font-semibold hover:bg-slate-600"
+              >
+                View Certificate
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -460,12 +566,13 @@ const initializeProgress = async () => {
         <div className="flex-1 mr-80">
           {/* CONTENT CONTAINER WITH FIXED HEIGHT */}
           <div className="bg-black" style={{ height: CONTENT_HEIGHT }}>
-            
             {!currentLesson && (
               <div className="h-full flex items-center justify-center text-gray-400">
                 <div className="text-center">
                   <p>No lesson selected.</p>
-                  <p className="text-sm mt-2">Select a lesson from the sidebar to begin</p>
+                  <p className="text-sm mt-2">
+                    Select a lesson from the sidebar to begin
+                  </p>
                 </div>
               </div>
             )}
@@ -495,7 +602,9 @@ const initializeProgress = async () => {
                     <div className="note-content-wrapper">
                       <div
                         className="prose prose-lg max-w-none !text-gray-900 [&_*]:!text-gray-900"
-                        dangerouslySetInnerHTML={{ __html: currentLesson.note_content }}
+                        dangerouslySetInnerHTML={{
+                          __html: currentLesson.note_content,
+                        }}
                       />
                     </div>
                   </div>
@@ -509,25 +618,36 @@ const initializeProgress = async () => {
                 <QuizPlayer
                   lessonId={currentLesson.id}
                   courseId={courseId}
-                  onQuizComplete={() => {
+                  onQuizComplete={async ({
+                    certificateIssued: certIssued,
+                    certificateReason,
+                  } = {}) => {
                     // Update local completed lessons state
                     const newCompleted = new Set(completedLessons);
                     newCompleted.add(currentLesson.id);
                     setCompletedLessons(newCompleted);
-                    
+
+                    if (certIssued) {
+                      setCertificateIssued(true);
+                      setCertificateMessage(
+                        certificateReason ||
+                          "Certificate issued for this course!",
+                      );
+                    }
+
                     // Refresh course data to update progress
                     const refreshCourseData = async () => {
                       try {
                         const courseRes = await axios.get(
                           `${API_URL}/course-player/${courseId}`,
-                          config
+                          config,
                         );
                         setCourse(courseRes.data);
-                        
+
                         // Get next lesson
                         const nextRes = await axios.get(
                           `${API_URL}/course-player/${courseId}/next`,
-                          config
+                          config,
                         );
                         if (nextRes.data) {
                           setCurrentLesson(nextRes.data);
@@ -536,7 +656,7 @@ const initializeProgress = async () => {
                         console.error("Error refreshing course data:", error);
                       }
                     };
-                    
+
                     refreshCourseData();
                   }}
                 />
@@ -549,11 +669,18 @@ const initializeProgress = async () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-bold mb-1">Now Playing:</p>
-                <p className="text-gray-300">{currentLesson?.title || "No lesson selected"}</p>
+                <p className="text-gray-300">
+                  {currentLesson?.title || "No lesson selected"}
+                </p>
               </div>
               {currentLesson && (
                 <button
-                  onClick={() => handleManualComplete(currentLesson.id, completedLessons.has(currentLesson.id))}
+                  onClick={() =>
+                    handleManualComplete(
+                      currentLesson.id,
+                      completedLessons.has(currentLesson.id),
+                    )
+                  }
                   disabled={updatingProgress}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition ${
                     completedLessons.has(currentLesson.id)
@@ -608,9 +735,15 @@ const initializeProgress = async () => {
                 <h2 className="text-xl font-bold">{course.title}</h2>
 
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-yellow-400 font-bold">★ {course.rating}</span>
-                  <span className="text-gray-400">{course.reviews} reviews</span>
-                  <span className="text-gray-400">{course.students} students</span>
+                  <span className="text-yellow-400 font-bold">
+                    ★ {course.rating}
+                  </span>
+                  <span className="text-gray-400">
+                    {course.reviews} reviews
+                  </span>
+                  <span className="text-gray-400">
+                    {course.students} students
+                  </span>
                 </div>
 
                 <p className="text-xs text-gray-400 mt-2">
@@ -625,7 +758,9 @@ const initializeProgress = async () => {
                     <h3 className="font-semibold">Description</h3>
                   </div>
                   <div className="col-span-9">
-                    <p className="text-gray-300 leading-relaxed">{course.description}</p>
+                    <p className="text-gray-300 leading-relaxed">
+                      {course.description}
+                    </p>
                   </div>
                 </div>
 
@@ -644,9 +779,15 @@ const initializeProgress = async () => {
                         className="w-20 h-20 rounded-full object-cover border border-gray-700"
                       />
                       <div>
-                        <p className="font-semibold text-lg text-white">{course.instructor.name}</p>
-                        <p className="text-sm text-gray-400 mb-2">{course.instructor.headline}</p>
-                        <p className="text-gray-300 leading-relaxed text-sm">{course.instructor.biography}</p>
+                        <p className="font-semibold text-lg text-white">
+                          {course.instructor.name}
+                        </p>
+                        <p className="text-sm text-gray-400 mb-2">
+                          {course.instructor.headline}
+                        </p>
+                        <p className="text-gray-300 leading-relaxed text-sm">
+                          {course.instructor.biography}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -658,7 +799,9 @@ const initializeProgress = async () => {
               <div className="space-y-4">
                 <h3 className="text-lg font-bold">Student Reviews</h3>
                 {course.reviews === 0 && (
-                  <p className="text-gray-400">No reviews yet. Be the first to leave one!</p>
+                  <p className="text-gray-400">
+                    No reviews yet. Be the first to leave one!
+                  </p>
                 )}
               </div>
             )}
@@ -688,18 +831,23 @@ const initializeProgress = async () => {
               sections.map((section) => (
                 <div key={section.id || section.title} className="mb-2">
                   {/* SECTION HEADER */}
-                  <div 
+                  <div
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition ${
-                      section.type === "section" ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-800/50"
+                      section.type === "section"
+                        ? "bg-slate-800 hover:bg-slate-700"
+                        : "bg-slate-800/50"
                     }`}
-                    onClick={() => section.type === "section" && toggleSection(section.id)}
+                    onClick={() =>
+                      section.type === "section" && toggleSection(section.id)
+                    }
                   >
                     <div className="flex items-center gap-2">
-                      {section.type === "section" && (
-                        expandedSections.has(section.id) ? 
-                          <ChevronDown className="w-4 h-4 text-gray-400" /> : 
+                      {section.type === "section" &&
+                        (expandedSections.has(section.id) ? (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
                           <ChevronRight className="w-4 h-4 text-gray-400" />
-                      )}
+                        ))}
                       <span className="font-semibold text-sm text-gray-200">
                         {section.title}
                       </span>
@@ -714,8 +862,11 @@ const initializeProgress = async () => {
                   </div>
 
                   {/* SECTION CHILDREN */}
-                  {(section.type !== "section" || expandedSections.has(section.id)) && (
-                    <div className={`${section.type === "section" ? "ml-4" : ""} mt-1 space-y-1`}>
+                  {(section.type !== "section" ||
+                    expandedSections.has(section.id)) && (
+                    <div
+                      className={`${section.type === "section" ? "ml-4" : ""} mt-1 space-y-1`}
+                    >
                       {section.children && section.children.length > 0 ? (
                         section.children.map((lesson) => {
                           const isCompleted = completedLessons.has(lesson.id);
@@ -733,14 +884,16 @@ const initializeProgress = async () => {
                                 <input
                                   type="checkbox"
                                   checked={isCompleted}
-                                  onChange={() => handleManualComplete(lesson.id, isCompleted)}
+                                  onChange={() =>
+                                    handleManualComplete(lesson.id, isCompleted)
+                                  }
                                   disabled={updatingProgress}
                                   className="h-4 w-4 rounded border-gray-600 bg-slate-700 text-purple-500 focus:ring-purple-500 focus:ring-offset-slate-900 cursor-pointer"
                                 />
                               </div>
-                              
+
                               {/* LESSON CONTENT */}
-                              <div 
+                              <div
                                 className="flex-1 flex items-center gap-3 cursor-pointer"
                                 onClick={() => handleLessonClick(lesson)}
                               >
@@ -764,9 +917,13 @@ const initializeProgress = async () => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between">
-                                    <p className={`text-sm font-medium truncate ${
-                                      isCompleted ? "text-gray-400 line-through" : "text-gray-200"
-                                    }`}>
+                                    <p
+                                      className={`text-sm font-medium truncate ${
+                                        isCompleted
+                                          ? "text-gray-400 line-through"
+                                          : "text-gray-200"
+                                      }`}
+                                    >
                                       {lesson.title}
                                     </p>
                                     {lesson.duration_seconds && (
