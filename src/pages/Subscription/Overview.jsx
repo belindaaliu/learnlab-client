@@ -8,6 +8,7 @@ import { Calendar, CreditCard, Info } from "lucide-react";
 const SubscriptionOverview = () => {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [autoRenewSaving, setAutoRenewSaving] = useState(false);
   const navigate = useNavigate();
   const [modal, setModal] = useState({ isOpen: false });
 
@@ -42,7 +43,7 @@ const SubscriptionOverview = () => {
       await api.post("/subscription/cancel");
       fetchStatus();
     } catch (err) {
-       setModal({
+      setModal({
         isOpen: true,
         title: "Action Failed",
         message:
@@ -50,10 +51,25 @@ const SubscriptionOverview = () => {
           "We couldn't cancel this course. Please try again.",
         type: "danger",
         confirmText: "Try Again",
-        onConfirm: closeModal,
+        onConfirm: () => setModal({ isOpen: false }),
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleAutoRenew = async () => {
+    if (!status?.hasActiveSubscription) return;
+    try {
+      setAutoRenewSaving(true);
+      const next = !status.autoRenew;
+      await api.post("/subscription/auto-renew", { autoRenew: next });
+      // refresh overview
+      fetchStatus();
+    } catch (err) {
+      console.error("Toggle auto-renew error:", err);
+    } finally {
+      setAutoRenewSaving(false);
     }
   };
 
@@ -74,7 +90,7 @@ const SubscriptionOverview = () => {
                     {status.planName}
                   </p>
                 </div>
-                <div className="flex gap-10">
+                <div className="flex flex-wrap gap-10">
                   <div className="flex items-center gap-3">
                     <Calendar className="text-gray-400 w-5 h-5" />
                     <div>
@@ -96,12 +112,42 @@ const SubscriptionOverview = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Auto-renew toggle */}
+                <div className="mt-4">
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      checked={!!status.autoRenew}
+                      onChange={handleToggleAutoRenew}
+                      disabled={autoRenewSaving}
+                    />
+                    <span>
+                      Enable automatic renewal at the end of the current period
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {status.autoRenew
+                      ? "Your subscription will renew automatically unless you turn this off."
+                      : "Your subscription will end at the next billing date unless you renew manually."}
+                  </p>
+                </div>
               </div>
+
               <div className="flex flex-col gap-3">
-                <Button variant="outline" onClick={handleChangePlan}>
+                <Button
+                  variant="outline"
+                  onClick={handleChangePlan}
+                  disabled={loading}
+                >
                   Change Plan
                 </Button>
-                <Button variant="danger" onClick={handleCancelClick}>
+                <Button
+                  variant="danger"
+                  onClick={handleCancelClick}
+                  disabled={loading}
+                >
                   Cancel Subscription
                 </Button>
 

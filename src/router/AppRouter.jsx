@@ -44,6 +44,7 @@ import PaymentHistory from "../pages/Payment/History";
 // ADMIN PAGES
 import AdminInstructors from "../pages/Admin/AdminInstructors";
 import AdminInstructorReview from "../pages/Admin/AdminInstructorReview";
+import AdminInstructorDetails from "../pages/Admin/AdminInstructorDetails.jsx";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import AdminCourses from "../pages/Admin/AdminCourses";
 import AdminAnalytics from "../pages/Admin/AdminAnalytics";
@@ -71,6 +72,9 @@ import InstructorStudentsList from "../pages/Instructor/InstructorStudentsList";
 import InstructorQuizReview from "../pages/Instructor/InstructorQuizReview";
 
 import Teach from "../pages/Home/Teach";
+
+import AccountSecurity from "../pages/Auth/AccountSecurity"
+import MfaVerification from "../pages/Auth/MfaVerification";
 
 export const router = createBrowserRouter([
   // ===================================
@@ -130,6 +134,11 @@ export const router = createBrowserRouter([
     element: <ResetPassword />,
   },
 
+  {
+  path: "/mfa-verify",
+  element: <MfaVerification />,
+},
+
   // ===================================
   // STUDENT LAYOUT
   // ===================================
@@ -155,6 +164,8 @@ export const router = createBrowserRouter([
       // Certificate Routes
       { path: "certificates", element: <StudentCertificates /> },
       { path: "certificates/:courseId", element: <CertificateDetail /> },
+
+      { path: "security", element: <AccountSecurity /> },
 
 
       // QUIZ REVIEW ROUTE
@@ -223,7 +234,8 @@ export const router = createBrowserRouter([
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "courses/:courseId/students/:studentId/progress", element: <StudentProgressDetail /> },
       { path: "courses/:courseId/students", element: <InstructorStudentsList /> },
-      { path: "quiz-review/:attemptId", element: <InstructorQuizReview />,}
+      { path: "quiz-review/:attemptId", element: <InstructorQuizReview />,},
+      { path: "security", element: <AccountSecurity /> }
 
     ],
   },
@@ -267,6 +279,8 @@ export const router = createBrowserRouter([
       { path: "dashboard", element: <AdminDashboard /> },
       { path: "instructors", element: <AdminInstructors /> },
       { path: "instructors/:instructorId/review", element: <AdminInstructorReview /> },
+      { path: "instructors/:id/details", element: <AdminInstructorDetails /> },
+      
       { path: "analytics", element: <AdminAnalytics /> },
       { path: "courses", element: <AdminCourses /> },
       { path: "courses/:courseId", element: <AdminCourseDetail /> },

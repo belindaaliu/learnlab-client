@@ -48,7 +48,7 @@ export default function ProfileSidebar() {
           { label: "Edit Profile", to: "/student/edit-profile", icon: User },
           { label: "Profile Photo", to: "/student/edit-photo", icon: Camera },
           { label: "Account Security", to: "/student/security", icon: Shield },
-          { label: "Subscriptions", to: "/student/subscriptions", icon: CreditCard },
+          { label: "Subscriptions", to: "/student/subscription", icon: CreditCard },
         ];
 
   return (

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import ProfileSidebar from "../../components/ProfileSidebar";
-import { 
-  User, 
-  Briefcase, 
-  GraduationCap, 
-  BookOpen, 
-  FileText, 
+import {
+  User,
+  Briefcase,
+  GraduationCap,
+  BookOpen,
+  FileText,
   Link as LinkIcon,
   X,
   Plus,
@@ -16,7 +16,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Download
+  Download,
 } from "lucide-react";
 
 export default function EditProfile() {
@@ -40,16 +40,18 @@ export default function EditProfile() {
   const [activeTab, setActiveTab] = useState("basics");
   const [skillInput, setSkillInput] = useState("");
   const [interestInput, setInterestInput] = useState("");
+  const [adminComment, setAdminComment] = useState("");
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const user = JSON.parse(localStorage.getItem("user"));
   const token = user?.token || localStorage.getItem("accessToken");
-  const isInstructor = user?.roles?.includes('instructor') || user?.role === 'instructor';
+  const isInstructor =
+    user?.roles?.includes("instructor") || user?.role === "instructor";
 
   // Toast helper
-  const showToast = (message, type = 'success') => {
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in`;
+  const showToast = (message, type = "success") => {
+    const toast = document.createElement("div");
+    toast.className = `fixed top-4 right-4 ${type === "success" ? "bg-green-500" : "bg-red-500"} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in`;
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
@@ -58,10 +60,10 @@ export default function EditProfile() {
   // Generate display name from resume URL
   const getResumeDisplayName = () => {
     if (!form.resume_url) return null;
-    const ext = form.resume_url.split('.').pop();
+    const ext = form.resume_url.split(".").pop();
     const date = new Date();
-    const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    return `${form.first_name || 'User'}_${form.last_name || 'Profile'}_Resume_${formattedDate}.${ext}`;
+    const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return `${form.first_name || "User"}_${form.last_name || "Profile"}_Resume_${formattedDate}.${ext}`;
   };
 
   useEffect(() => {
@@ -71,6 +73,9 @@ export default function EditProfile() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = res.data;
+
+        setApplicationStatus(data.instructor_application_status || "none");
+        setAdminComment(data.instructor_admin_comment || "");
 
         setForm({
           first_name: data.first_name || "",
@@ -83,33 +88,26 @@ export default function EditProfile() {
           interests: data.interests || [],
           resume_url: data.resume_url || "",
           website_url: data.website_url || "",
+          photo_url: data.photo_url || "",
         });
 
         // Fetch instructor application status if user is instructor
-        if (isInstructor) {
-          fetchApplicationStatus();
-        }
+        // if (isInstructor) {
+        //   fetchApplicationStatus();
+        // }
       } catch (err) {
-        console.error("Error fetching profile:", err.response?.data || err.message);
-        showToast('Failed to load profile', 'error');
+        console.error(
+          "Error fetching profile:",
+          err.response?.data || err.message,
+        );
+        showToast("Failed to load profile", "error");
       } finally {
         setLoading(false);
       }
     };
 
-    const fetchApplicationStatus = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/instructor-applications/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setApplicationStatus(res.data.status);
-      } catch (err) {
-        console.error("Error fetching application status:", err);
-      }
-    };
-
     fetchProfile();
-  }, []);
+  }, [API_URL, token]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -121,41 +119,40 @@ export default function EditProfile() {
 
     // Check file type
     const validTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
-    
+
     if (!validTypes.includes(file.type)) {
-      showToast('Please upload a PDF or Word document', 'error');
+      showToast("Please upload a PDF or Word document", "error");
       return;
     }
 
     // Check file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      showToast('File size should be less than 5MB', 'error');
+      showToast("File size should be less than 5MB", "error");
       return;
     }
 
     setUploading(true);
-    
+
     try {
       const formData = new FormData();
-      formData.append('resume', file);
+      formData.append("resume", file);
 
       const res = await axios.post(`${API_URL}/users/upload-resume`, formData, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
+          "Content-Type": "multipart/form-data",
         },
       });
 
       setForm({ ...form, resume_url: res.data.data.resume_url });
-      showToast('Resume uploaded successfully!');
-      
+      showToast("Resume uploaded successfully!");
     } catch (err) {
       console.error("Upload error:", err);
-      showToast('Failed to upload resume', 'error');
+      showToast("Failed to upload resume", "error");
     } finally {
       setUploading(false);
     }
@@ -165,50 +162,52 @@ export default function EditProfile() {
     try {
       const response = await axios.get(`${API_URL}/users/download-resume`, {
         headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob'
+        responseType: "blob",
       });
-      
+
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      
+
       // Get filename from Content-Disposition header
-      const contentDisposition = response.headers['content-disposition'];
-      let filename = getResumeDisplayName() || 'resume.pdf';
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = getResumeDisplayName() || "resume.pdf";
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        const filenameMatch = contentDisposition.match(
+          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
+        );
         if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, '');
+          filename = filenameMatch[1].replace(/['"]/g, "");
         }
       }
-      
-      link.setAttribute('download', decodeURIComponent(filename));
+
+      link.setAttribute("download", decodeURIComponent(filename));
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
-      showToast('Resume downloaded successfully!');
+
+      showToast("Resume downloaded successfully!");
     } catch (err) {
       console.error("Download error:", err);
-      showToast('Failed to download resume', 'error');
+      showToast("Failed to download resume", "error");
     }
   };
 
   const handleDeleteResume = async () => {
-    if (!confirm('Are you sure you want to delete your resume?')) return;
-    
+    if (!confirm("Are you sure you want to delete your resume?")) return;
+
     try {
       await axios.delete(`${API_URL}/users/delete-resume`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      setForm({ ...form, resume_url: '' });
-      showToast('Resume deleted successfully');
+
+      setForm({ ...form, resume_url: "" });
+      showToast("Resume deleted successfully");
     } catch (err) {
       console.error("Delete error:", err);
-      showToast('Failed to delete resume', 'error');
+      showToast("Failed to delete resume", "error");
     }
   };
 
@@ -218,12 +217,11 @@ export default function EditProfile() {
       await axios.put(`${API_URL}/users/me`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      showToast('Profile updated successfully!');
-      
+
+      showToast("Profile updated successfully!");
     } catch (err) {
       console.error("UPDATE ERROR:", err.response?.data || err.message);
-      showToast('Failed to update profile', 'error');
+      showToast("Failed to update profile", "error");
     } finally {
       setSaving(false);
     }
@@ -233,7 +231,7 @@ export default function EditProfile() {
     if (skillInput.trim() !== "" && !form.skills.includes(skillInput.trim())) {
       setForm({
         ...form,
-        skills: [...form.skills, skillInput.trim()]
+        skills: [...form.skills, skillInput.trim()],
       });
       setSkillInput("");
     }
@@ -242,15 +240,18 @@ export default function EditProfile() {
   const removeSkill = (index) => {
     setForm({
       ...form,
-      skills: form.skills.filter((_, i) => i !== index)
+      skills: form.skills.filter((_, i) => i !== index),
     });
   };
 
   const addInterest = () => {
-    if (interestInput.trim() !== "" && !form.interests.includes(interestInput.trim())) {
+    if (
+      interestInput.trim() !== "" &&
+      !form.interests.includes(interestInput.trim())
+    ) {
       setForm({
         ...form,
-        interests: [...form.interests, interestInput.trim()]
+        interests: [...form.interests, interestInput.trim()],
       });
       setInterestInput("");
     }
@@ -259,7 +260,7 @@ export default function EditProfile() {
   const removeInterest = (index) => {
     setForm({
       ...form,
-      interests: form.interests.filter((_, i) => i !== index)
+      interests: form.interests.filter((_, i) => i !== index),
     });
   };
 
@@ -273,27 +274,88 @@ export default function EditProfile() {
 
   // Add instructor tab if user is instructor
   if (isInstructor) {
-    tabs.push({ id: "instructor", label: "Instructor Status", icon: CheckCircle });
+    tabs.push({
+      id: "instructor",
+      label: "Instructor Status",
+      icon: CheckCircle,
+    });
   }
+
+  const hasProfilePhoto = !!form.photo_url || !!user?.photo_url;
+  const isBioComplete =
+    (form.biography && form.biography.trim().length >= 50) || false;
+  const hasResume = !!form.resume_url;
+
+  const validateInstructorRequirements = () => {
+    const missing = [];
+
+    if (!hasProfilePhoto) missing.push("profile picture");
+    if (!isBioComplete) missing.push("biography (at least 50 characters)");
+    if (!hasResume) missing.push("resume");
+
+    if (missing.length > 0) {
+      showToast(
+        `Please complete your ${missing.join(", ")} before applying as an instructor.`,
+        "error",
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleApplyInstructor = async () => {
+    if (applicationStatus === "pending") {
+      showToast("Your application is already under review.", "error");
+      return;
+    }
+    if (applicationStatus === "approved") {
+      showToast("You are already approved as an instructor.", "error");
+      return;
+    }
+
+    if (!validateInstructorRequirements()) return;
+
+    try {
+      await axios.post(
+        `${API_URL}/users/instructor-applications/apply`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      setApplicationStatus("pending");
+      showToast("Your instructor application has been submitted!", "success");
+    } catch (err) {
+      console.error(
+        "Apply instructor error:",
+        err.response?.data || err.message,
+      );
+      showToast(
+        err.response?.data?.message ||
+          "Failed to submit instructor application.",
+        "error",
+      );
+    }
+  };
 
   // Status badge component
   const StatusBadge = ({ status }) => {
-    switch(status) {
-      case 'approved':
+    switch (status) {
+      case "approved":
         return (
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full border border-green-200">
             <CheckCircle className="w-4 h-4" />
             <span className="font-medium">Approved</span>
           </div>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-full border border-red-200">
             <AlertCircle className="w-4 h-4" />
             <span className="font-medium">Rejected</span>
           </div>
         );
-      case 'pending':
+      case "pending":
         return (
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full border border-yellow-200">
             <Clock className="w-4 h-4" />
@@ -323,13 +385,11 @@ export default function EditProfile() {
 
   return (
     <div className="max-w-7xl mx-auto flex bg-gray-50/50">
-      
       {/* LEFT SIDEBAR */}
       <ProfileSidebar />
 
       {/* RIGHT CONTENT */}
       <div className="flex-1 px-8 lg:px-10 py-8">
-        
         {/* Header with gradient */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -383,7 +443,6 @@ export default function EditProfile() {
 
         {/* Tab Content */}
         <div className="space-y-6">
-          
           {/* BASICS TAB */}
           {activeTab === "basics" && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:p-8">
@@ -436,7 +495,9 @@ export default function EditProfile() {
                     placeholder="e.g. Senior Web Developer | Teaching React since 2020"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-purple-100 outline-none transition bg-gray-50/50 hover:bg-white focus:bg-white"
                   />
-                  <p className="text-xs text-gray-500">Appears below your name on your profile</p>
+                  <p className="text-xs text-gray-500">
+                    Appears below your name on your profile
+                  </p>
                 </div>
 
                 {/* Occupation */}
@@ -479,9 +540,11 @@ export default function EditProfile() {
                 <div className="w-1 h-6 bg-gradient-to-b from-primary to-purple-600 rounded-full"></div>
                 About You
               </h2>
-              
+
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Biography</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Biography
+                </label>
                 <textarea
                   name="biography"
                   value={form.biography}
@@ -509,7 +572,7 @@ export default function EditProfile() {
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
                     Skills you can teach
                   </label>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-4">
                     {form.skills.map((skill, index) => (
                       <span
@@ -527,7 +590,9 @@ export default function EditProfile() {
                       </span>
                     ))}
                     {form.skills.length === 0 && (
-                      <p className="text-gray-400 text-sm italic">No skills added yet</p>
+                      <p className="text-gray-400 text-sm italic">
+                        No skills added yet
+                      </p>
                     )}
                   </div>
 
@@ -536,7 +601,9 @@ export default function EditProfile() {
                       type="text"
                       value={skillInput}
                       onChange={(e) => setSkillInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && (e.preventDefault(), addSkill())
+                      }
                       placeholder="e.g. React, Python, UI Design"
                       className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-purple-100 outline-none transition bg-gray-50/50 hover:bg-white focus:bg-white"
                     />
@@ -566,7 +633,7 @@ export default function EditProfile() {
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
                     Topics you're interested in
                   </label>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-4">
                     {form.interests.map((interest, index) => (
                       <span
@@ -584,7 +651,9 @@ export default function EditProfile() {
                       </span>
                     ))}
                     {form.interests.length === 0 && (
-                      <p className="text-gray-400 text-sm italic">No interests added yet</p>
+                      <p className="text-gray-400 text-sm italic">
+                        No interests added yet
+                      </p>
                     )}
                   </div>
 
@@ -593,7 +662,9 @@ export default function EditProfile() {
                       type="text"
                       value={interestInput}
                       onChange={(e) => setInterestInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInterest())}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && (e.preventDefault(), addInterest())
+                      }
                       placeholder="e.g. Machine Learning, Web3, Design"
                       className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-purple-100 outline-none transition bg-gray-50/50 hover:bg-white focus:bg-white"
                     />
@@ -636,7 +707,7 @@ export default function EditProfile() {
                       <Upload className="w-8 h-8 text-primary" />
                     </div>
                     <span className="text-lg font-medium text-gray-900 mb-1">
-                      {uploading ? 'Uploading...' : 'Upload your resume'}
+                      {uploading ? "Uploading..." : "Upload your resume"}
                     </span>
                     <span className="text-sm text-gray-500 text-center mb-2">
                       PDF, DOC, DOCX (Max 5MB)
@@ -685,7 +756,8 @@ export default function EditProfile() {
                 )}
 
                 <p className="text-xs text-gray-400">
-                  Your resume helps us verify your expertise. It will not be shared publicly.
+                  Your resume helps us verify your expertise. It will not be
+                  shared publicly.
                 </p>
               </div>
             </div>
@@ -706,42 +778,57 @@ export default function EditProfile() {
                       <CheckCircle className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Current Status</p>
+                      <p className="text-sm text-gray-500 mb-1">
+                        Current Status
+                      </p>
                       <StatusBadge status={applicationStatus} />
                     </div>
                   </div>
-                  
-                  {applicationStatus === 'approved' && (
+
+                  {applicationStatus === "approved" && (
                     <div className="bg-green-50 p-3 rounded-lg">
                       <p className="text-sm text-green-700">
                         ✅ You can now create and publish courses!
                       </p>
                     </div>
                   )}
-                  
-                  {applicationStatus === 'rejected' && (
+
+                  {applicationStatus === "rejected" && (
                     <div className="bg-red-50 p-3 rounded-lg">
                       <p className="text-sm text-red-700">
-                        Your application was not approved. You can reapply after 30 days.
+                        Your application was not approved. You can reapply after
+                        30 days.
                       </p>
                     </div>
                   )}
-                  
-                  {applicationStatus === 'pending' && (
+
+                  {adminComment && applicationStatus !== "none" && (
+                    <div className="mt-4 bg-blue-50 border border-blue-100 rounded-lg p-4">
+                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                        Admin note
+                      </p>
+                      <p className="mt-1 text-sm text-blue-800 whitespace-pre-line">
+                        {adminComment}
+                      </p>
+                    </div>
+                  )}
+
+                  {applicationStatus === "pending" && (
                     <div className="bg-yellow-50 p-3 rounded-lg">
                       <p className="text-sm text-yellow-700">
-                        Your application is being reviewed. We'll notify you within 48 hours.
+                        Your application is being reviewed. We'll notify you
+                        within 48 hours.
                       </p>
                     </div>
                   )}
-                  
-                  {!applicationStatus && (
+
+                  {applicationStatus === "none" && (
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <p className="text-sm text-gray-600">
                         You haven't submitted an instructor application yet.
                       </p>
                       <button
-                        onClick={() => window.location.href = '/teach'}
+                        onClick={handleApplyInstructor}
                         className="mt-2 text-primary hover:text-primaryHover text-sm font-medium"
                       >
                         Apply to become an instructor →
@@ -752,30 +839,53 @@ export default function EditProfile() {
 
                 {/* Application Timeline */}
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-900 mb-4">Application Timeline</h3>
+                  <h3 className="text-sm font-medium text-gray-900 mb-4">
+                    Application Timeline
+                  </h3>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-sm">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-gray-600">Submit application and resume</span>
+                      <span className="text-gray-600">
+                        Submit application and resume
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <div className={`w-2 h-2 rounded-full ${
-                        applicationStatus === 'pending' ? 'bg-yellow-500 animate-pulse' : 
-                        applicationStatus ? 'bg-green-500' : 'bg-gray-300'
-                      }`}></div>
-                      <span className="text-gray-600">Admin review (24-48 hours)</span>
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          applicationStatus === "pending"
+                            ? "bg-yellow-500 animate-pulse"
+                            : applicationStatus
+                              ? "bg-green-500"
+                              : "bg-gray-300"
+                        }`}
+                      ></div>
+                      <span className="text-gray-600">
+                        Admin review (24-48 hours)
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <div className={`w-2 h-2 rounded-full ${
-                        applicationStatus === 'approved' ? 'bg-green-500' : 'bg-gray-300'
-                      }`}></div>
-                      <span className="text-gray-600">Approval & dashboard access</span>
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          applicationStatus === "approved"
+                            ? "bg-green-500"
+                            : "bg-gray-300"
+                        }`}
+                      ></div>
+                      <span className="text-gray-600">
+                        Approval & dashboard access
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <div className={`w-2 h-2 rounded-full ${
-                        applicationStatus === 'approved' ? 'bg-green-500' : 'bg-gray-300'
-                      }`}></div>
-                      <span className="text-gray-600">Start creating courses</span>
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          applicationStatus === "approved"
+                            ? "bg-green-500"
+                            : "bg-gray-300"
+                        }`}
+                      ></div>
+                      <span className="text-gray-600">
+                        Start creating courses
+                      </span>
                     </div>
                   </div>
                 </div>

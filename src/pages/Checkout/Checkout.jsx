@@ -14,7 +14,7 @@ import Modal from "../../components/common/Modal";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
-const CheckoutForm = ({ totalAmount, type }) => {
+const CheckoutForm = ({ totalAmount, type, planId, autoRenew }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
@@ -27,10 +27,19 @@ const CheckoutForm = ({ totalAmount, type }) => {
     setLoading(true);
     setErrorMessage(null);
 
+    const params = new URLSearchParams({
+      type,
+      // only needed for subscriptions:
+      ...(type === "subscription" && {
+        planId: String(planId || ""),
+        autoRenew: autoRenew ? "1" : "0",
+      }),
+    });
+
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/payment-success?type=${type}`,
+        return_url: `${window.location.origin}/payment-success?${params.toString()}`,
       },
     });
 
@@ -102,6 +111,7 @@ const CheckoutPage = () => {
     totalAmount = 0,
     planId = null,
     type = "cart",
+    autoRenew = false,
   } = checkoutData || {};
 
   useEffect(() => {
@@ -136,8 +146,8 @@ const CheckoutPage = () => {
               title: "Already Subscribed",
               message:
                 "You currently have an active plan. Please manage your subscription from the dashboard if you'd like to make changes.",
-              type: "warning"
-              });
+              type: "warning",
+            });
             return;
           }
         }
@@ -209,7 +219,12 @@ const CheckoutPage = () => {
                 stripe={stripePromise}
                 options={{ clientSecret, appearance }}
               >
-                <CheckoutForm totalAmount={totalAmount} type={type} />
+                <CheckoutForm
+                  totalAmount={totalAmount}
+                  type={type}
+                  planId={planId}
+                  autoRenew={autoRenew}
+                />
               </Elements>
             ) : (
               <div className="py-20 flex flex-col items-center justify-center space-y-4">
