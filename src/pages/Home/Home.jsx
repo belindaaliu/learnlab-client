@@ -16,9 +16,17 @@ const Home = () => {
   const [featuredCourses, setFeaturedCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [modalConfig, setModalConfig] = useState({ isOpen: false });
   const [wishlistIds, setWishlistIds] = useState([]);
 
+  // (Stats)
+  const [stats, setStats] = useState([
+    { label: "Active Students", value: "0+" },
+    { label: "Quality Courses", value: "0+" },
+    { label: "Expert Instructors", value: "0+" },
+    { label: "Satisfaction", value: "0.0/5" },
+  ]);
+
+  // Receive special courses
   useEffect(() => {
     const fetchFeaturedCourses = async () => {
       try {
@@ -34,6 +42,43 @@ const Home = () => {
 
     fetchFeaturedCourses();
   }, []);
+
+  // --- Get statistics from the database ---
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // فرض بر این است که مسیر API شما /public/stats است
+        const response = await api.get("/public/stats"); 
+        const data = response.data;
+
+        setStats([
+          { 
+            label: "Active Students", 
+            // اعداد بزرگ را فرمت می‌کند (مثلا 12000 می‌شود 12,000)
+            value: `${data.students.toLocaleString()}+` 
+          },
+          { 
+            label: "Quality Courses", 
+            value: `${data.courses.toLocaleString()}+` 
+          },
+          { 
+            label: "Expert Instructors", 
+            value: `${data.instructors.toLocaleString()}+` 
+          },
+          { 
+            label: "Satisfaction", 
+            value: `${data.rating}/5` 
+          },
+        ]);
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+        // در صورت خطا، مقادیر پیش‌فرض یا قبلی باقی می‌مانند
+      }
+    };
+
+    fetchStats();
+  }, []);
+  // ---------------------------------------
 
   useEffect(() => {
     const fetchWishlist = async () => {
@@ -202,15 +247,10 @@ const Home = () => {
         </div>
       </section>
 
-      {/* STATS SECTION */}
+      {/* STATS SECTION (UPDATED) */}
       <section className="bg-white py-10 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center md:justify-between gap-8 text-center md:text-left">
-          {[
-            { label: "Active Students", value: "12,000+" },
-            { label: "Quality Courses", value: "850+" },
-            { label: "Expert Instructors", value: "120+" },
-            { label: "Satisfaction", value: "4.9/5" },
-          ].map((stat, i) => (
+          {stats.map((stat, i) => (
             <div key={i} className="flex flex-col">
               <span className="text-3xl font-extrabold text-gray-800">
                 {stat.value}

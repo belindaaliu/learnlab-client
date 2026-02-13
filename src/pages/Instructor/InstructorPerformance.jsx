@@ -67,7 +67,7 @@ const InstructorPerformance = () => {
             <div className="flex justify-between items-start">
                 <div>
                     <p className="text-gray-500 text-sm font-medium">Total Revenue</p>
-                    <h3 className="text-3xl font-bold text-gray-800 mt-1">${data.totalRevenue.toLocaleString()}</h3>
+                    <h3 className="text-3xl font-bold text-gray-800 mt-1">${(data.totalRevenue*.8).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                 </div>
                 <div className="p-2 bg-green-100 text-green-600 rounded-lg">
                     <DollarSign className="w-6 h-6" />
