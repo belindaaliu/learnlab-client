@@ -33,6 +33,7 @@ export default function StudentDashboard() {
   const [completedCourses, setCompletedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState("");
+  const [wishlistIds, setWishlistIds] = useState([]);
   
   // Featured courses state
   const [featuredCourses, setFeaturedCourses] = useState([]);
@@ -68,37 +69,38 @@ export default function StudentDashboard() {
     else setGreeting("Good evening");
   }, []);
 
-  // Fetch profile, recommendations, and enrolled courses
-  useEffect(() => {
-    if (!userId) return;
+// Fetch profile, recommendations, enrolled courses, AND wishlist
+useEffect(() => {
+  if (!userId) return;
 
-    Promise.all([
-      axios.get(`${API_URL}/student/me/${userId}`),
-      axios.get(`${API_URL}/student/${userId}/recommendations`),
-      axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`)
-    ])
-    .then(([profileRes, recommendationsRes, enrolledRes, wishlistRes]) => {
-      setProfile(profileRes.data);
-      setRecommended(recommendationsRes.data || []);
-      
+  Promise.all([
+    axios.get(`${API_URL}/student/me/${userId}`),
+    axios.get(`${API_URL}/student/${userId}/recommendations`),
+    axios.get(`${API_URL}/student/${userId}/enrolled-courses-next`),
+    axios.get(`${API_URL}/student/${userId}/wishlist`)
+  ])
+  .then(([profileRes, recommendationsRes, enrolledRes, wishlistRes]) => {
+    setProfile(profileRes.data);
+    setRecommended(recommendationsRes.data || []);
+    
+    // Process wishlist data
+    if (wishlistRes?.data) {
       const ids = wishlistRes.data.map(item => item.course_id || item.Course?.id || item.id);
-      setWishlistIds(ids);
-      
-      const allCourses = enrolledRes.data || [];
-      
-      // Separate completed and uncompleted courses
-      const uncompleted = allCourses.filter(course => course.progress < 100);
-      const completed = allCourses.filter(course => course.progress === 100);
-      
-      // Show only last 3 uncompleted courses
-      setEnrolledCourses(uncompleted.slice(0, 3));
-      setCompletedCourses(completed);
-    })
-    .catch((err) => {
-      console.error("Fetch error:", err);
-    })
-    .finally(() => setLoading(false));
-  }, [userId]);
+      setWishlistIds(ids); // Note: You need to declare this state
+    }
+    
+    const allCourses = enrolledRes.data || [];
+    const uncompleted = allCourses.filter(course => course.progress < 100);
+    const completed = allCourses.filter(course => course.progress === 100);
+    
+    setEnrolledCourses(uncompleted.slice(0, 3));
+    setCompletedCourses(completed);
+  })
+  .catch((err) => {
+    console.error("Fetch error:", err);
+  })
+  .finally(() => setLoading(false));
+}, [userId]);
 
   // Fetch featured courses when tab changes
   useEffect(() => {
