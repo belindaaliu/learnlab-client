@@ -270,10 +270,11 @@ const CourseDetails = () => {
     }
   }
 
-  // --- Course stats ---
+  // --- Dynamic Calculations (Course Stats) ---
   const courseStats = useMemo(() => {
-    if (!course?.CourseContent)
+    if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
       return { totalHours: 0, totalMinutes: 0, articles: 0, lectures: 0 };
+    }
 
     let totalSeconds = 0;
     let articlesCount = 0;
@@ -282,17 +283,34 @@ const CourseDetails = () => {
     course.CourseContent.forEach((item) => {
       if (item.type !== "section") {
         lecturesCount++;
-        if (item.type === "video") {
-          totalSeconds += item.duration_seconds || 0;
+
+        if (item.type?.toLowerCase() === "video") {
+          const duration = Number(item.duration_seconds) || 0;
+          totalSeconds += duration;
         }
-        if (item.type === "note") {
+
+        if (item.type?.toLowerCase() === "note") {
           articlesCount++;
         }
       }
     });
 
-    const totalHours = Math.floor(totalSeconds / 3600);
-    const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
+    let totalHours = Math.floor(totalSeconds / 3600);
+    let remainingSeconds = totalSeconds % 3600;
+    let totalMinutes = Math.floor(remainingSeconds / 60);
+
+    if (remainingSeconds % 60 > 0) {
+      totalMinutes += 1;
+    }
+
+    if (totalMinutes === 60) {
+      totalHours += 1;
+      totalMinutes = 0;
+    }
+
+    if (totalSeconds > 0 && totalHours === 0 && totalMinutes === 0) {
+      totalMinutes = 1;
+    }
 
     return {
       totalHours,
