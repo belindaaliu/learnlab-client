@@ -56,6 +56,17 @@ const CourseDetails = () => {
   const [parsedRequirements, setParsedRequirements] = useState([]);
   const [parsedAudience, setParsedAudience] = useState([]);
 
+  // Modal Config State (Kept but unused per request)
+  // eslint-disable-next-line no-unused-vars
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+    confirmText: "Close",
+    onConfirm: null,
+  });
+
   // --- Utility: Safe JSON Parse ---
   const safelyParseJSON = (data) => {
     if (!data) return [];
@@ -227,36 +238,58 @@ const CourseDetails = () => {
   const isPremium = Number(course?.price) > 0;
 
   // --- Dynamic Calculations ---
-  const courseStats = useMemo(() => {
-    if (!course?.CourseContent)
-      return { totalHours: 0, totalMinutes: 0, articles: 0, lectures: 0 };
+ // --- Dynamic Calculations ---
+const courseStats = useMemo(() => {
 
-    let totalSeconds = 0;
-    let articlesCount = 0;
-    let lecturesCount = 0;
+  if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
+    return { totalHours: 0, totalMinutes: 0, articles: 0, lectures: 0 };
+  }
 
-    course.CourseContent.forEach((item) => {
-      if (item.type !== "section") {
-        lecturesCount++;
-        if (item.type === "video") {
-          totalSeconds += item.duration_seconds || 0;
-        }
-        if (item.type === "note") {
-          articlesCount++;
-        }
+  let totalSeconds = 0;
+  let articlesCount = 0;
+  let lecturesCount = 0;
+
+  course.CourseContent.forEach((item) => {
+
+    if (item.type !== "section") {
+      lecturesCount++;
+
+      if (item.type?.toLowerCase() === "video") {
+
+        const duration = Number(item.duration_seconds) || 0;
+        totalSeconds += duration;
       }
-    });
 
-    const totalHours = Math.floor(totalSeconds / 3600);
-    const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
+      if (item.type?.toLowerCase() === "note") {
+        articlesCount++;
+      }
+    }
+  });
 
-    return {
-      totalHours,
-      totalMinutes,
-      articles: articlesCount,
-      lectures: lecturesCount,
-    };
-  }, [course]);
+  let totalHours = Math.floor(totalSeconds / 3600);
+  let remainingSeconds = totalSeconds % 3600;
+  let totalMinutes = Math.floor(remainingSeconds / 60);
+
+  if (remainingSeconds % 60 > 0) {
+    totalMinutes += 1;
+  }
+
+  if (totalMinutes === 60) {
+    totalHours += 1;
+    totalMinutes = 0;
+  }
+
+  if (totalSeconds > 0 && totalHours === 0 && totalMinutes === 0) {
+    totalMinutes = 1;
+  }
+
+  return {
+    totalHours,
+    totalMinutes,
+    articles: articlesCount,
+    lectures: lecturesCount,
+  };
+}, [course]);
 
   const sections =
     course?.CourseContent?.filter((item) => item.type === "section") || [];
@@ -333,6 +366,7 @@ const CourseDetails = () => {
       });
     } catch (err) {
       console.error("Checkout failed:", err);
+      // Removed setModalConfig usage here to use Toast instead as requested
       toast.error("We encountered an issue starting your checkout.");
     }
   };
@@ -403,7 +437,7 @@ const CourseDetails = () => {
         toast.success("Course added to cart! Redirecting...");
         navigate("/cart");
       } catch (err) {
-        console.error("Not added to Cart!",err)
+        console.error("Not added to Cart!", err);
         navigate("/cart");
       }
     } else {
@@ -679,13 +713,13 @@ const CourseDetails = () => {
             >
               <img
                 src={
-                  course.thumbnail_url || "https://via.placeholder.com/640x360"
+                  course.thumbnail_url || "[https://via.placeholder.com/640x360](https://via.placeholder.com/640x360)"
                 }
                 alt={course.title}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = "https://via.placeholder.com/640x360";
+                  e.target.src = "[https://via.placeholder.com/640x360](https://via.placeholder.com/640x360)";
                 }}
               />
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition">
