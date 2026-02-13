@@ -56,7 +56,7 @@ const CourseDetails = () => {
   const [parsedRequirements, setParsedRequirements] = useState([]);
   const [parsedAudience, setParsedAudience] = useState([]);
 
-  // Status ready flag to ensure we know enrollment before allowing click
+  // Status ready flag
   const [statusReady, setStatusReady] = useState(false);
 
   // --- Utility: Safe JSON Parse ---
@@ -77,6 +77,7 @@ const CourseDetails = () => {
     const fetchCourse = async () => {
       try {
         setLoading(true);
+        // دریافت درس به همراه نظرات (Reviews) برای محاسبه امتیاز واقعی
         const response = await api.get(`/courses/${id}`);
         const courseData = response.data.data || response.data;
         setCourse(courseData);
@@ -242,7 +243,7 @@ const CourseDetails = () => {
 
   const isPremium = Number(course?.price) > 0;
 
-  // --- Discount pricing (for upsell) ---
+  // --- Discount pricing ---
   const basePrice = Number(course?.price || 0);
   const hasDiscount =
     course?.discount_active &&
@@ -270,19 +271,24 @@ const CourseDetails = () => {
     }
   }
 
-  // --- Dynamic Calculations (Course Stats) ---
+  // --- Dynamic Calculations (Stats, Ratings, Students) ---
   const courseStats = useMemo(() => {
+    // مقادیر پیش‌فرض
     if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
-      return { totalHours: 0, totalMinutes: 0, articles: 0, lectures: 0 };
+      return { 
+        totalHours: 0, totalMinutes: 0, articles: 0, lessons: 0, 
+        ratingAvg: "New", ratingCount: 0, studentsFormatted: "0" 
+      };
     }
 
+    // 1. محاسبه محتوا (زمان، تعداد درس، مقاله)
     let totalSeconds = 0;
     let articlesCount = 0;
-    let lecturesCount = 0;
+    let lessonsCount = 0;
 
     course.CourseContent.forEach((item) => {
       if (item.type !== "section") {
-        lecturesCount++;
+        lessonsCount++; // همه آیتم‌ها (ویدیو، کوییز، نوت) به عنوان Lesson شمرده می‌شوند
 
         if (item.type?.toLowerCase() === "video") {
           const duration = Number(item.duration_seconds) || 0;
@@ -295,30 +301,46 @@ const CourseDetails = () => {
       }
     });
 
-    let totalHours = Math.floor(totalSeconds / 3600);
-    let remainingSeconds = totalSeconds % 3600;
-    let totalMinutes = Math.floor(remainingSeconds / 60);
+    let h = Math.floor(totalSeconds / 3600);
+    let m = Math.floor((totalSeconds % 3600) / 60);
+    if ((totalSeconds % 3600) % 60 > 0) m += 1;
+    if (m === 60) { h += 1; m = 0; }
+    if (totalSeconds > 0 && h === 0 && m === 0) m = 1;
 
-    if (remainingSeconds % 60 > 0) {
-      totalMinutes += 1;
+    // 2. محاسبه امتیاز (Rating)
+    let avg = 0;
+    let count = 0;
+    
+    // اگر بک‌اند خودش rating فرستاده بود
+    if (course.rating) {
+        avg = Number(course.rating);
+        count = course.reviews_count || 0;
+    } 
+    // اگر آرایه نظرات وجود دارد، میانگین بگیر
+    else if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
+        const total = course.Reviews.reduce((acc, curr) => acc + curr.rating, 0);
+        avg = Number((total / course.Reviews.length).toFixed(1));
+        count = course.Reviews.length;
     }
 
-    if (totalMinutes === 60) {
-      totalHours += 1;
-      totalMinutes = 0;
-    }
-
-    if (totalSeconds > 0 && totalHours === 0 && totalMinutes === 0) {
-      totalMinutes = 1;
-    }
+    // 3. فرمت تعداد دانشجو (مثلا 1.2k)
+    let studCount = course.enrollments_count || 0;
+    let studFmt = studCount.toString();
+    if(studCount > 1000) studFmt = (studCount / 1000).toFixed(1) + "k";
 
     return {
-      totalHours,
-      totalMinutes,
+      totalHours: h,
+      totalMinutes: m,
       articles: articlesCount,
-      lectures: lecturesCount,
+      lessons: lessonsCount, // اینجا تعداد کل درس‌هاست
+      ratingAvg: avg > 0 ? avg : "New", // اگر امتیاز ندارد بنویس New
+      ratingCount: count,
+      studentsFormatted: studFmt
     };
   }, [course]);
+
+  // بررسی Bestseller بودن واقعی
+  const isBestseller = (course?.enrollments_count > 50 && courseStats.ratingAvg !== "New" && courseStats.ratingAvg >= 4.5);
 
   const sections =
     course?.CourseContent?.filter((item) => item.type === "section") || [];
@@ -327,13 +349,10 @@ const CourseDetails = () => {
 
   const handleAddToCart = async () => {
     if (!course || !statusReady) return;
-
-    // Block if already enrolled
     if (isEnrolled) {
       toast("You already own this course.", { icon: "ℹ️" });
       return;
     }
-
     if (user) {
       setAddingToCart(true);
       try {
@@ -343,10 +362,7 @@ const CourseDetails = () => {
         toast.success("Course added to your cart!");
       } catch (err) {
         console.error("Add to cart failed:", err);
-        const msg =
-          err.response?.data?.message ||
-          err.message ||
-          "Could not add to cart. It may already be in your cart or you already enrolled.";
+        const msg = err.response?.data?.message || err.message || "Could not add to cart.";
         toast.error(msg);
       } finally {
         setAddingToCart(false);
@@ -374,48 +390,28 @@ const CourseDetails = () => {
 
   const handleBuyNow = async () => {
     if (!course || !statusReady) return;
-
     if (!user) {
       toast.error("Please log in to buy this course.");
-      navigate("/login", {
-        state: {
-          from: `/course/${id}`,
-          intent: "buy_now",
-          courseId: id,
-        },
-      });
+      navigate("/login", { state: { from: `/course/${id}`, intent: "buy_now", courseId: id } });
       return;
     }
-
-    // Block immediate purchase if already enrolled
     if (isEnrolled) {
       toast("You already own this course.", { icon: "ℹ️" });
       return;
     }
-
     try {
       await addToCart(course.id);
       await fetchCartCount();
       navigate("/checkout", {
         state: {
           checkoutType: "cart",
-          cartItems: [
-            {
-              id: course.id,
-              title: course.title,
-              price: course.price,
-            },
-          ],
+          cartItems: [{ id: course.id, title: course.title, price: course.price }],
           totalAmount: Number(course.price),
         },
       });
     } catch (err) {
       console.error("Checkout failed:", err);
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        "We encountered an issue starting your checkout.";
-      toast.error(msg);
+      toast.error("We encountered an issue starting your checkout.");
     }
   };
 
@@ -425,7 +421,6 @@ const CourseDetails = () => {
       navigate("/login", { state: { from: `/course/${id}` } });
       return;
     }
-
     setWishlistLoading(true);
     try {
       if (isInWishlist) {
@@ -438,7 +433,6 @@ const CourseDetails = () => {
       }
     } catch (err) {
       const msg = err.response?.data?.message;
-
       if (!isInWishlist && msg === "Course already in wishlist") {
         setIsInWishlist(true);
         toast.error("Course is already in your wishlist.");
@@ -471,17 +465,13 @@ const CourseDetails = () => {
       navigate("/pricing");
       return;
     }
-
     if (user) {
       if (!statusReady) return;
-
-      // Also respect enrollment here
       if (isEnrolled) {
         toast("You already own this course.", { icon: "ℹ️" });
         navigate(`/course/${course.id}/learn`);
         return;
       }
-
       try {
         await addToCart(course.id);
         await fetchCartCount();
@@ -489,11 +479,7 @@ const CourseDetails = () => {
         navigate("/cart");
       } catch (err) {
         console.error("Not added to Cart!", err);
-        const msg =
-          err.response?.data?.message ||
-          err.message ||
-          "Could not add to cart.";
-        toast.error(msg);
+        toast.error("Could not add to cart.");
         navigate("/cart");
       }
     } else {
@@ -513,11 +499,8 @@ const CourseDetails = () => {
     }
   };
 
-  if (loading)
-    return <div className="text-center py-20">Loading course details...</div>;
-
-  if (!course || !course.title)
-    return <div className="text-center py-20">Course not found.</div>;
+  if (loading) return <div className="text-center py-20">Loading course details...</div>;
+  if (!course || !course.title) return <div className="text-center py-20">Course not found.</div>;
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 relative animate-in fade-in duration-500">
@@ -530,7 +513,6 @@ const CourseDetails = () => {
         courseTitle={course?.title}
         courseImage={course?.thumbnail_url}
         onChangeLesson={(lesson) => setActivePreviewLesson(lesson)}
-        // Props for smart Unlock Button
         onUnlock={handleModalUnlock}
         unlockLabel={isSubscriberOnlyCourse ? "Get Subscription Access" : "Buy This Course"}
         coursePrice={course?.price}
@@ -553,7 +535,7 @@ const CourseDetails = () => {
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-sm pt-2">
-              {(course.enrollments_count > 100 || course.views > 500) && (
+              {isBestseller && (
                 <span className="bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded font-bold text-xs">
                   Bestseller
                 </span>
@@ -561,14 +543,15 @@ const CourseDetails = () => {
 
               <div className="flex items-center gap-1 text-yellow-400">
                 <span className="font-bold text-base">
-                  {course.rating || "4.8"}
+                  {courseStats.ratingAvg}
                 </span>
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(course.rating || 5)
+                        // اگر امتیاز 'New' بود ستاره‌ها خاموش، در غیر این صورت روشن
+                        courseStats.ratingAvg !== "New" && i < Math.floor(Number(courseStats.ratingAvg))
                           ? "fill-current"
                           : "text-gray-500"
                       }`}
@@ -576,7 +559,12 @@ const CourseDetails = () => {
                   ))}
                 </div>
                 <span className="text-blue-300 underline ml-1 cursor-pointer">
-                  ({course.enrollments_count || 0} students)
+                  ({courseStats.ratingCount} ratings)
+                </span>
+                
+                {/* بخش داینامیک تعداد دانشجو */}
+                <span className="text-slate-300 ml-2 border-l border-slate-600 pl-3">
+                    {courseStats.studentsFormatted} students
                 </span>
               </div>
 
@@ -591,10 +579,11 @@ const CourseDetails = () => {
             <div className="flex items-center gap-4 text-sm text-slate-300 mt-2">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" /> Last updated{" "}
-                {new Date(course.updated_at || Date.now()).toLocaleDateString()}
+                {/* رفع ارور Impure Function */}
+                {course.updated_at ? new Date(course.updated_at).toLocaleDateString() : new Date().toLocaleDateString()}
               </span>
               <span className="flex items-center gap-1">
-                <Globe className="w-4 h-4" /> {course.language || "English"}
+                <Globe className="w-4 h-4" /> {course.language || "Not Specified"}
               </span>
             </div>
           </div>
@@ -613,10 +602,7 @@ const CourseDetails = () => {
             <div className="grid grid-cols-1 gap-3">
               {parsedRequirements.length > 0 ? (
                 parsedRequirements.map((req, idx) => (
-                  <div
-                    key={idx}
-                    className="flex gap-2 items-start text-sm text-gray-700"
-                  >
+                  <div key={idx} className="flex gap-2 items-start text-sm text-gray-700">
                     <CheckCircle className="w-4 h-4 text-gray-800 shrink-0 mt-0.5" />
                     <span>{req}</span>
                   </div>
@@ -644,57 +630,32 @@ const CourseDetails = () => {
                     ).sort((a, b) => a.order_index - b.order_index);
 
                     return (
-                      <div
-                        key={section.id}
-                        className="border-b border-gray-100 last:border-0"
-                      >
+                      <div key={section.id} className="border-b border-gray-100 last:border-0">
                         <div className="bg_gray-50 px-4 py-3 font-bold text-gray-800 flex justify-between items-center cursor-default">
-                          <span>
-                            Section {idx + 1}: {section.title}
-                          </span>
+                          <span>Section {idx + 1}: {section.title}</span>
                           <span className="text-xs text-gray-500 font-normal">
-                            {lessons.length} lectures
+                            {lessons.length} lessons
                           </span>
                         </div>
                         <div className="p-4 space-y-3 bg-white">
                           {lessons.map((lesson, lIdx) => (
-                            <div
-                              key={lesson.id}
-                              className="flex justify-between text-sm text-gray-600 group"
-                            >
+                            <div key={lesson.id} className="flex justify-between text-sm text-gray-600 group">
                               <div className="flex items-center gap-3">
                                 {lesson.type === "video" && <Video className="w-4 h-4 text-gray-400" />}
                                 {lesson.type === "note" && <FileText className="w-4 h-4 text-gray-400" />}
                                 {lesson.type === "assessment" && <HelpCircle className="w-4 h-4 text-gray-400" />}
                                 
-                                <span
-                                  className={
-                                    lesson.is_preview
-                                      ? "group-hover:underline cursor-pointer"
-                                      : ""
-                                  }
-                                  onClick={() =>
-                                    lesson.is_preview && openPreview(lesson)
-                                  }
-                                >
+                                <span className={lesson.is_preview ? "group-hover:underline cursor-pointer" : ""} onClick={() => lesson.is_preview && openPreview(lesson)}>
                                   {lIdx + 1}. {lesson.title}
                                 </span>
                               </div>
                               {lesson.is_preview ? (
                                 <div className="flex items-center gap-4">
-                                  <span
-                                    className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline"
-                                    onClick={() => openPreview(lesson)}
-                                  >
+                                  <span className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline" onClick={() => openPreview(lesson)}>
                                     Preview
                                   </span>
                                   {lesson.duration_seconds && (
-                                    <span className="text-xs">
-                                      {Math.floor(
-                                        lesson.duration_seconds / 60,
-                                      )}
-                                      :00
-                                    </span>
+                                    <span className="text-xs">{Math.floor(lesson.duration_seconds / 60)}:00</span>
                                   )}
                                 </div>
                               ) : (
@@ -702,28 +663,20 @@ const CourseDetails = () => {
                               )}
                             </div>
                           ))}
-                          {lessons.length === 0 && (
-                            <p className="text-xs text-gray-400 italic">
-                              No lessons in this section yet.
-                            </p>
-                          )}
+                          {lessons.length === 0 && <p className="text-xs text-gray-400 italic">No lessons in this section yet.</p>}
                         </div>
                       </div>
                     );
                   })}
               </div>
             ) : (
-              <div className="text-gray-500 text-sm italic">
-                Content is being updated.
-              </div>
+              <div className="text-gray-500 text-sm italic">Content is being updated.</div>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Description
-            </h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Description</h3>
             <div
               className={`prose text-gray-700 text-sm max-w-none overflow-hidden transition-all duration-300 ${
                 showFullDesc ? "max-h-full" : "max-h-48"
@@ -732,12 +685,8 @@ const CourseDetails = () => {
                 __html: course.long_description || course.description,
               }}
             />
-            {(course.long_description?.length > 300 ||
-              course.description?.length > 300) && (
-              <button
-                onClick={() => setShowFullDesc(!showFullDesc)}
-                className="text-purple-600 font-bold text-sm mt-3 hover:underline flex items-center gap-1"
-              >
+            {(course.long_description?.length > 300 || course.description?.length > 300) && (
+              <button onClick={() => setShowFullDesc(!showFullDesc)} className="text-purple-600 font-bold text-sm mt-3 hover:underline flex items-center gap-1">
                 {showFullDesc ? "Show less" : "Show more"}
               </button>
             )}
@@ -769,15 +718,10 @@ const CourseDetails = () => {
               onClick={() => openPreview()}
             >
               <img
-                src={
-                  course.thumbnail_url || "https://via.placeholder.com/640x360"
-                }
+                src={course.thumbnail_url || "https://via.placeholder.com/640x360"}
                 alt={course.title}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "https://via.placeholder.com/640x360";
-                }}
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/640x360"; }}
               />
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition">
                 <div className="bg-white rounded-full p-4 shadow-lg group-hover:scale-110 transition">
@@ -820,12 +764,7 @@ const CourseDetails = () => {
                       </>
                     )}
                   </div>
-                  <Button
-                    fullWidth
-                    size="lg"
-                    className="w-full py-3 h-12 text-lg font-bold bg-blue-600"
-                    onClick={() => navigate(`/course/${course.id}/learn`)}
-                  >
+                  <Button fullWidth size="lg" className="w-full py-3 h-12 text-lg font-bold bg-blue-600" onClick={() => navigate(`/course/${course.id}/learn`)}>
                     Start Learning
                   </Button>
                 </div>
@@ -840,23 +779,15 @@ const CourseDetails = () => {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900 leading-tight">
-                              Get access with{" "}
-                              <span className="text-purple-700">
-                                {requiredPlan}
-                              </span>
+                              Get access with <span className="text-purple-700">{requiredPlan}</span>
                             </p>
                             <p className="text-[12px] text-gray-600 mt-1">
-                              Upgrade your plan to watch this course and others
-                              in {requiredPlan}.
+                              Upgrade your plan to watch this course and others in {requiredPlan}.
                             </p>
                           </div>
                         </div>
 
-                        <Button
-                          fullWidth
-                          className="w-full py-3 bg-purple-700 hover:bg-purple-800 text-white font-bold h-12 rounded-md shadow-sm"
-                          onClick={() => navigate("/pricing")}
-                        >
+                        <Button fullWidth className="w-full py-3 bg-purple-700 hover:bg-purple-800 text-white font-bold h-12 rounded-md shadow-sm" onClick={() => navigate("/pricing")}>
                           Upgrade to {requiredPlan}
                         </Button>
 
@@ -904,50 +835,19 @@ const CourseDetails = () => {
                     )}
                   </div>
 
-                  <Button
-                    fullWidth
-                    onClick={
-                      !statusReady
-                        ? undefined
-                        : isInCart
-                        ? () => navigate("/cart")
-                        : handleAddToCart
-                    }
-                    isLoading={addingToCart || !statusReady}
-                    variant={isInCart ? "outline" : "primary"}
-                    className="w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2"
-                  >
+                  <Button fullWidth onClick={!statusReady ? undefined : isInCart ? () => navigate("/cart") : handleAddToCart} isLoading={addingToCart || !statusReady} variant={isInCart ? "outline" : "primary"} className="w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2">
                     {isInCart ? "Go to Cart" : "Add to Cart"}
                   </Button>
 
-                  <button
-                    onClick={statusReady ? handleBuyNow : undefined}
-                    className={`w-full py-3 my-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition ${
-                      !statusReady ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
-                  >
+                  <button onClick={statusReady ? handleBuyNow : undefined} className={`w-full py-3 my-3 border border-gray-800 rounded-lg font-bold text-gray-800 hover:bg-gray-50 transition ${!statusReady ? "opacity-60 cursor-not-allowed" : ""}`}>
                     Buy Now
                   </button>
                 </div>
               )}
 
-              <button
-                onClick={handleWishlistToggle}
-                disabled={wishlistLoading}
-                className={`w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2 ${
-                  isInWishlist
-                    ? "bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
-                    : "border-purple-600 text-purple-600 hover:bg-purple-50"
-                } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <Heart
-                  className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`}
-                />
-                {wishlistLoading
-                  ? "Processing..."
-                  : isInWishlist
-                    ? "Remove from Wishlist"
-                    : "Add to Wishlist"}
+              <button onClick={handleWishlistToggle} disabled={wishlistLoading} className={`w-full py-3 border rounded-lg font-bold transition flex items-center justify-center gap-2 ${isInWishlist ? "bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100" : "border-purple-600 text-purple-600 hover:bg-purple-50"} ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                <Heart className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`} />
+                {wishlistLoading ? "Processing..." : isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
               </button>
 
               {isPremium && (
@@ -964,6 +864,10 @@ const CourseDetails = () => {
                     ? `${courseStats.totalHours}h ${courseStats.totalMinutes}m`
                     : `${courseStats.totalMinutes}m`}{" "}
                   on-demand video
+                </div>
+                {/* اینجا به جای لکچر، نوشتیم Lessons و از عدد داینامیک استفاده کردیم */}
+                <div className="flex gap-2 items-center">
+                  <PlayCircle className="w-4 h-4" /> {courseStats.lessons} lessons
                 </div>
                 <div className="flex gap-2 items-center">
                   <BookOpen className="w-4 h-4" /> {courseStats.articles}{" "}
