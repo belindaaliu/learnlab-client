@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Star, Check, Crown } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const CourseCard = ({ course, onAddToCart, onAddToWishlist, isPremiumCourse }) => {
+const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist, isPremiumCourse, isInWishlist = false }) => {
   const navigate = useNavigate();
   const { user, userPlan } = useAuth();
 
@@ -114,7 +114,10 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, isPremiumCourse }) =
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof onAddToWishlist === "function") {
+    
+    if (isInWishlist && typeof onRemoveFromWishlist === "function") {
+      onRemoveFromWishlist();
+    } else if (typeof onAddToWishlist === "function") {
       onAddToWishlist();
     }
   };
@@ -289,8 +292,9 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, isPremiumCourse }) =
           <button 
             onClick={handleWishlist}
             className="p-3 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+            title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
           >
-            <Star className="w-4 h-4 text-gray-600" />
+            <Star className={`w-4 h-4 ${isInWishlist ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
           </button>
         </div>
       </div>

@@ -18,6 +18,7 @@ import {
   Sparkles
 } from "lucide-react";
 import logo from "../assets/images/logo.png";
+import NotificationDropdown from "../components/NotificationDropdown";
 
 export default function StudentLayout() {
   const [realUser, setRealUser] = useState(null);
@@ -237,14 +238,8 @@ export default function StudentLayout() {
             )}
           </Link>
 
-          {/* Notifications */}
-          <Link
-            to="/student/notifications"
-            className="relative text-gray-600 hover:text-primary transition"
-          >
-            <Bell className="w-6 h-6" />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-          </Link>
+          {/* Notifications - REPLACED WITH DROPDOWN COMPONENT */}
+          <NotificationDropdown />
 
           {/* Messages */}
           <Link
