@@ -73,6 +73,9 @@ import InstructorQuizReview from "../pages/Instructor/InstructorQuizReview";
 
 import Teach from "../pages/Home/Teach";
 
+import AccountSecurity from "../pages/Auth/AccountSecurity"
+import MfaVerification from "../pages/Auth/MfaVerification";
+
 export const router = createBrowserRouter([
   // ===================================
   // PUBLIC LAYOUT
@@ -131,6 +134,11 @@ export const router = createBrowserRouter([
     element: <ResetPassword />,
   },
 
+  {
+  path: "/mfa-verify",
+  element: <MfaVerification />,
+},
+
   // ===================================
   // STUDENT LAYOUT
   // ===================================
@@ -156,6 +164,8 @@ export const router = createBrowserRouter([
       // Certificate Routes
       { path: "certificates", element: <StudentCertificates /> },
       { path: "certificates/:courseId", element: <CertificateDetail /> },
+
+      { path: "security", element: <AccountSecurity /> },
 
 
       // QUIZ REVIEW ROUTE
@@ -224,7 +234,8 @@ export const router = createBrowserRouter([
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "courses/:courseId/students/:studentId/progress", element: <StudentProgressDetail /> },
       { path: "courses/:courseId/students", element: <InstructorStudentsList /> },
-      { path: "quiz-review/:attemptId", element: <InstructorQuizReview />,}
+      { path: "quiz-review/:attemptId", element: <InstructorQuizReview />,},
+      { path: "security", element: <AccountSecurity /> }
 
     ],
   },
