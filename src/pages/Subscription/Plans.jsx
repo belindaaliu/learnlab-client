@@ -4,6 +4,7 @@ import api from "../../utils/Api";
 import Button from "../../components/common/Button";
 import { Check, Star, ArrowRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast"; 
 
 const SubscriptionPlans = () => {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ const SubscriptionPlans = () => {
     return list.length > 0 ? list : ["Basic platform access"];
   };
 
-  const handleAction = (plan, finalPrice) => {
+  const handleAction = async (plan, finalPrice) => {
     const amount = finalPrice ?? Number(plan.price);
 
     if (!user) {
@@ -75,9 +76,32 @@ const SubscriptionPlans = () => {
       return;
     }
 
-    navigate("/checkout", {
-      state: { type: "subscription", planId: plan.id, totalAmount: amount },
-    });
+    if (!userSub?.hasActiveSubscription) {
+      navigate("/checkout", {
+        state: { type: "subscription", planId: plan.id, totalAmount: amount },
+      });
+      return;
+    }
+
+    try {
+      await api.post("/subscription/schedule-plan-change", {
+        planId: plan.id,
+        autoRenew: userSub.autoRenew,
+      });
+
+      toast.success(
+        `Your plan will switch to "${plan.name}" at the end of your current billing period.`,
+      );
+
+      const res = await api.get("/subscription/overview");
+      setUserSub(res.data.data);
+    } catch (err) {
+      console.error("Schedule plan change error:", err);
+      toast.error(
+        err.response?.data?.message ||
+          "Failed to schedule plan change. Please try again.",
+      );
+    }
   };
 
   if (loading || authLoading) {
@@ -105,6 +129,9 @@ const SubscriptionPlans = () => {
           const isVip = plan.slug?.toLowerCase().trim() === "vip";
           const isCurrentPlan =
             userSub?.hasActiveSubscription && userSub?.planName === plan.name;
+          const isNextPlan =
+            userSub?.nextPlanId &&
+            String(userSub.nextPlanId) === String(plan.id);
           const displayFeatures = formatFeatures(plan.features);
 
           const basePrice = Number(plan.price || 0);
@@ -218,6 +245,8 @@ const SubscriptionPlans = () => {
               >
                 {isCurrentPlan ? (
                   "Active Subscription"
+                ) : isNextPlan ? (
+                  "Scheduled for Next Period"
                 ) : (
                   <>
                     {plan.button_text || "Get Started"} <ArrowRight size={20} />
