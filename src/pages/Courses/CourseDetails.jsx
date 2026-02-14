@@ -77,7 +77,7 @@ const CourseDetails = () => {
     const fetchCourse = async () => {
       try {
         setLoading(true);
-        // دریافت درس به همراه نظرات (Reviews) برای محاسبه امتیاز واقعی
+
         const response = await api.get(`/courses/${id}`);
         const courseData = response.data.data || response.data;
         setCourse(courseData);
@@ -273,7 +273,7 @@ const CourseDetails = () => {
 
   // --- Dynamic Calculations (Stats, Ratings, Students) ---
   const courseStats = useMemo(() => {
-    // مقادیر پیش‌فرض
+    // Default values
     if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
       return { 
         totalHours: 0, totalMinutes: 0, articles: 0, lessons: 0, 
@@ -281,14 +281,14 @@ const CourseDetails = () => {
       };
     }
 
-    // 1. محاسبه محتوا (زمان، تعداد درس، مقاله)
+    // 1. Content calculation (time, number of lessons, articles)
     let totalSeconds = 0;
     let articlesCount = 0;
     let lessonsCount = 0;
 
     course.CourseContent.forEach((item) => {
       if (item.type !== "section") {
-        lessonsCount++; // همه آیتم‌ها (ویدیو، کوییز، نوت) به عنوان Lesson شمرده می‌شوند
+        lessonsCount++;
 
         if (item.type?.toLowerCase() === "video") {
           const duration = Number(item.duration_seconds) || 0;
@@ -307,24 +307,24 @@ const CourseDetails = () => {
     if (m === 60) { h += 1; m = 0; }
     if (totalSeconds > 0 && h === 0 && m === 0) m = 1;
 
-    // 2. محاسبه امتیاز (Rating)
+    // 2. (Rating)
     let avg = 0;
     let count = 0;
     
-    // اگر بک‌اند خودش rating فرستاده بود
+    // If the backend itself had sent a rating
     if (course.rating) {
         avg = Number(course.rating);
         count = course.reviews_count || 0;
     } 
-    // اگر آرایه نظرات وجود دارد، میانگین بگیر
+    // If there is an array of comments, take the average.
     else if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
         const total = course.Reviews.reduce((acc, curr) => acc + curr.rating, 0);
         avg = Number((total / course.Reviews.length).toFixed(1));
         count = course.Reviews.length;
     }
 
-    // 3. فرمت تعداد دانشجو (مثلا 1.2k)
-    let studCount = course.enrollments_count || 0;
+    // 3. Student number format (e.g. 1.2k)
+    let studCount = course._count?.Enrollments || course.enrollments_count || 0;
     let studFmt = studCount.toString();
     if(studCount > 1000) studFmt = (studCount / 1000).toFixed(1) + "k";
 
@@ -332,14 +332,14 @@ const CourseDetails = () => {
       totalHours: h,
       totalMinutes: m,
       articles: articlesCount,
-      lessons: lessonsCount, // اینجا تعداد کل درس‌هاست
-      ratingAvg: avg > 0 ? avg : "New", // اگر امتیاز ندارد بنویس New
+      lessons: lessonsCount, 
+      ratingAvg: avg > 0 ? avg : "New",
       ratingCount: count,
       studentsFormatted: studFmt
     };
   }, [course]);
 
-  // بررسی Bestseller بودن واقعی
+  // Real Bestseller Review
   const isBestseller = (course?.enrollments_count > 50 && courseStats.ratingAvg !== "New" && courseStats.ratingAvg >= 4.5);
 
   const sections =
@@ -550,7 +550,7 @@ const CourseDetails = () => {
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        // اگر امتیاز 'New' بود ستاره‌ها خاموش، در غیر این صورت روشن
+                        // Stars off if rating was 'New', on otherwise
                         courseStats.ratingAvg !== "New" && i < Math.floor(Number(courseStats.ratingAvg))
                           ? "fill-current"
                           : "text-gray-500"
@@ -562,7 +562,7 @@ const CourseDetails = () => {
                   ({courseStats.ratingCount} ratings)
                 </span>
                 
-                {/* بخش داینامیک تعداد دانشجو */}
+                {/* Student Number Dynamics Section */}
                 <span className="text-slate-300 ml-2 border-l border-slate-600 pl-3">
                     {courseStats.studentsFormatted} students
                 </span>
@@ -579,7 +579,7 @@ const CourseDetails = () => {
             <div className="flex items-center gap-4 text-sm text-slate-300 mt-2">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" /> Last updated{" "}
-                {/* رفع ارور Impure Function */}
+
                 {course.updated_at ? new Date(course.updated_at).toLocaleDateString() : new Date().toLocaleDateString()}
               </span>
               <span className="flex items-center gap-1">
@@ -865,7 +865,7 @@ const CourseDetails = () => {
                     : `${courseStats.totalMinutes}m`}{" "}
                   on-demand video
                 </div>
-                {/* اینجا به جای لکچر، نوشتیم Lessons و از عدد داینامیک استفاده کردیم */}
+
                 <div className="flex gap-2 items-center">
                   <PlayCircle className="w-4 h-4" /> {courseStats.lessons} lessons
                 </div>
