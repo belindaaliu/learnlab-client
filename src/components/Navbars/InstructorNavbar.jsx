@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, MessageSquare, BarChart, BookOpen, LogOut, LayoutDashboard } from "lucide-react";
-import logo from "../../assets/images/logo.png"; // اطمینان حاصل کن مسیر لوگو درست است
+import logo from "../../assets/images/logo.png";
 
 export default function InstructorNavbar() {
   const [profile, setProfile] = useState(null);
@@ -21,11 +21,16 @@ export default function InstructorNavbar() {
 
   useEffect(() => {
     if (!userId) return;
+
     axios
       .get(`${API_URL}/student/me/${userId}`)
       .then((res) => setProfile(res.data))
       .catch((err) => console.error("Profile fetch error:", err));
   }, [userId, API_URL]);
+
+  const displayPhoto = profile?.photo_url || user?.photo_url;
+  const displayFirstName = profile?.first_name || user?.first_name || "I";
+  const displayLastName = profile?.last_name || user?.last_name || "";
 
   return (
     <header className="bg-slate-900 text-white h-20 shadow-md flex items-center px-6 gap-6 sticky top-0 z-50">
@@ -33,7 +38,6 @@ export default function InstructorNavbar() {
       {/* LEFT — Logo & Brand Split Navigation */}
       <div className="flex items-center gap-8 shrink-0">
         
-        {/* این بخش تغییر کرده است: دو لینک جداگانه */}
         <div className="flex items-center gap-3">
 
           <Link to="/" title="Go to Main Site">
@@ -86,23 +90,32 @@ export default function InstructorNavbar() {
 
         {/* Avatar / Profile Dropdown */}
         <div className="relative group h-full flex items-center cursor-pointer">
-          {profile?.avatar_url ? (
+
+          {displayPhoto ? (
             <img
-              src={profile.avatar_url}
+              src={displayPhoto}
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover border-2 border-slate-700 group-hover:border-purple-500 transition-colors"
+              onError={(e) => {
+
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
             />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold border-2 border-slate-700 group-hover:border-purple-400 transition-colors">
-              {profile?.first_name?.[0] || "I"}
-            </div>
-          )}
+          ) : null}
+          
+          <div 
+            className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold border-2 border-slate-700 group-hover:border-purple-400 transition-colors"
+            style={{ display: displayPhoto ? 'none' : 'flex' }}
+          >
+            {displayFirstName[0].toUpperCase()}
+          </div>
 
           {/* Dropdown Menu */}
           <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
               <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden mt-2">
                   <div className="px-4 py-3 border-b bg-gray-50">
-                      <p className="font-bold text-sm truncate">{profile?.first_name} {profile?.last_name}</p>
+                      <p className="font-bold text-sm truncate">{displayFirstName} {displayLastName}</p>
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                   </div>
                   
