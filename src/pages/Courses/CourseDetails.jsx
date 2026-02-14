@@ -288,6 +288,7 @@ const CourseDetails = () => {
 
   // --- Dynamic Stats Calculations (Ratings, Students, Content) ---
   const courseStats = useMemo(() => {
+    // Default values
     if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
       return { 
         totalHours: 0, totalMinutes: 0, articles: 0, lessons: 0, 
@@ -295,13 +296,14 @@ const CourseDetails = () => {
       };
     }
 
+    // 1. Content calculation (time, number of lessons, articles)
     let totalSeconds = 0;
     let articlesCount = 0;
     let lessonsCount = 0;
 
     course.CourseContent.forEach((item) => {
       if (item.type !== "section") {
-        lessonsCount++;
+        lessonsCount++; // همه آیتم‌ها (ویدیو، کوییز، نوت) به عنوان Lesson شمرده می‌شوند
 
         if (item.type?.toLowerCase() === "video") {
           totalSeconds += Number(item.duration_seconds) || 0;
@@ -318,20 +320,24 @@ const CourseDetails = () => {
     if (m === 60) { h += 1; m = 0; }
     if (totalSeconds > 0 && h === 0 && m === 0) m = 1;
 
-    // Rating Calculation
+    // 2. Rating Calculation
     let avg = 0;
     let count = 0;
+    
+    // If the backend itself had sent a rating
     if (course.rating) {
         avg = Number(course.rating);
         count = course.reviews_count || 0;
-    } else if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
+    } 
+    // If there is an array of comments, take the average.
+    else if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
         const total = course.Reviews.reduce((acc, curr) => acc + curr.rating, 0);
         avg = Number((total / course.Reviews.length).toFixed(1));
         count = course.Reviews.length;
     }
 
-    // Students Count Format
-    let studCount = course.enrollments_count || 0;
+    // 3. Student number format (e.g. 1.2k)
+    let studCount = course._count?.Enrollments || course.enrollments_count || 0;
     let studFmt = studCount.toString();
     if(studCount > 1000) studFmt = (studCount / 1000).toFixed(1) + "k";
 
@@ -339,13 +345,14 @@ const CourseDetails = () => {
       totalHours: h,
       totalMinutes: m,
       articles: articlesCount,
-      lessons: lessonsCount,
-      ratingAvg: avg > 0 ? avg : "New",
+      lessons: lessonsCount, 
+      ratingAvg: avg > 0 ? avg : "New", // اگر امتیاز ندارد بنویس New
       ratingCount: count,
       studentsFormatted: studFmt
     };
   }, [course]);
 
+  // Real Bestseller Review
   const isBestseller = (course?.enrollments_count > 50 && courseStats.ratingAvg !== "New" && courseStats.ratingAvg >= 4.5);
 
   const sections = course?.CourseContent?.filter((item) => item.type === "section") || [];
@@ -626,6 +633,7 @@ const CourseDetails = () => {
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
+                        // Stars off if rating was 'New', on otherwise
                         courseStats.ratingAvg !== "New" && i < Math.floor(Number(courseStats.ratingAvg))
                           ? "fill-current"
                           : "text-gray-500"
@@ -637,6 +645,7 @@ const CourseDetails = () => {
                   ({courseStats.ratingCount} ratings)
                 </span>
                 
+                {/* Student Number Dynamics Section */}
                 <span className="text-slate-300 ml-2 border-l border-slate-600 pl-3 flex items-center gap-1">
                   <Users className="w-4 h-4" /> {courseStats.studentsFormatted} students
                 </span>
