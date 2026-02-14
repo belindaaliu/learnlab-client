@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import logo from '../../assets/images/logo.png'; // ADD THIS IMPORT
+import logo from '../../assets/images/logo.png';
 import './Auth.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -13,36 +13,58 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-  setLoading(true);
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  try {
-    const response = await axios.post(`${API_URL}/auth/login`, formData);
-    const { accessToken, refreshToken, user } = response.data.data;
+    try {
+      const response = await axios.post(`${API_URL}/auth/login`, formData);
+      
+      // Check if MFA is required
+      if (response.data.mfaRequired) {
+        // Store MFA data in session storage (cleared when browser closes)
+        sessionStorage.setItem('mfaTempToken', response.data.tempToken);
+        sessionStorage.setItem('mfaUserId', response.data.userId);
+        sessionStorage.setItem('mfaEmail', response.data.email);
+        sessionStorage.setItem('mfaMethods', JSON.stringify(response.data.mfaMethods));
+        
+        // Redirect to MFA verification page
+        navigate('/mfa-verify', {
+          state: {
+            email: response.data.email,
+            userId: response.data.userId,
+            tempToken: response.data.tempToken,
+            methods: response.data.mfaMethods
+          }
+        });
+        return;
+      }
 
-    // Store tokens and user data
-    localStorage.setItem('token', accessToken);  // NEW: For admin/new code
-    localStorage.setItem('accessToken', accessToken);  // OLD: For existing code
-    localStorage.setItem('refreshToken', refreshToken);
-    localStorage.setItem('user', JSON.stringify(user));
+      // Normal login (no MFA)
+      const { accessToken, refreshToken, user } = response.data.data;
 
-    // Redirect based on role
-    if (user.role === 'student') {
-      navigate('/student/dashboard');
-    } else if (user.role === 'instructor') {
-      navigate('/instructor/dashboard');
-    } else if (user.role === 'admin') {
-      navigate('/admin/dashboard');
-    } else {
-      navigate('/');
+      // Store tokens and user data
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Redirect based on role
+      if (user.role === 'student') {
+        navigate('/student/dashboard');
+      } else if (user.role === 'instructor') {
+        navigate('/instructor/dashboard');
+      } else if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setError(err.response?.data?.message || 'Login failed. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="auth-container">
@@ -55,7 +77,7 @@ function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="logo">
-            <img src={logo} alt="LearnLab" /> {/* CHANGED THIS */}
+            <img src={logo} alt="LearnLab" />
           </div>
           <h1>Welcome back</h1>
           <p>Continue your learning journey</p>
@@ -82,6 +104,7 @@ function Login() {
               placeholder="you@example.com"
               required
               autoComplete="email"
+              disabled={loading}
             />
           </div>
 
@@ -95,6 +118,7 @@ function Login() {
               placeholder="••••••••"
               required
               autoComplete="current-password"
+              disabled={loading}
             />
           </div>
 
@@ -102,7 +126,15 @@ function Login() {
             <Link to="/forgot-password" className="forgot-link">Forgot password?</Link>
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button 
+            type="submit" 
+            className="btn-primary" 
+            disabled={loading}
+            style={{
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
             {loading ? (
               <>
                 <span className="spinner"></span>

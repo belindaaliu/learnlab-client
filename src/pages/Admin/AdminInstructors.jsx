@@ -85,12 +85,25 @@ const AdminInstructors = () => {
                   {getStatusBadge(inst.instructor_application_status)}
                 </td>
                 <td className="px-6 py-4">
-                  <Link
-                    to={`/admin/instructors/${inst.id}/review`}
-                    className="flex items-center gap-1 text-primary hover:underline font-semibold"
-                  >
-                    View Application <ExternalLink size={14} />
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    {/* View Application */}
+                    <Link
+                      to={`/admin/instructors/${inst.id}/review`}
+                      className="inline-flex items-center gap-1 text-primary hover:underline text-sm font-semibold"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Application</span>
+                    </Link>
+
+                    {/* View Instructor Details */}
+                    <Link
+                      to={`/admin/instructors/${inst.id}/details`}
+                      className="inline-flex items-center gap-1 text-gray-600 hover:text-primary hover:underline text-sm font-semibold"
+                    >
+                      <UserCheck size={14} />
+                      <span>Details</span>
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
