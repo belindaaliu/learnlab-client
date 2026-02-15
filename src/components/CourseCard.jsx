@@ -8,7 +8,6 @@ const CourseCard = ({
   onAddToCart,
   onAddToWishlist,
   onRemoveFromWishlist,
-  // isPremiumCourse // Removed because it was not used and caused an error.
   isInWishlist = false,
 }) => {
   const navigate = useNavigate();
@@ -32,7 +31,6 @@ const CourseCard = ({
         ? course.requirements 
         : JSON.parse(course.requirements);
     } catch {
-
       return [];
     }
   }, [course.requirements]);
@@ -43,6 +41,39 @@ const CourseCard = ({
     }
     return null;
   }, [course.updated_at]);
+
+  // --- 2. CALCULATE RATING FROM REVIEWS ---
+  const { averageRating, reviewCount } = useMemo(() => {
+    // First check if backend already calculated rating
+    if (course.rating && course.rating > 0) {
+      return {
+        averageRating: Number(course.rating),
+        reviewCount: course.reviews_count || course.reviews || 0
+      };
+    }
+
+    // If Reviews array exists, calculate from it
+    if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
+      const total = course.Reviews.reduce((sum, review) => sum + review.rating, 0);
+      const avg = Number((total / course.Reviews.length).toFixed(1));
+      return {
+        averageRating: avg,
+        reviewCount: course.Reviews.length
+      };
+    }
+
+    // Default to null if no reviews
+    return {
+      averageRating: null,
+      reviewCount: 0
+    };
+  }, [course.rating, course.reviews_count, course.reviews, course.Reviews]);
+
+  // Calculate if it's a bestseller based on real data
+  const isBestseller = useMemo(() => {
+    const enrollments = course.enrollments_count || course._count?.Enrollments || 0;
+    return enrollments > 50 && averageRating && averageRating >= 4.5;
+  }, [course.enrollments_count, course._count, averageRating]);
 
   // ------------------------------------------
 
@@ -106,7 +137,6 @@ const CourseCard = ({
   // --- IDENTITY LOGIC ---
   const isActuallyFree = Number(course.price) === 0;
   
-
   const isActuallyPremium = Boolean(
     course.is_premium ||
     course.is_subscriber_only ||
@@ -174,17 +204,31 @@ const CourseCard = ({
           </h3>
           <p className="text-xs text-gray-500">{instructorName}</p>
 
-          <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
-            <span>{course.rating || 4.8}</span>
-            <div className="flex">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3 h-3 fill-current" />
-              ))}
+          {/* UPDATED RATING DISPLAY */}
+          {averageRating ? (
+            <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
+              <span>{averageRating}</span>
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star 
+                    key={i} 
+                    className={`w-3 h-3 ${
+                      i < Math.floor(averageRating) 
+                        ? 'fill-current' 
+                        : 'text-gray-300'
+                    }`} 
+                  />
+                ))}
+              </div>
+              <span className="text-gray-400 font-normal text-xs">
+                ({reviewCount})
+              </span>
             </div>
-            <span className="text-gray-400 font-normal text-xs">
-              ({course.reviews || 120})
-            </span>
-          </div>
+          ) : (
+            <div className="flex items-center gap-1 text-gray-400 text-sm">
+              <span className="text-xs">No ratings yet</span>
+            </div>
+          )}
 
           <div className="mt-auto pt-2">
             {userHasAccess ? (
@@ -238,7 +282,8 @@ const CourseCard = ({
                 </span>
               )}
 
-              {(course.is_bestseller || (course.rating && course.rating >= 4.8)) && (
+              {/* UPDATED BESTSELLER LOGIC */}
+              {(course.is_bestseller || isBestseller) && (
                 <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded font-bold shrink-0">
                   BESTSELLER
                 </span>
