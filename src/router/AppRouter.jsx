@@ -35,6 +35,7 @@ import PublicProfile from "../pages/Student/PublicProfile";
 import EditProfile from "../pages/Student/EditProfile";
 import EditPhoto from "../pages/Student/EditPhoto";
 import Messages from "../pages/Student/Messages";
+import StudentNotifications from "../pages/Student/StudentNotifications"; // ADD THIS
 
 // SUBSCRIPTION & PAYMENT PAGES
 import SubscriptionOverview from "../pages/Subscription/Overview";
@@ -52,7 +53,6 @@ import Users from "../pages/Admin/Users";
 import UserDetail from "../pages/Admin/UserDetail";
 import Subscriptions from "../pages/Admin/Subscriptions";
 import AdminCourseDetail from "../pages/Admin/AdminCourseDetail";
-
 
 // INSTRUCTOR PAGES
 import InstructorDashboard from "../pages/Instructor/Dashboard";
@@ -75,6 +75,7 @@ import Teach from "../pages/Home/Teach";
 
 import AccountSecurity from "../pages/Auth/AccountSecurity"
 import MfaVerification from "../pages/Auth/MfaVerification";
+import InstructorNotifications from "../pages/Instructor/InstructorNotifications.jsx";
 
 export const router = createBrowserRouter([
   // ===================================
@@ -135,9 +136,9 @@ export const router = createBrowserRouter([
   },
 
   {
-  path: "/mfa-verify",
-  element: <MfaVerification />,
-},
+    path: "/mfa-verify",
+    element: <MfaVerification />,
+  },
 
   // ===================================
   // STUDENT LAYOUT
@@ -157,16 +158,13 @@ export const router = createBrowserRouter([
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "messages", element: <Messages /> },
       { path: "cart", element: <Cart /> },
-      // { path: "security", element: <AccountSecurity /> },
-      // { path: "notifications", element: <NotificationSettings /> },
-      // { path: "privacy", element: <PrivacySettings /> },
+      { path: "notifications", element: <StudentNotifications /> }, // ADD THIS
       
       // Certificate Routes
       { path: "certificates", element: <StudentCertificates /> },
       { path: "certificates/:courseId", element: <CertificateDetail /> },
 
       { path: "security", element: <AccountSecurity /> },
-
 
       // QUIZ REVIEW ROUTE
       {
@@ -188,20 +186,17 @@ export const router = createBrowserRouter([
         path: "payment",
         children: [{ path: "history", element: <PaymentHistory /> }],
       },
-
-      // { path: "course/:courseId/learn", element: <CoursePlayer /> },
     ],
   },
 
   {
-  path: "/course/:courseId/learn",
-  element: (
-    <ProtectedRoute allowedRoles="student">
-      <CoursePlayer />
-    </ProtectedRoute>
-  ),
-},
-
+    path: "/course/:courseId/learn",
+    element: (
+      <ProtectedRoute allowedRoles="student">
+        <CoursePlayer />
+      </ProtectedRoute>
+    ),
+  },
 
   // ===================================
   // INSTRUCTOR LAYOUT
@@ -234,9 +229,9 @@ export const router = createBrowserRouter([
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "courses/:courseId/students/:studentId/progress", element: <StudentProgressDetail /> },
       { path: "courses/:courseId/students", element: <InstructorStudentsList /> },
-      { path: "quiz-review/:attemptId", element: <InstructorQuizReview />,},
-      { path: "security", element: <AccountSecurity /> }
-
+      { path: "quiz-review/:attemptId", element: <InstructorQuizReview /> },
+      { path: "security", element: <AccountSecurity /> },
+      { path: "notifications", element: <InstructorNotifications /> },
     ],
   },
 
@@ -264,7 +259,6 @@ export const router = createBrowserRouter([
     ),
   },
   
-
   // ===================================
   // ADMIN LAYOUT
   // ===================================

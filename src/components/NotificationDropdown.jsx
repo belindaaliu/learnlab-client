@@ -24,7 +24,7 @@ const NotificationDropdown = () => {
         if (isOpen) {
           fetchNotifications();
         }
-      }, 3000);
+      }, 10000);
       return () => clearInterval(interval);
     }
   }, [user, isOpen]);
