@@ -186,7 +186,7 @@ export default function StudentLayout() {
                     wishlistCourses.slice(0, 3).map((course) => (
                       <Link
                         key={course.id}
-                        to={`/course/${course.id}`}
+                        to={`/courses/${course.id}`}
                         className="flex gap-3 hover:bg-gray-50 p-2 rounded-lg transition"
                         onClick={() => setActiveDropdown(null)}
                       >
