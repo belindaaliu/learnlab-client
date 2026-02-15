@@ -206,16 +206,16 @@ const CourseCard = ({
 
           {/* UPDATED RATING DISPLAY */}
           {averageRating ? (
-            <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
-              <span>{averageRating}</span>
+            <div className="flex items-center gap-1 text-sm font-bold">
+              <span className="text-gray-900">{averageRating}</span>
               <div className="flex">
                 {[...Array(5)].map((_, i) => (
                   <Star 
                     key={i} 
                     className={`w-3 h-3 ${
                       i < Math.floor(averageRating) 
-                        ? 'fill-current' 
-                        : 'text-gray-300'
+                        ? 'fill-yellow-500 text-yellow-500' 
+                        : 'fill-none text-gray-300'
                     }`} 
                   />
                 ))}
