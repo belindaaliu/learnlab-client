@@ -80,6 +80,19 @@ export default function StudentDashboard() {
     ])
     .then(([profileRes, recommendationsRes, enrolledRes, wishlistRes]) => {
       setProfile(profileRes.data);
+      
+      // ADD LOGGING FOR RECOMMENDATIONS
+      console.log('=== RECOMMENDATIONS DEBUG ===');
+      console.log('Full recommendations response:', recommendationsRes.data);
+      if (recommendationsRes.data && recommendationsRes.data.length > 0) {
+        console.log('First recommendation course:', recommendationsRes.data[0]);
+        console.log('First course rating:', recommendationsRes.data[0].rating);
+        console.log('First course reviews_count:', recommendationsRes.data[0].reviews_count);
+      } else {
+        console.log('No recommendations returned');
+      }
+      console.log('=========================');
+      
       setRecommended(recommendationsRes.data || []);
       
       // Process wishlist data
@@ -111,6 +124,20 @@ export default function StudentDashboard() {
         const response = await axios.get(
           `${API_URL}/student/${userId}/featured-courses?tab=${activeTab}`
         );
+        
+        // ADD LOGGING FOR FEATURED COURSES
+        console.log('=== FEATURED COURSES DEBUG ===');
+        console.log('Tab:', activeTab);
+        console.log('Full featured response:', response.data);
+        if (response.data.courses && response.data.courses.length > 0) {
+          console.log('First featured course:', response.data.courses[0]);
+          console.log('First course rating:', response.data.courses[0].rating);
+          console.log('First course reviews_count:', response.data.courses[0].reviews_count);
+        } else {
+          console.log('No featured courses returned');
+        }
+        console.log('===========================');
+        
         setFeaturedCourses(response.data.courses || []);
         setFeaturedCurrentPage(0);
       } catch (error) {
