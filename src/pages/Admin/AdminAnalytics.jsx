@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import api from "../../utils/Api";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import AdminAgentChat from "../../components/aiAgent/AdminAgentChat";
 import {
   BarChart,
   Bar,
@@ -73,7 +74,6 @@ const AdminAnalytics = () => {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleExportPDF = async () => {
@@ -104,11 +104,11 @@ const AdminAnalytics = () => {
       refundPercentage: 0,
       projectedRevenue: 0,
       revenueByCategory: [],
-      totalRevenue: 0, // collected: courses + subs + other
-      collectedCourseRevenue: 0, // collected courses
-      totalSubscriptionRevenue: 0, // collected subs
-      otherRevenue: 0, // collected payments without course/sub plan
-      totalCourseRevenueCeiling: 0, // list price (price × enrollments)
+      totalRevenue: 0,
+      collectedCourseRevenue: 0,
+      totalSubscriptionRevenue: 0,
+      otherRevenue: 0,
+      totalCourseRevenueCeiling: 0,
       instructorShare: 0,
       platformShare: 0,
       subscriptionRevenueByMonth: [],
@@ -119,13 +119,11 @@ const AdminAnalytics = () => {
     userAnalytics = { mostActiveLearners: [] },
   } = data || {};
 
-  // Sum used for sanity in UI (may differ from totalRevenue if there are others)
   const sourceSum =
     Number(financialAnalytics.collectedCourseRevenue || 0) +
     Number(financialAnalytics.totalSubscriptionRevenue || 0) +
     Number(financialAnalytics.otherRevenue || 0);
 
-  // Mix chart: break down collected revenue by source
   const revenueMixData = [
     {
       label: "Courses (Collected)",
@@ -231,8 +229,8 @@ const AdminAnalytics = () => {
             {tab === "overview"
               ? "Overview"
               : tab === "courses"
-              ? "Courses"
-              : "Subscriptions"}
+                ? "Courses"
+                : "Subscriptions"}
           </button>
         ))}
       </div>
@@ -271,9 +269,7 @@ const AdminAnalytics = () => {
             />
             <KPICard
               title="Top Course Volume"
-              value={
-                courseAnalytics.mostEnrolledCourses[0]?.enrollments || 0
-              }
+              value={courseAnalytics.mostEnrolledCourses[0]?.enrollments || 0}
               icon={<BookOpen className="text-indigo-500" />}
               trend="Most enrolled course"
               color="bg-indigo-50"
@@ -309,7 +305,11 @@ const AdminAnalytics = () => {
                         x2="0"
                         y2="1"
                       >
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+                        <stop
+                          offset="5%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.8}
+                        />
                         <stop
                           offset="95%"
                           stopColor="#6366f1"
@@ -338,8 +338,7 @@ const AdminAnalytics = () => {
                       contentStyle={{
                         borderRadius: "12px",
                         border: "none",
-                        boxShadow:
-                          "0 10px 15px -3px rgba(0,0,0,0.1)",
+                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                       }}
                     />
                     <Bar
@@ -389,8 +388,7 @@ const AdminAnalytics = () => {
                       contentStyle={{
                         borderRadius: "12px",
                         border: "none",
-                        boxShadow:
-                          "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                       }}
                     />
                     <Legend verticalAlign="bottom" iconType="circle" />
@@ -695,6 +693,7 @@ const AdminAnalytics = () => {
           </div>
         </>
       )}
+      <AdminAgentChat range={range} activeTab={activeTab} />
     </div>
   );
 };
@@ -731,17 +730,17 @@ const ListCard = ({ title, data, type }) => (
             type === "user"
               ? item.name
               : type === "plan"
-              ? item.plan_name
-              : item.title || item.question_text;
+                ? item.plan_name
+                : item.title || item.question_text;
 
           const valueLabel =
             type === "risk"
               ? `${item.incomplete} left`
               : type === "user"
-              ? `${item.completed_lessons} pts`
-              : type === "plan"
-              ? `${item.active_subscriptions} active`
-              : `${Math.round(item.correct_rate * 100)}%`;
+                ? `${item.completed_lessons} pts`
+                : type === "plan"
+                  ? `${item.active_subscriptions} active`
+                  : `${Math.round(item.correct_rate * 100)}%`;
 
           const href =
             type === "question" && item.course_id

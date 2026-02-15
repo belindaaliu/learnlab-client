@@ -2,9 +2,18 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../utils/Api";
 import Button from "../../components/common/Button";
-import { Check, Star, ArrowRight } from "lucide-react";
+import PlansAgentChat from "../../components/aiAgent/PlansAgentChat";
+import {
+  Check,
+  Star,
+  ArrowRight,
+  MessageCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import toast from "react-hot-toast"; 
+import toast from "react-hot-toast";
+import PlanComparison from "../../components/PlanComparison";
 
 const SubscriptionPlans = () => {
   const navigate = useNavigate();
@@ -13,6 +22,8 @@ const SubscriptionPlans = () => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userSub, setUserSub] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
     api
@@ -37,6 +48,17 @@ const SubscriptionPlans = () => {
         .catch(() => {});
     }
   }, [user]);
+
+  useEffect(() => {
+  if (showComparison) {
+    setTimeout(() => {
+      window.scrollTo({
+        top: window.scrollY + 600, 
+        behavior: "smooth",
+      });
+    }, 150);
+  }
+}, [showComparison]);
 
   const formatFeatures = (f) => {
     const list = [];
@@ -257,6 +279,49 @@ const SubscriptionPlans = () => {
           );
         })}
       </div>
+
+      {/* Comparison Table */}
+      <div className="mt-16 text-center">
+        <button
+          onClick={() => setShowComparison(!showComparison)}
+          className="inline-flex items-center gap-2 px-8 py-3 rounded-full border-2 border-slate-200 font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+        >
+          {showComparison ? (
+            <>
+              Hide detailed features <ChevronUp size={20} />
+            </>
+          ) : (
+            <>
+              Compare plan features <ChevronDown size={20} />
+            </>
+          )}
+        </button>
+      </div>
+
+      {showComparison && plans.length > 0 && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <PlanComparison plans={plans} />
+        </div>
+      )}
+
+      {/* AI Agent Logic */}
+      {isChatOpen ? (
+        <PlansAgentChat onClose={() => setIsChatOpen(false)} plans={[]} />
+      ) : (
+        /* Launcher Button */
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 z-50 group"
+        >
+          <div className="relative">
+            <MessageCircle className="w-6 h-6" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-indigo-600 rounded-full"></span>
+          </div>
+          <span className="absolute right-16 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-[11px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            Ask Copilot
+          </span>
+        </button>
+      )}
     </div>
   );
 };
