@@ -104,9 +104,13 @@ export default function PublicProfile() {
     setShowSearchResults(true);
 
     try {
-      const res = await axios.get(
-        `${API_URL}/users/search?q=${encodeURIComponent(searchQuery)}${searchFilter !== 'all' ? `&type=${searchFilter}` : ''}`
-      );
+      console.log("Searching with filter:", searchFilter);
+      const url = `${API_URL}/users/search?q=${encodeURIComponent(searchQuery)}${searchFilter !== 'all' ? `&type=${searchFilter}` : ''}`;
+      console.log("Search URL:", url);
+      
+      const res = await axios.get(url);
+      console.log("Search results:", res.data);
+      
       setSearchResults(res.data);
     } catch (err) {
       console.error("Search error:", err);
@@ -258,7 +262,7 @@ export default function PublicProfile() {
                       {searchResults.map((user) => (
                         <Link
                           key={user.id}
-                          to={`/student/public-profile/${user.id}`}
+                          to={`/profile/${user.id}`}
                           onClick={() => clearSearch()}
                           className="flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-100 last:border-0"
                         >
