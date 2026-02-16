@@ -111,6 +111,15 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
+          {
+      path: "profile/:id",
+      element: (
+        <ProtectedRoute allowedRoles={['student', 'instructor']}>
+          <PublicProfile />
+        </ProtectedRoute>
+      ),
+    },
     ],
   },
 
@@ -152,12 +161,10 @@ export const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <StudentDashboard /> },
       { path: "learning", element: <MyLearning /> },
-      { path: "public-profile/:id", element: <PublicProfile /> },
       { path: "edit-profile", element: <EditProfile /> },
       { path: "edit-photo", element: <EditPhoto /> },
       { path: "messages", element: <Messages /> },
       { path: "cart", element: <Cart /> },
-      // { path: "security", element: <AccountSecurity /> },
       // { path: "notifications", element: <NotificationSettings /> },
       // { path: "privacy", element: <PrivacySettings /> },
       

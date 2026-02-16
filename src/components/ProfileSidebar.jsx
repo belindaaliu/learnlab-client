@@ -40,7 +40,7 @@ export default function ProfileSidebar() {
   const links =
     user?.role === "instructor"
       ? [
-          { label: "Public Profile", to: "/instructor/edit-profile", icon: User },
+          { label: "Edit Profile", to: "/instructor/edit-profile", icon: User },
           { label: "Profile Photo", to: "/instructor/edit-photo", icon: Camera },
           { label: "Account Security", to: "/instructor/security", icon: Shield },
         ]

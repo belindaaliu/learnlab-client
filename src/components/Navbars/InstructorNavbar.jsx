@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, BarChart, BookOpen, LogOut, LayoutDashboard } from "lucide-react";
+import { Bell, MessageSquare, BarChart, BookOpen, LogOut, LayoutDashboard, User } from "lucide-react"; // Added User import
 import logo from "../../assets/images/logo.png"; // اطمینان حاصل کن مسیر لوگو درست است
 
 export default function InstructorNavbar() {
@@ -15,6 +15,8 @@ export default function InstructorNavbar() {
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     delete axios.defaults.headers.common["Authorization"];
     navigate("/login");
   };
@@ -42,9 +44,9 @@ export default function InstructorNavbar() {
 
           <div className="h-6 w-px bg-slate-700 mx-1"></div>
 
-             <span className="text-xs font-bold bg-purple-600 px-2 py-0.5 rounded uppercase tracking-wider group-hover:bg-purple-500 transition">
-               Instructor
-             </span>
+          <span className="text-xs font-bold bg-purple-600 px-2 py-0.5 rounded uppercase tracking-wider group-hover:bg-purple-500 transition">
+            Instructor
+          </span>
         </div>
 
         {/* Instructor Navigation Links */}
@@ -86,42 +88,66 @@ export default function InstructorNavbar() {
 
         {/* Avatar / Profile Dropdown */}
         <div className="relative group h-full flex items-center cursor-pointer">
-          {profile?.avatar_url ? (
+          {profile?.photo_url ? ( // Changed from avatar_url to photo_url to match your schema
             <img
-              src={profile.avatar_url}
+              src={profile.photo_url}
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover border-2 border-slate-700 group-hover:border-purple-500 transition-colors"
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold border-2 border-slate-700 group-hover:border-purple-400 transition-colors">
-              {profile?.first_name?.[0] || "I"}
+              {profile?.first_name?.[0] || user?.first_name?.[0] || "I"}
             </div>
           )}
 
           {/* Dropdown Menu */}
           <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-              <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden mt-2">
-                  <div className="px-4 py-3 border-b bg-gray-50">
-                      <p className="font-bold text-sm truncate">{profile?.first_name} {profile?.last_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                  </div>
-                  
-                  <div className="py-1">
-                      <Link to="/instructor/edit-profile" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
-                          Edit Profile
-                      </Link>
-                      <Link to="/instructor/settings" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
-                          Account Settings
-                      </Link>
-                      <div className="border-t my-1"></div>
-                      <button 
-                          onClick={handleLogout} 
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2 transition"
-                      >
-                          <LogOut className="w-4 h-4" /> Log out
-                      </button>
-                  </div>
+            <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden mt-2">
+              <div className="px-4 py-3 border-b bg-gray-50">
+                <p className="font-bold text-sm truncate">
+                  {profile?.first_name || user?.first_name} {profile?.last_name || user?.last_name}
+                </p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
+              
+              <div className="py-1">
+                <Link 
+                  to="/instructor/edit-profile" 
+                  className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition"
+                >
+                  <User className="w-4 h-4 text-gray-500" />
+                  Edit Profile
+                </Link>
+                
+                <Link
+                  to={`/${user?.role}/public-profile/${user?.id}`}
+                  className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition"
+                >
+                  <User className="w-4 h-4 text-gray-500" />
+                  Public Profile
+                </Link>
+
+                <Link 
+                  to="/instructor/security" 
+                  className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition"
+                >
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Account Security
+                </Link>
+
+                <div className="border-t my-1"></div>
+
+                <button 
+                  onClick={handleLogout} 
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition"
+                >
+                  <LogOut className="w-4 h-4" /> 
+                  Log out
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
