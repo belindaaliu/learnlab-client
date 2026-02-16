@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, BarChart, BookOpen, LogOut, LayoutDashboard, Check, Trash2 } from "lucide-react";
+import { 
+  Bell, 
+  MessageSquare, 
+  BarChart, 
+  BookOpen, 
+  LogOut, 
+  LayoutDashboard, 
+  Check, 
+  Trash2,
+  User,
+  Settings
+} from "lucide-react";
 import logo from "../../assets/images/logo.png";
 
 export default function InstructorNavbar() {
@@ -29,8 +40,12 @@ export default function InstructorNavbar() {
   useEffect(() => {
     if (!userId) return;
 
+    // FIXED: Use the correct endpoint with auth header
+    const token = localStorage.getItem('token');
     axios
-      .get(`${API_URL}/student/me/${userId}`)
+      .get(`${API_URL}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
       .then((res) => setProfile(res.data))
       .catch((err) => console.error("Profile fetch error:", err));
   }, [userId, API_URL]);
@@ -38,7 +53,7 @@ export default function InstructorNavbar() {
   // Fetch notifications
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -159,14 +174,13 @@ export default function InstructorNavbar() {
       <div className="flex items-center gap-8 shrink-0">
         
         <div className="flex items-center gap-3">
-
           <Link to="/" title="Go to Main Site">
-             <img src={logo} alt="LearnLab" className="h-8 w-auto object-contain brightness-0 invert hover:opacity-80 transition" />
+            <img src={logo} alt="LearnLab" className="h-8 w-auto object-contain brightness-0 invert hover:opacity-80 transition" />
           </Link>
 
           <div className="h-6 w-px bg-slate-700 mx-1"></div>
 
-          <span className="text-xs font-bold bg-purple-600 px-2 py-0.5 rounded uppercase tracking-wider group-hover:bg-purple-500 transition">
+          <span className="text-xs font-bold bg-purple-600 px-2 py-0.5 rounded uppercase tracking-wider">
             Instructor
           </span>
         </div>
@@ -174,16 +188,16 @@ export default function InstructorNavbar() {
         {/* Instructor Navigation Links */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-300">
           <Link to="/instructor/dashboard" className="hover:text-white transition flex items-center gap-2">
-              <LayoutDashboard className="w-4 h-4"/> Dashboard
+            <LayoutDashboard className="w-4 h-4"/> Dashboard
           </Link>
           <Link to="/instructor/courses" className="hover:text-white transition flex items-center gap-2">
-              <BookOpen className="w-4 h-4"/> Courses
+            <BookOpen className="w-4 h-4"/> Courses
           </Link>
           <Link to="/instructor/messages" className="hover:text-white transition flex items-center gap-2">
-              <MessageSquare className="w-4 h-4"/> Messages
+            <MessageSquare className="w-4 h-4"/> Messages
           </Link>
           <Link to="/instructor/performance" className="hover:text-white transition flex items-center gap-2">
-              <BarChart className="w-4 h-4"/> Performance
+            <BarChart className="w-4 h-4"/> Performance
           </Link>
         </nav>
       </div>
@@ -259,7 +273,7 @@ export default function InstructorNavbar() {
                           {!notif.is_read && (
                             <button
                               onClick={() => markAsRead(notif.notification_id)}
-                              className="text-purple-600 hover:text-purple-700 text-xs"
+                              className="text-purple-600 hover:text-purple-700"
                               title="Mark as read"
                             >
                               <Check size={16} />
@@ -267,7 +281,7 @@ export default function InstructorNavbar() {
                           )}
                           <button
                             onClick={() => deleteNotification(notif.notification_id)}
-                            className="text-red-600 hover:text-red-700 text-xs"
+                            className="text-red-600 hover:text-red-700"
                             title="Delete"
                           >
                             <Trash2 size={16} />
@@ -296,52 +310,27 @@ export default function InstructorNavbar() {
         </div>
 
         {/* Avatar / Profile Dropdown */}
-        <div className="relative group h-full flex items-center cursor-pointer">
-          {profile?.photo_url ? ( // Changed from avatar_url to photo_url to match your schema
-            <img
-              src={profile.photo_url}
-              alt="Profile"
-              className="w-10 h-10 rounded-full object-cover border-2 border-slate-700 group-hover:border-purple-500 transition-colors"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          
-          <div 
-            className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold border-2 border-slate-700 group-hover:border-purple-400 transition-colors"
-            style={{ display: displayPhoto ? 'none' : 'flex' }}
-          >
-            {displayFirstName[0].toUpperCase()}
-          </div>
+        <div className="relative group">
+          <button className="flex items-center gap-2 focus:outline-none">
+            {displayPhoto ? (
+              <img
+                src={displayPhoto}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover border-2 border-slate-700 group-hover:border-purple-500 transition-colors"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold border-2 border-slate-700 group-hover:border-purple-400 transition-colors">
+                {displayFirstName[0].toUpperCase()}
+              </div>
+            )}
+          </button>
 
           {/* Dropdown Menu */}
           <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-              <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden mt-2">
-                  <div className="px-4 py-3 border-b bg-gray-50">
-                      <p className="font-bold text-sm truncate">{displayFirstName} {displayLastName}</p>
-                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                  </div>
-                  
-                  <div className="py-1">
-                      <Link to="/instructor/edit-profile" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
-                          Edit Profile
-                      </Link>
-                      <Link to="/instructor/notifications" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
-                          Notifications
-                      </Link>
-                      <Link to="/instructor/settings" className="block px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition">
-                          Account Settings
-                      </Link>
-                      <div className="border-t my-1"></div>
-                      <button 
-                          onClick={handleLogout} 
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2 transition"
-                      >
-                          <LogOut className="w-4 h-4" /> Log out
-                      </button>
-                  </div>
+            <div className="bg-white text-gray-800 shadow-xl rounded-lg border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 border-b bg-gray-50">
+                <p className="font-bold text-sm truncate">{displayFirstName} {displayLastName}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
               
               <div className="py-1">
@@ -354,11 +343,19 @@ export default function InstructorNavbar() {
                 </Link>
                 
                 <Link
-                  to={`/${user?.role}/public-profile/${user?.id}`}
+                  to={`/profile/${userId}`}
                   className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition"
                 >
                   <User className="w-4 h-4 text-gray-500" />
-                  Public Profile
+                  View Public Profile
+                </Link>
+
+                <Link 
+                  to="/instructor/notifications" 
+                  className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-700 transition"
+                >
+                  <Bell className="w-4 h-4 text-gray-500" />
+                  Notifications
                 </Link>
 
                 <Link 
@@ -378,13 +375,12 @@ export default function InstructorNavbar() {
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition"
                 >
                   <LogOut className="w-4 h-4" /> 
-                  Log out
+                  Logout
                 </button>
               </div>
             </div>
           </div>
         </div>
-
       </div>
     </header>
   );
