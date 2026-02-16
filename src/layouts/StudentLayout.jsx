@@ -314,11 +314,7 @@ export default function StudentLayout() {
                   >
                     <Heart className="w-4 h-4 text-gray-500" />
                     Wishlist
-                    {wishlistCourses.length > 0 && (
-                      <span className="ml-auto px-1.5 py-0.5 bg-red-500 text-white text-xs font-medium rounded-full">
-                        {wishlistCourses.length}
-                      </span>
-                    )}
+                    
                   </Link>
                   
                   <div className="border-t my-2"></div>

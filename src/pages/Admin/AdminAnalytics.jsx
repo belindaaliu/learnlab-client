@@ -48,6 +48,7 @@ const AdminAnalytics = () => {
 
   const [activeTab, setActiveTab] = useState("overview"); // overview | courses | subscriptions
   const [range, setRange] = useState({ start: "", end: "" });
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchData = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -78,16 +79,92 @@ const AdminAnalytics = () => {
 
   const handleExportPDF = async () => {
     if (!dashboardRef.current) return;
-    const element = dashboardRef.current;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
+    setIsExporting(true);
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    try {
+      const element = dashboardRef.current;
 
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save("Analytics-Report.pdf");
+      // Slightly longer delay to ensure all Recharts tooltips/animations are gone
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#f8fafc",
+        windowWidth: 1400,
+        onclone: (clonedDoc) => {
+          // Hide UI elements we don't want in a static report
+          const idsToHide = ["ai-chat-button", "admin-agent-chat"];
+          idsToHide.forEach((id) => {
+            const el = clonedDoc.getElementById(id);
+            if (el) el.style.display = "none";
+          });
+
+          const actions = clonedDoc.querySelectorAll(
+            ".flex.gap-3, .flex.items-center.gap-2",
+          );
+          actions.forEach((el) => (el.style.display = "none"));
+
+          const charts = clonedDoc.querySelectorAll(".recharts-wrapper");
+          charts.forEach((chart) => {
+            chart.style.opacity = "1";
+            chart.style.visibility = "visible";
+          });
+        },
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Calculate image height based on the PDF width
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      const margin = 10; 
+
+      // Page 1
+      pdf.addImage(
+        imgData,
+        "PNG",
+        0,
+        position,
+        pdfWidth,
+        imgHeight,
+        undefined,
+        "FAST",
+      );
+      heightLeft -= pdfHeight;
+
+      // Additional Pages
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(
+          imgData,
+          "PNG",
+          0,
+          position,
+          pdfWidth,
+          imgHeight,
+          undefined,
+          "FAST",
+        );
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(
+        `Analytics-Report-${new Date().toISOString().split("T")[0]}.pdf`,
+      );
+    } catch (err) {
+      console.error("Export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (loading) return <LoadingSkeleton />;
@@ -196,9 +273,17 @@ const AdminAnalytics = () => {
           <div className="flex gap-3">
             <button
               onClick={handleExportPDF}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold shadow-sm hover:bg-slate-50 transition-all"
+              disabled={isExporting}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold shadow-sm hover:bg-slate-50 transition-all disabled:opacity-70"
             >
-              Export PDF
+              {isExporting ? (
+                <>
+                  <LoaderCircle className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                "Export PDF"
+              )}
             </button>
             <button
               onClick={() => fetchData(true)}
@@ -760,7 +845,7 @@ const ListCard = ({ title, data, type }) => (
                   {label}
                 </a>
               ) : (
-                <span className="text-sm font-medium text-slate-600 truncate w-2/3">
+                <span className="text-sm font-medium text-slate-600 flex-1 pr-4 break-words">
                   {label}
                 </span>
               )}
