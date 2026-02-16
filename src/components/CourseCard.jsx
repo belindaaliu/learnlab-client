@@ -183,7 +183,7 @@ const CourseCard = ({
     }
   };
 
-  return (
+    return (
     <div className="group relative flex flex-col bg-white border border-gray-200 rounded-lg overflow-visible hover:shadow-xl transition-shadow duration-300 h-full">
       <Link to={`/courses/${course.id}`} className="block h-full flex flex-col">
         <div className="relative aspect-video overflow-hidden rounded-t-lg bg-gray-100">
@@ -293,10 +293,11 @@ const CourseCard = ({
         </div>
       </Link>
 
+      {/* BRIDGE ELEMENT - Creates invisible bridge between card and popup */}
+      <div className="hidden md:group-hover:block absolute top-0 left-full w-3 h-full z-[998]" />
+
       {/* --- HOVER POPUP (RIGHT SIDE) --- */}
-      <div
-        className="hidden md:group-hover:block absolute top-0 left-full ml-3 w-[300px] bg-white shadow-xl border border-gray-200 p-5 z-[999] rounded-lg animate-in fade-in duration-200"
-      >
+      <div className="hidden md:group-hover:block absolute top-0 left-full ml-3 w-[300px] bg-white shadow-xl border border-gray-200 p-5 z-[999] rounded-lg animate-in fade-in duration-200">
         {/* Arrow pointing to card */}
         <div className="absolute top-8 -left-2 w-4 h-4 bg-white border-l border-b border-gray-200 transform rotate-45"></div>
 
@@ -317,13 +318,13 @@ const CourseCard = ({
             
             {updatedDate && (
               <span className="text-green-600 text-[10px] font-bold shrink-0 flex items-center gap-1">
-                 Updated {updatedDate}
+                Updated {updatedDate}
               </span>
             )}
           </div>
           
           <p className="text-xs text-gray-600 mb-4 line-clamp-3">
-             {course.description || "Master this topic with our comprehensive guide."}
+            {course.description || "Master this topic with our comprehensive guide."}
           </p>
 
           <div className="space-y-2 mb-6">
