@@ -7,6 +7,10 @@ import {
   ChevronRight,
   CheckCircle,
   Check,
+  Star,
+  Edit,
+  Trash2,
+  X,
 } from "lucide-react";
 import logo from "../../assets/images/logo.png";
 import QuizPlayer from "./QuizPlayer";
@@ -36,6 +40,14 @@ export default function CoursePlayer() {
   const [certificateIssued, setCertificateIssued] = useState(false);
   const [certificateMessage, setCertificateMessage] = useState("");
   const [hasCertificate, setHasCertificate] = useState(false);
+
+  // Review states
+  const [reviews, setReviews] = useState([]);
+  const [userReview, setUserReview] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Fixed height for all content areas
   const CONTENT_HEIGHT = "70vh";
@@ -92,6 +104,16 @@ export default function CoursePlayer() {
     });
   };
 
+  const formatReviewDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
   // Helper function to find lesson by ID (needs to be declared before useEffect)
   const findLessonById = (lessonId) => {
     if (!sections || sections.length === 0) return null;
@@ -108,10 +130,132 @@ export default function CoursePlayer() {
   };
 
   // ============================
+  // Fetch Reviews
+  // ============================
+  const fetchReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const response = await axios.get(
+        `${API_URL}/courses/${courseId}/reviews`,
+        config
+      );
+      setReviews(response.data.reviews || []);
+      setUserReview(response.data.userReview || null);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  // ============================
+  // Submit Review
+  // ============================
+  const handleSubmitReview = async () => {
+    if (!reviewForm.comment.trim()) {
+      alert("Please write a review comment");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      if (userReview) {
+        // Update existing review
+        await axios.put(
+          `${API_URL}/courses/${courseId}/reviews/${userReview.id}`,
+          reviewForm,
+          config
+        );
+      } else {
+        // Create new review
+        await axios.post(
+          `${API_URL}/courses/${courseId}/reviews`,
+          reviewForm,
+          config
+        );
+      }
+
+      setShowReviewModal(false);
+      setReviewForm({ rating: 5, comment: "" });
+      fetchReviews();
+
+      // Refresh course data to update average rating
+      const courseRes = await axios.get(
+        `${API_URL}/course-player/${courseId}`,
+        config
+      );
+      setCourse(courseRes.data);
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      alert("Failed to submit review. Please try again.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  // ============================
+  // Delete Review
+  // ============================
+  const handleDeleteReview = async () => {
+    if (!confirm("Are you sure you want to delete your review?")) return;
+
+    try {
+      await axios.delete(
+        `${API_URL}/courses/${courseId}/reviews/${userReview.id}`,
+        config
+      );
+      setUserReview(null);
+      fetchReviews();
+
+      // Refresh course data
+      const courseRes = await axios.get(
+        `${API_URL}/course-player/${courseId}`,
+        config
+      );
+      setCourse(courseRes.data);
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      alert("Failed to delete review");
+    }
+  };
+
+  // ============================
+  // Open Edit Review Modal
+  // ============================
+  const handleEditReview = () => {
+    setReviewForm({
+      rating: userReview.rating,
+      comment: userReview.comment,
+    });
+    setShowReviewModal(true);
+  };
+
+  // ============================
+  // Render Star Rating
+  // ============================
+  const StarRating = ({ rating, size = "w-4 h-4", interactive = false, onRatingChange = null }) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`${size} ${
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-600"
+            } ${interactive ? "cursor-pointer hover:fill-yellow-400 hover:text-yellow-400" : ""}`}
+            onClick={() => interactive && onRatingChange && onRatingChange(star)}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  // ============================
   // Handle browser back/forward buttons
   // ============================
   useEffect(() => {
-    // Handle browser back/forward buttons
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const lessonId = urlParams.get("lesson");
@@ -164,6 +308,15 @@ export default function CoursePlayer() {
   }, [certificateIssued, courseId, navigate]);
 
   // ============================
+  // Fetch reviews when Reviews tab is active
+  // ============================
+  useEffect(() => {
+    if (activeTab === "reviews") {
+      fetchReviews();
+    }
+  }, [activeTab, courseId]);
+
+  // ============================
   // Fetch course, lessons, next lesson
   // ============================
   useEffect(() => {
@@ -176,11 +329,9 @@ export default function CoursePlayer() {
       try {
         setLoading(true);
 
-        // Check URL for specific lesson parameter
         const urlParams = new URLSearchParams(window.location.search);
         const lessonIdFromUrl = urlParams.get("lesson");
 
-        // Fetch course info
         const courseRes = await axios.get(
           `${API_URL}/course-player/${courseId}`,
           config,
@@ -188,18 +339,15 @@ export default function CoursePlayer() {
         console.log("Course data:", courseRes.data);
         setCourse(courseRes.data);
 
-        // Fetch organized lessons/sections
         const lessonsRes = await axios.get(
           `${API_URL}/course-player/${courseId}/lessons`,
           config,
         );
         console.log("Lessons/sections data:", lessonsRes.data);
 
-        // Backend already organizes data, just use it directly
         const sectionsData = lessonsRes.data || [];
         setSections(sectionsData);
 
-        // Expand all sections by default
         const defaultExpanded = new Set();
         sectionsData?.forEach((section) => {
           if (section.id !== "standalone") {
@@ -208,14 +356,11 @@ export default function CoursePlayer() {
         });
         setExpandedSections(defaultExpanded);
 
-        // Get completed lessons IDs
         const completedIds = await fetchCompletedLessons();
         setCompletedLessons(new Set(completedIds));
 
-        // If there's a lesson ID in the URL, use it
         if (lessonIdFromUrl) {
           console.log("Found lesson ID in URL:", lessonIdFromUrl);
-          // Find the lesson in the sections
           let foundLesson = null;
           for (const section of sectionsData) {
             if (section.children) {
@@ -230,11 +375,9 @@ export default function CoursePlayer() {
             console.log("Setting lesson from URL:", foundLesson);
             setCurrentLesson(foundLesson);
           } else {
-            // Fallback to getting next lesson
             await getNextLessonFallback(sectionsData);
           }
         } else {
-          // No URL parameter, get next lesson normally
           await getNextLessonFallback(sectionsData);
         }
       } catch (err) {
@@ -247,7 +390,6 @@ export default function CoursePlayer() {
       }
     }
 
-    // Helper function to get next lesson
     const getNextLessonFallback = async (sectionsData) => {
       try {
         const nextRes = await axios.get(
@@ -259,7 +401,6 @@ export default function CoursePlayer() {
         if (nextRes.data) {
           setCurrentLesson(nextRes.data);
         } else if (sectionsData && sectionsData.length > 0) {
-          // Try to find first lesson from the sections
           for (const section of sectionsData) {
             if (section.children && section.children.length > 0) {
               setCurrentLesson(section.children[0]);
@@ -275,7 +416,6 @@ export default function CoursePlayer() {
     loadData();
   }, [courseId, userId]);
 
-  // Fetch completed lessons
   const fetchCompletedLessons = async () => {
     try {
       const response = await axios.get(
@@ -289,7 +429,6 @@ export default function CoursePlayer() {
     }
   };
 
-  // Toggle section expansion
   const toggleSection = (sectionId) => {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(sectionId)) {
@@ -300,7 +439,6 @@ export default function CoursePlayer() {
     setExpandedSections(newExpanded);
   };
 
-  // Get lesson icon based on type
   const getLessonIcon = (type) => {
     switch (type) {
       case "video":
@@ -322,7 +460,6 @@ export default function CoursePlayer() {
     }
   };
 
-  // Format time
   const formatTime = (seconds) => {
     if (!seconds) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -330,10 +467,8 @@ export default function CoursePlayer() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Handle lesson click
   const handleLessonClick = (lesson) => {
     setCurrentLesson(lesson);
-    // Update URL without page reload
     window.history.pushState(
       {},
       "",
@@ -341,26 +476,20 @@ export default function CoursePlayer() {
     );
   };
 
-  // ============================
-  // Mark lesson complete manually (via checkbox)
-  // ============================
   const handleManualComplete = async (lessonId, isCurrentlyCompleted) => {
     try {
       setUpdatingProgress(true);
 
       if (isCurrentlyCompleted) {
-        // Mark as incomplete
         await axios.delete(
           `${API_URL}/course-player/${courseId}/lessons/${lessonId}/complete`,
           config,
         );
 
-        // Update local state
         const newCompleted = new Set(completedLessons);
         newCompleted.delete(lessonId);
         setCompletedLessons(newCompleted);
       } else {
-        // Mark as complete
         const res = await axios.post(
           `${API_URL}/course-player/${courseId}/lessons/${lessonId}/complete`,
           {},
@@ -374,13 +503,11 @@ export default function CoursePlayer() {
           );
         }
 
-        // Update local state
         const newCompleted = new Set(completedLessons);
         newCompleted.add(lessonId);
         setCompletedLessons(newCompleted);
       }
 
-      // Refresh course data to update progress
       const courseRes = await axios.get(
         `${API_URL}/course-player/${courseId}`,
         config,
@@ -394,9 +521,6 @@ export default function CoursePlayer() {
     }
   };
 
-  // ============================
-  // Mark lesson complete (video auto-complete)
-  // ============================
   const handleVideoEnd = async () => {
     try {
       setUpdatingProgress(true);
@@ -413,19 +537,16 @@ export default function CoursePlayer() {
         );
       }
 
-      // Update local state
       const newCompleted = new Set(completedLessons);
       newCompleted.add(currentLesson.id);
       setCompletedLessons(newCompleted);
 
-      // Refresh course data
       const courseRes = await axios.get(
         `${API_URL}/course-player/${courseId}`,
         config,
       );
       setCourse(courseRes.data);
 
-      // Get next lesson
       const nextRes = await axios.get(
         `${API_URL}/course-player/${courseId}/next`,
         config,
@@ -438,34 +559,9 @@ export default function CoursePlayer() {
     }
   };
 
-  // Calculate completion percentage
   const calculateCompletionPercentage = () => {
     if (!course || course.total_lessons === 0) return 0;
     return Math.round((course.completed_lessons / course.total_lessons) * 100);
-  };
-
-  if (loading) {
-    return <div className="text-white p-10">Loading course...</div>;
-  }
-
-  if (!course) {
-    return <div className="text-white p-10">Course not found</div>;
-  }
-
-  // ============================
-  // Initialize course progress
-  // ============================
-  const initializeProgress = async () => {
-    try {
-      await axios.post(
-        `${API_URL}/course-player/${courseId}/initialize-progress`,
-        {},
-        config,
-      );
-      console.log("Course progress initialized");
-    } catch (err) {
-      console.error("Error initializing progress:", err);
-    }
   };
 
   const handleDownloadCertificate = async () => {
@@ -490,11 +586,90 @@ export default function CoursePlayer() {
     }
   };
 
+  if (loading) {
+    return <div className="text-white p-10">Loading course...</div>;
+  }
+
+  if (!course) {
+    return <div className="text-white p-10">Course not found</div>;
+  }
+
   return (
     <div className="bg-slate-900 text-white min-h-screen">
+      {/* ================= REVIEW MODAL ================= */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 w-full max-w-lg mx-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">
+                {userReview ? "Edit Your Review" : "Write a Review"}
+              </h3>
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Rating */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Your Rating
+                </label>
+                <StarRating
+                  rating={reviewForm.rating}
+                  size="w-8 h-8"
+                  interactive={true}
+                  onRatingChange={(rating) =>
+                    setReviewForm({ ...reviewForm, rating })
+                  }
+                />
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Your Review
+                </label>
+                <textarea
+                  value={reviewForm.comment}
+                  onChange={(e) =>
+                    setReviewForm({ ...reviewForm, comment: e.target.value })
+                  }
+                  placeholder="Share your thoughts about this course..."
+                  className="w-full h-32 px-4 py-2 bg-slate-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={submittingReview}
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingReview
+                    ? "Submitting..."
+                    : userReview
+                      ? "Update Review"
+                      : "Submit Review"}
+                </button>
+                <button
+                  onClick={() => setShowReviewModal(false)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= TOP BAR ================= */}
       <div className="w-full bg-slate-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between fixed top-0 z-50">
-        {/* LEFT — Logo + Course Name */}
         <div className="flex items-center gap-4">
           <Link to="/student/dashboard">
             <img
@@ -509,7 +684,6 @@ export default function CoursePlayer() {
           </h1>
         </div>
 
-        {/* RIGHT — Progress + Circle + Rating + Certificate */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="relative group">
@@ -562,9 +736,7 @@ export default function CoursePlayer() {
 
       {/* ================= MAIN CONTENT ================= */}
       <div className="flex pt-[72px]">
-        {/* LEFT CONTENT */}
         <div className="flex-1 mr-80">
-          {/* CONTENT CONTAINER WITH FIXED HEIGHT */}
           <div className="bg-black" style={{ height: CONTENT_HEIGHT }}>
             {!currentLesson && (
               <div className="h-full flex items-center justify-center text-gray-400">
@@ -577,7 +749,6 @@ export default function CoursePlayer() {
               </div>
             )}
 
-            {/* 🎥 VIDEO */}
             {currentLesson?.type === "video" && currentLesson.video_url && (
               <div className="h-full w-full bg-black flex items-center justify-center">
                 <video
@@ -591,7 +762,6 @@ export default function CoursePlayer() {
               </div>
             )}
 
-            {/* 📄 NOTE */}
             {currentLesson?.type === "note" && currentLesson.note_content && (
               <div className="h-full flex flex-col bg-white">
                 <div className="flex-1 overflow-y-auto p-8 md:p-12">
@@ -612,7 +782,6 @@ export default function CoursePlayer() {
               </div>
             )}
 
-            {/* ❓ QUIZ */}
             {currentLesson?.type === "assessment" && (
               <div className="h-full flex flex-col bg-white">
                 <QuizPlayer
@@ -622,7 +791,6 @@ export default function CoursePlayer() {
                     certificateIssued: certIssued,
                     certificateReason,
                   } = {}) => {
-                    // Update local completed lessons state
                     const newCompleted = new Set(completedLessons);
                     newCompleted.add(currentLesson.id);
                     setCompletedLessons(newCompleted);
@@ -635,7 +803,6 @@ export default function CoursePlayer() {
                       );
                     }
 
-                    // Refresh course data to update progress
                     const refreshCourseData = async () => {
                       try {
                         const courseRes = await axios.get(
@@ -644,7 +811,6 @@ export default function CoursePlayer() {
                         );
                         setCourse(courseRes.data);
 
-                        // Get next lesson
                         const nextRes = await axios.get(
                           `${API_URL}/course-player/${courseId}/next`,
                           config,
@@ -752,7 +918,6 @@ export default function CoursePlayer() {
 
                 <hr className="border-gray-700" />
 
-                {/* Description */}
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-3">
                     <h3 className="font-semibold">Description</h3>
@@ -766,7 +931,6 @@ export default function CoursePlayer() {
 
                 <hr className="border-gray-700" />
 
-                {/* Instructor */}
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-12 md:col-span-3">
                     <h3 className="font-semibold text-gray-200">Instructor</h3>
@@ -795,16 +959,151 @@ export default function CoursePlayer() {
               </div>
             )}
 
-            {activeTab === "reviews" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold">Student Reviews</h3>
-                {course.reviews === 0 && (
-                  <p className="text-gray-400">
-                    No reviews yet. Be the first to leave one!
-                  </p>
-                )}
+      {activeTab === "reviews" && (
+        <div className="space-y-6">
+          {/* Header with Add/Edit Review Button */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold">Student Reviews</h3>
+
+            {!userReview ? (
+              <button
+                onClick={() => {
+                  setReviewForm({ rating: 5, comment: "" });
+                  setShowReviewModal(true);
+                }}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition"
+              >
+                Write a Review
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleEditReview}
+                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={handleDeleteReview}
+                  className="px-3 py-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg text-sm font-medium transition flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
               </div>
             )}
+          </div>
+
+          {/* Your Review */}
+          {userReview && (
+            <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <img
+                  src={user?.photo || user?.profile_picture || "/default-avatar.png"}
+                  alt={user?.name || `${user?.first_name} ${user?.last_name}`}
+                  className="w-12 h-12 rounded-full object-cover border border-gray-700"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-semibold">
+                        {user?.name || `${user?.first_name} ${user?.last_name}`} (You)
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <StarRating rating={userReview.rating} />
+                        <span className="text-xs text-gray-400">
+                          {formatReviewDate(userReview.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {userReview.comment}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loadingReviews && (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              <p className="text-gray-400 mt-2">Loading reviews...</p>
+            </div>
+          )}
+
+          {/* Reviews List */}
+          {!loadingReviews && reviews.length === 0 && !userReview && (
+            <div className="text-center py-8">
+              <p className="text-gray-400">
+                No reviews yet. Be the first to leave one!
+              </p>
+            </div>
+          )}
+
+          {!loadingReviews && reviews.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-300">
+                Other Reviews ({reviews.length})
+              </h4>
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="bg-slate-800 rounded-lg p-4 border border-gray-700"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={
+                        review.student?.photo || 
+                        review.student?.profile_picture || 
+                        review.Users?.photo ||
+                        review.Users?.profile_picture ||
+                        "/default-avatar.png"
+                      }
+                      alt={
+                        review.student?.name || 
+                        (review.student?.first_name && review.student?.last_name
+                          ? `${review.student.first_name} ${review.student.last_name}`
+                          : review.Users?.name ||
+                            (review.Users?.first_name && review.Users?.last_name
+                              ? `${review.Users.first_name} ${review.Users.last_name}`
+                              : "Student"))
+                      }
+                      className="w-12 h-12 rounded-full object-cover border border-gray-700"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-semibold">
+                            {review.student?.name || 
+                            (review.student?.first_name && review.student?.last_name
+                              ? `${review.student.first_name} ${review.student.last_name}`
+                              : review.Users?.name ||
+                                (review.Users?.first_name && review.Users?.last_name
+                                  ? `${review.Users.first_name} ${review.Users.last_name}`
+                                  : "Anonymous Student"))}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <StarRating rating={review.rating} />
+                            <span className="text-xs text-gray-400">
+                              {formatReviewDate(review.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-gray-300 text-sm leading-relaxed">
+                        {review.comment}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
           </div>
         </div>
 
@@ -813,13 +1112,7 @@ export default function CoursePlayer() {
           <div className="p-4 border-b border-gray-800">
             <div className="flex items-center justify-between">
               <h4 className="font-bold">Course Content</h4>
-              {/* <span className="text-xs bg-purple-900/30 text-purple-300 px-2 py-1 rounded">
-                {calculateCompletionPercentage()}%
-              </span> */}
             </div>
-            {/* <p className="text-xs text-gray-400 mt-1">
-              {course.completed_lessons} of {course.total_lessons} complete
-            </p> */}
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {sections.length === 0 ? (
@@ -830,7 +1123,6 @@ export default function CoursePlayer() {
             ) : (
               sections.map((section) => (
                 <div key={section.id || section.title} className="mb-2">
-                  {/* SECTION HEADER */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition ${
                       section.type === "section"
@@ -861,7 +1153,6 @@ export default function CoursePlayer() {
                     )}
                   </div>
 
-                  {/* SECTION CHILDREN */}
                   {(section.type !== "section" ||
                     expandedSections.has(section.id)) && (
                     <div
@@ -879,7 +1170,6 @@ export default function CoursePlayer() {
                                   : "hover:bg-slate-800"
                               }`}
                             >
-                              {/* CHECKBOX */}
                               <div className="flex items-center">
                                 <input
                                   type="checkbox"
@@ -892,7 +1182,6 @@ export default function CoursePlayer() {
                                 />
                               </div>
 
-                              {/* LESSON CONTENT */}
                               <div
                                 className="flex-1 flex items-center gap-3 cursor-pointer"
                                 onClick={() => handleLessonClick(lesson)}
