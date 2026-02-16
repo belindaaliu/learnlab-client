@@ -5,7 +5,11 @@ import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import CourseCard from "../../components/CourseCard";
 import { useAuth } from "../../context/AuthContext";
-import { getCart, removeCartItem, addToCart } from "../../services/cartService.js";
+import {
+  getCart,
+  removeCartItem,
+  addToCart,
+} from "../../services/cartService.js";
 import { useCart } from "../../context/CartContext";
 import api from "../../utils/Api";
 
@@ -17,6 +21,7 @@ const Cart = () => {
     total: 0,
     subtotal: 0,
     discount_total: 0,
+    subscription_discount_total: 0,
     itemCount: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -37,6 +42,7 @@ const Cart = () => {
           total: data.total ?? 0,
           subtotal: data.subtotal ?? data.total ?? 0,
           discount_total: data.discount_total ?? 0,
+          subscription_discount_total: data.subscription_discount_total ?? 0,
           itemCount: data.itemCount ?? 0,
         });
       } else {
@@ -133,6 +139,10 @@ const Cart = () => {
     return () => window.removeEventListener("storage", fetchCart);
   }, [user]);
 
+  useEffect(() => {
+    console.log("cartData:", cartData);
+  }, [cartData]);
+
   const handleRemove = async (id) => {
     try {
       if (user) {
@@ -184,7 +194,7 @@ const Cart = () => {
     try {
       if (user && user.id) {
         // LOGGED IN: call your existing cart service
-        await addToCart(course.id); 
+        await addToCart(course.id);
       } else {
         // GUEST: add to localStorage cart with all relevant data
         const localCart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -255,18 +265,42 @@ const Cart = () => {
               CA${cartData.total.toFixed(2)}
             </span>
 
+            {/* Original subtotal if anything was discounted */}
             {cartData.subtotal > cartData.total && (
-              <>
-                <span className="text-gray-500 line-through text-lg">
-                  CA${cartData.subtotal.toFixed(2)}
+              <span className="text-gray-500 line-through text-lg">
+                CA${cartData.subtotal.toFixed(2)}
+              </span>
+            )}
+
+            {/* Course-level discounts (sales, coupons on courses) */}
+            {cartData.discount_total > 0 && (
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>Course discounts</span>
+                <span>-CA${cartData.discount_total.toFixed(2)}</span>
+              </div>
+            )}
+
+            {/* NEW: subscription extra discount */}
+            {cartData.subscription_discount_total > 0 && (
+              <div className="flex justify-between text-sm text-emerald-700">
+                <span>Subscription savings</span>
+                <span>
+                  -CA${cartData.subscription_discount_total.toFixed(2)}
                 </span>
-                <span className="text-gray-700 text-sm">
-                  {Math.round(
-                    (cartData.discount_total / cartData.subtotal) * 100,
-                  )}
-                  % off
-                </span>
-              </>
+              </div>
+            )}
+
+            {/* Optional combined % off */}
+            {cartData.subtotal > cartData.total && (
+              <span className="text-gray-700 text-sm mt-1">
+                {Math.round(
+                  ((cartData.discount_total +
+                    cartData.subscription_discount_total) /
+                    cartData.subtotal) *
+                    100,
+                )}
+                % off
+              </span>
             )}
 
             <Button
