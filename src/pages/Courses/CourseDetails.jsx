@@ -22,6 +22,7 @@ import {
 
 import Button from "../../components/common/Button";
 import VideoPreviewModal from "../../components/Modals/VideoPreviewModal";
+import ReviewList from "../../components/ReviewList";
 import api from "../../utils/Api";
 import { addToCart } from "../../services/cartService";
 
@@ -286,19 +287,25 @@ const CourseDetails = () => {
     }
   }
 
-  // --- Course Stats ---
+  // --- Dynamic Stats Calculations (Ratings, Students, Content) ---
   const courseStats = useMemo(() => {
+    // Default values
     if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
-      return { totalHours: 0, totalMinutes: 0, articles: 0, lectures: 0 };
+      return { 
+        totalHours: 0, totalMinutes: 0, articles: 0, lessons: 0, 
+        ratingAvg: "New", ratingCount: 0, studentsFormatted: "0" 
+      };
     }
 
+    // 1. Content calculation (time, number of lessons, articles)
     let totalSeconds = 0;
     let articlesCount = 0;
-    let lecturesCount = 0;
+    let lessonsCount = 0;
 
     course.CourseContent.forEach((item) => {
       if (item.type !== "section") {
-        lecturesCount++;
+        lessonsCount++;
+
         if (item.type?.toLowerCase() === "video") {
           totalSeconds += Number(item.duration_seconds) || 0;
         }
@@ -308,19 +315,43 @@ const CourseDetails = () => {
       }
     });
 
-    let totalHours = Math.floor(totalSeconds / 3600);
-    let remainingSeconds = totalSeconds % 3600;
-    let totalMinutes = Math.floor(remainingSeconds / 60);
+    let h = Math.floor(totalSeconds / 3600);
+    let m = Math.floor((totalSeconds % 3600) / 60);
+    if ((totalSeconds % 3600) % 60 > 0) m += 1;
+    if (m === 60) { h += 1; m = 0; }
+    if (totalSeconds > 0 && h === 0 && m === 0) m = 1;
 
-    if (remainingSeconds % 60 > 0) totalMinutes += 1;
-    if (totalMinutes === 60) {
-      totalHours += 1;
-      totalMinutes = 0;
+    // 2. Rating Calculation
+    let avg = 0;
+    let count = 0;
+    
+    if (course.rating) {
+        avg = Number(course.rating);
+        count = course.reviews_count || 0;
+    } 
+    else if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
+        const total = course.Reviews.reduce((acc, curr) => acc + curr.rating, 0);
+        avg = Number((total / course.Reviews.length).toFixed(1));
+        count = course.Reviews.length;
     }
-    if (totalSeconds > 0 && totalHours === 0 && totalMinutes === 0) totalMinutes = 1;
 
-    return { totalHours, totalMinutes, articles: articlesCount, lectures: lecturesCount };
+    // 3. Student number format
+    let studCount = course._count?.Enrollments || course.enrollments_count || 0;
+    let studFmt = studCount.toString();
+    if(studCount > 1000) studFmt = (studCount / 1000).toFixed(1) + "k";
+
+    return {
+      totalHours: h,
+      totalMinutes: m,
+      articles: articlesCount,
+      lessons: lessonsCount, 
+      ratingAvg: avg > 0 ? avg : "New",
+      ratingCount: count,
+      studentsFormatted: studFmt
+    };
   }, [course]);
+
+  const isBestseller = (course?.enrollments_count > 50 && courseStats.ratingAvg !== "New" && courseStats.ratingAvg >= 4.5);
 
   const sections = course?.CourseContent?.filter((item) => item.type === "section") || [];
 
@@ -346,14 +377,12 @@ const CourseDetails = () => {
       if (response.data.success) {
         setIsEnrolled(true);
         
-        // Update the course enrollment count with the returned value
         if (response.data.enrollments_count) {
           setCourse(prev => prev ? {
             ...prev,
             enrollments_count: response.data.enrollments_count
           } : null);
         } else {
-          // If not returned, increment locally
           setCourse(prev => prev ? {
             ...prev,
             enrollments_count: (prev.enrollments_count || 0) + 1
@@ -362,13 +391,11 @@ const CourseDetails = () => {
 
         toast.success("Successfully enrolled in the course!");
         
-        // Remove from cart if it was in cart
         if (isInCart) {
           setIsInCart(false);
           await fetchCartCount();
         }
 
-        // Remove from wishlist if it was in wishlist
         if (isInWishlist) {
           try {
             await api.delete(`/student/${user.id}/wishlist/${course.id}`);
@@ -378,7 +405,6 @@ const CourseDetails = () => {
           }
         }
 
-        // Navigate to course learning page
         setTimeout(() => {
           navigate(`/course/${course.id}/learn`);
         }, 1500);
@@ -399,7 +425,6 @@ const CourseDetails = () => {
       toast("You already own this course.", { icon: "ℹ️" });
       return;
     }
-
     if (user) {
       setAddingToCart(true);
       try {
@@ -437,7 +462,6 @@ const CourseDetails = () => {
 
   const handleBuyNow = async () => {
     if (!course || !statusReady) return;
-
     if (!user) {
       toast.error("Please log in to buy this course.");
       navigate("/login", {
@@ -450,7 +474,6 @@ const CourseDetails = () => {
       toast("You already own this course.", { icon: "ℹ️" });
       return;
     }
-
     try {
       await addToCart(course.id);
       await fetchCartCount();
@@ -473,7 +496,6 @@ const CourseDetails = () => {
       navigate("/login", { state: { from: `/course/${id}` } });
       return;
     }
-
     setWishlistLoading(true);
     try {
       if (isInWishlist) {
@@ -522,7 +544,6 @@ const CourseDetails = () => {
       navigate("/pricing");
       return;
     }
-
     if (user) {
       if (!statusReady) return;
       if (isEnrolled) {
@@ -530,7 +551,6 @@ const CourseDetails = () => {
         navigate(`/course/${course.id}/learn`);
         return;
       }
-
       try {
         await addToCart(course.id);
         await fetchCartCount();
@@ -593,7 +613,7 @@ const CourseDetails = () => {
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-sm pt-2">
-              {(course.enrollments_count > 100 || course.views > 500) && (
+              {isBestseller && (
                 <span className="bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded font-bold text-xs">
                   Bestseller
                 </span>
@@ -601,20 +621,26 @@ const CourseDetails = () => {
 
               <div className="flex items-center gap-1 text-yellow-400">
                 <span className="font-bold text-base">
-                  {course.rating || "4.8"}
+                  {courseStats.ratingAvg}
                 </span>
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(course.rating || 5) ? "fill-current" : "text-gray-500"
+                        courseStats.ratingAvg !== "New" && i < Math.floor(Number(courseStats.ratingAvg))
+                          ? "fill-current"
+                          : "text-gray-500"
                       }`}
                     />
                   ))}
                 </div>
                 <span className="text-blue-300 underline ml-1 cursor-pointer">
-                  ({course.enrollments_count?.toLocaleString() || 0} students)
+                  ({courseStats.ratingCount} ratings)
+                </span>
+                
+                <span className="text-slate-300 ml-2 border-l border-slate-600 pl-3 flex items-center gap-1">
+                  <Users className="w-4 h-4" /> {courseStats.studentsFormatted} students
                 </span>
               </div>
 
@@ -629,16 +655,13 @@ const CourseDetails = () => {
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300 mt-2">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" /> Last updated{" "}
-                {new Date(course.updated_at || Date.now()).toLocaleDateString()}
+                {course.updated_at ? new Date(course.updated_at).toLocaleDateString() : new Date().toLocaleDateString()}
               </span>
               <span className="flex items-center gap-1">
-                <Globe className="w-4 h-4" /> {course.language || "English"}
+                <Globe className="w-4 h-4" /> {course.language || "Not Specified"}
               </span>
               <span className="flex items-center gap-1">
                 <Eye className="w-4 h-4" /> {course.views?.toLocaleString() || 0} views
-              </span>
-              <span className="flex items-center gap-1">
-                <Users className="w-4 h-4" /> {course.enrollments_count?.toLocaleString() || 0} enrolled
               </span>
             </div>
           </div>
@@ -687,7 +710,7 @@ const CourseDetails = () => {
                             Section {idx + 1}: {section.title}
                           </span>
                           <span className="text-xs text-gray-500 font-normal">
-                            {lessons.length} lectures
+                            {lessons.length} lessons
                           </span>
                         </div>
                         <div className="p-4 space-y-3 bg-white">
@@ -697,6 +720,7 @@ const CourseDetails = () => {
                                 {lesson.type === "video" && <Video className="w-4 h-4 text-gray-400" />}
                                 {lesson.type === "note" && <FileText className="w-4 h-4 text-gray-400" />}
                                 {lesson.type === "assessment" && <HelpCircle className="w-4 h-4 text-gray-400" />}
+                                
                                 <span
                                   className={lesson.is_preview ? "group-hover:underline cursor-pointer" : ""}
                                   onClick={() => lesson.is_preview && openPreview(lesson)}
@@ -706,10 +730,7 @@ const CourseDetails = () => {
                               </div>
                               {lesson.is_preview ? (
                                 <div className="flex items-center gap-4">
-                                  <span
-                                    className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline"
-                                    onClick={() => openPreview(lesson)}
-                                  >
+                                  <span className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline" onClick={() => openPreview(lesson)}>
                                     Preview
                                   </span>
                                   {lesson.duration_seconds && (
@@ -771,6 +792,11 @@ const CourseDetails = () => {
               </ul>
             </div>
           )}
+
+          {/* REVIEWS SECTION */}
+          <div className="bg-white p-6 border border-gray-200 shadow-sm rounded-lg">
+            <ReviewList courseId={id} />
+          </div>
         </div>
 
         {/* RIGHT COLUMN (Sticky Sidebar) */}
@@ -784,10 +810,7 @@ const CourseDetails = () => {
                 src={course.thumbnail_url || "https://via.placeholder.com/640x360"}
                 alt={course.title}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "https://via.placeholder.com/640x360";
-                }}
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/640x360"; }}
               />
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition">
                 <div className="bg-white rounded-full p-4 shadow-lg group-hover:scale-110 transition">
@@ -892,7 +915,6 @@ const CourseDetails = () => {
                     )}
                   </div>
 
-                  {/* Free Course - Direct Enroll Button */}
                   {basePrice === 0 ? (
                     <Button
                       fullWidth
@@ -966,6 +988,9 @@ const CourseDetails = () => {
                     ? `${courseStats.totalHours}h ${courseStats.totalMinutes}m`
                     : `${courseStats.totalMinutes}m`}{" "}
                   on-demand video
+                </div>
+                <div className="flex gap-2 items-center">
+                  <PlayCircle className="w-4 h-4" /> {courseStats.lessons} lessons
                 </div>
                 <div className="flex gap-2 items-center">
                   <BookOpen className="w-4 h-4" /> {courseStats.articles} articles / notes

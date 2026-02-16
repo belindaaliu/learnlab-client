@@ -61,7 +61,7 @@ const InstructorDashboard = () => {
         <StatCard 
           icon={<DollarSign className="w-6 h-6 text-green-600"/>} 
           label="Total Revenue" 
-          value={`$${stats.totalRevenue.toLocaleString()}`} 
+          value={`$${(stats.totalRevenue * 0.8).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
           bg="bg-green-50"
         />
         <StatCard 

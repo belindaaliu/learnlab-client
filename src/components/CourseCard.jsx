@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Star, Check, Crown } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist, isPremiumCourse, isInWishlist = false }) => {
+const CourseCard = ({
+  course,
+  onAddToCart,
+  onAddToWishlist,
+  onRemoveFromWishlist,
+  isInWishlist = false,
+}) => {
   const navigate = useNavigate();
   const { user, userPlan } = useAuth();
 
@@ -16,7 +22,62 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
       ? `${course.Users.first_name} ${course.Users.last_name}`
       : "Unknown Instructor");
 
-  // Dynamic pricing from course discount fields
+  // --- 1. PARSING DYNAMIC DATA (Fixes) ---
+  
+  const requirementsList = useMemo(() => {
+    if (!course.requirements) return [];
+    try {
+      return Array.isArray(course.requirements) 
+        ? course.requirements 
+        : JSON.parse(course.requirements);
+    } catch {
+      return [];
+    }
+  }, [course.requirements]);
+
+  const updatedDate = useMemo(() => {
+    if (course.updated_at) {
+      return new Date(course.updated_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+    return null;
+  }, [course.updated_at]);
+
+  // --- 2. CALCULATE RATING FROM REVIEWS ---
+  const { averageRating, reviewCount } = useMemo(() => {
+    // First check if backend already calculated rating
+    if (course.rating && course.rating > 0) {
+      return {
+        averageRating: Number(course.rating),
+        reviewCount: course.reviews_count || course.reviews || 0
+      };
+    }
+
+    // If Reviews array exists, calculate from it
+    if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
+      const total = course.Reviews.reduce((sum, review) => sum + review.rating, 0);
+      const avg = Number((total / course.Reviews.length).toFixed(1));
+      return {
+        averageRating: avg,
+        reviewCount: course.Reviews.length
+      };
+    }
+
+    // Default to null if no reviews
+    return {
+      averageRating: null,
+      reviewCount: 0
+    };
+  }, [course.rating, course.reviews_count, course.reviews, course.Reviews]);
+
+  // Calculate if it's a bestseller based on real data
+  const isBestseller = useMemo(() => {
+    const enrollments = course.enrollments_count || course._count?.Enrollments || 0;
+    return enrollments > 50 && averageRating && averageRating >= 4.5;
+  }, [course.enrollments_count, course._count, averageRating]);
+
+  // ------------------------------------------
+
+  // Dynamic pricing
   const basePrice = Number(course.price || 0);
 
   const hasDiscount =
@@ -75,6 +136,7 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
 
   // --- IDENTITY LOGIC ---
   const isActuallyFree = Number(course.price) === 0;
+  
   const isActuallyPremium = Boolean(
     course.is_premium ||
     course.is_subscriber_only ||
@@ -93,7 +155,6 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
   // --- BADGE LOGIC ---
   const showFreeBadge = isActuallyFree;
   const hasPlan = Boolean(course.plan_id) || Boolean(course.SubscriptionPlans);
-  // const showPremiumBadge = isActuallyPremium && !isActuallyFree;
   const showPremiumBadge = isActuallyPremium && !isActuallyFree && hasPlan;
 
   const handleAction = (e) => {
@@ -122,9 +183,9 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
     }
   };
 
-  return (
-    <div className="group relative flex flex-col bg-white border border-gray-200 rounded-lg overflow-visible hover:shadow-xl transition-shadow duration-300">
-      <Link to={`/courses/${course.id}`} className="block">
+    return (
+    <div className="group relative flex flex-col bg-white border border-gray-200 rounded-lg overflow-visible hover:shadow-xl transition-shadow duration-300 h-full">
+      <Link to={`/courses/${course.id}`} className="block h-full flex flex-col">
         <div className="relative aspect-video overflow-hidden rounded-t-lg bg-gray-100">
           <img
             src={course.image || course.thumbnail_url || defaultImage}
@@ -137,39 +198,48 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
           />
         </div>
 
-        <div className="p-4 flex flex-col gap-1">
-          <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors h-12">
+        <div className="p-4 flex flex-col gap-1 flex-1">
+          <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors h-10 mb-1">
             {course.title}
           </h3>
           <p className="text-xs text-gray-500">{instructorName}</p>
 
-          <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
-            <span>{course.rating || 4.8}</span>
-            <div className="flex">
-              <Star className="w-3 h-3 fill-current" />
-              <Star className="w-3 h-3 fill-current" />
-              <Star className="w-3 h-3 fill-current" />
-              <Star className="w-3 h-3 fill-current" />
+          {/* UPDATED RATING DISPLAY */}
+          {averageRating ? (
+            <div className="flex items-center gap-1 text-sm font-bold">
+              <span className="text-gray-900">{averageRating}</span>
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star 
+                    key={i} 
+                    className={`w-3 h-3 ${
+                      i < Math.floor(averageRating) 
+                        ? 'fill-yellow-500 text-yellow-500' 
+                        : 'fill-none text-gray-300'
+                    }`} 
+                  />
+                ))}
+              </div>
+              <span className="text-gray-400 font-normal text-xs">
+                ({reviewCount})
+              </span>
             </div>
-            <span className="text-gray-400 font-normal text-xs">
-              ({course.reviews || 120})
-            </span>
-          </div>
+          ) : (
+            <div className="flex items-center gap-1 text-gray-400 text-sm">
+              <span className="text-xs">No ratings yet</span>
+            </div>
+          )}
 
-          <div className="mt-1">
+          <div className="mt-auto pt-2">
             {userHasAccess ? (
               <div className="flex items-center gap-2">
                 {basePrice > 0 ? (
                   <>
                     <span className="font-bold text-purple-700">Included</span>
-                    {/* show original price crossed out if there is a discount */}
                     {hasDiscount ? (
                       <>
                         <span className="text-xs text-gray-400 line-through">
                           ${basePrice.toFixed(2)}
-                        </span>
-                        <span className="text-[11px] text-gray-500">
-                          {discountPercent}% off
                         </span>
                       </>
                     ) : (
@@ -192,9 +262,6 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
                     <span className="text-sm text-gray-400 line-through">
                       ${basePrice.toFixed(2)}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {discountPercent}% off
-                    </span>
                   </>
                 ) : (
                   <span>${basePrice.toFixed(2)}</span>
@@ -215,7 +282,8 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
                 </span>
               )}
 
-              {(course.is_bestseller || course.rating >= 4.8) && (
+              {/* UPDATED BESTSELLER LOGIC */}
+              {(course.is_bestseller || isBestseller) && (
                 <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded font-bold shrink-0">
                   BESTSELLER
                 </span>
@@ -225,70 +293,77 @@ const CourseCard = ({ course, onAddToCart, onAddToWishlist, onRemoveFromWishlist
         </div>
       </Link>
 
-      {/* HOVER POPUP */}
-      <div
-        className="hidden lg:group-hover:block absolute top-0 left-0 w-[320px] bg-white shadow-2xl border border-gray-200 p-5 z-50 rounded-lg animate-in fade-in duration-200"
-        style={{
-          transform: "scale(1.05) translateX(10px) translateY(-10px)",
-          minHeight: "100%",
-        }}
-      >
-        <Link to={`/courses/${course.id}`} className="block">
-          <h3 className="font-bold text-lg text-gray-900 mb-2">
+      {/* BRIDGE ELEMENT - Creates invisible bridge between card and popup */}
+      <div className="hidden md:group-hover:block absolute top-0 left-full w-3 h-full z-[998]" />
+
+      {/* --- HOVER POPUP (RIGHT SIDE) --- */}
+      <div className="hidden md:group-hover:block absolute top-0 left-full ml-3 w-[300px] bg-white shadow-xl border border-gray-200 p-5 z-[999] rounded-lg animate-in fade-in duration-200">
+        {/* Arrow pointing to card */}
+        <div className="absolute top-8 -left-2 w-4 h-4 bg-white border-l border-b border-gray-200 transform rotate-45"></div>
+
+        <Link to={`/courses/${course.id}`} className="block relative z-10">
+          <h3 className="font-bold text-lg text-gray-900 mb-2 leading-tight">
             {course.title}
           </h3>
 
-          <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             {showFreeBadge && (
-              <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-bold shrink-0">
-                FREE
-              </span>
+              <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-bold">FREE</span>
             )}
-
             {showPremiumBadge && (
-              <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-1 rounded font-bold flex items-center gap-1 shrink-0">
+              <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-1 rounded font-bold flex items-center gap-1">
                 <Crown size={10} fill="currentColor" /> PREMIUM
               </span>
             )}
-
-            {(course.is_bestseller || course.rating >= 4.8) && (
-              <span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded font-bold shrink-0">
-                BESTSELLER
+            
+            {updatedDate && (
+              <span className="text-green-600 text-[10px] font-bold shrink-0 flex items-center gap-1">
+                Updated {updatedDate}
               </span>
             )}
-
-            <span className="text-green-600 text-[10px] font-bold shrink-0">
-              Updated Jan 2026
-            </span>
           </div>
+          
+          <p className="text-xs text-gray-600 mb-4 line-clamp-3">
+            {course.description || "Master this topic with our comprehensive guide."}
+          </p>
 
           <div className="space-y-2 mb-6">
-            <p className="text-xs text-gray-500 font-bold uppercase">
-              What you'll learn
-            </p>
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <Check className="w-3 h-3 text-gray-700 mt-1 shrink-0" />
-                <span className="text-sm text-gray-600 leading-tight">
-                  Create modern web applications using React.
-                </span>
-              </div>
-            ))}
+            {requirementsList.length > 0 ? (
+                <>
+                    <p className="text-xs text-gray-500 font-bold uppercase">What you'll learn</p>
+                    {requirementsList.slice(0, 3).map((req, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                        <Check className="w-3 h-3 text-gray-700 mt-1 shrink-0" />
+                        <span className="text-sm text-gray-600 leading-tight">
+                        {req}
+                        </span>
+                    </div>
+                    ))}
+                </>
+            ) : (
+                <div className="flex gap-2 items-start">
+                    <Check className="w-3 h-3 text-gray-700 mt-1 shrink-0" />
+                    <span className="text-sm text-gray-600 leading-tight">
+                        Comprehensive curriculum designed for all levels.
+                    </span>
+                </div>
+            )}
           </div>
         </Link>
 
-        <div className="flex items-center gap-3 mt-4">
+        <div className="flex items-center gap-3 mt-auto">
           <button
             type="button"
             onClick={handleAction}
-            className={`flex-1 py-3 px-4 rounded-lg font-bold transition-colors ${
+            className={`flex-1 py-3 px-4 rounded-lg font-bold transition-colors text-sm ${
               userHasAccess
                 ? "bg-purple-600 text-white hover:bg-purple-700"
-                : "bg-primary text-white hover:bg-opacity-90"
+                : "bg-gray-900 text-white hover:bg-gray-800"
             }`}
           >
-            {userHasAccess ? "View Course" : "Add to cart"}
+            {userHasAccess ? "Go to Course" : "Add to Cart"}
           </button>
+          
           <button 
             onClick={handleWishlist}
             className="p-3 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"

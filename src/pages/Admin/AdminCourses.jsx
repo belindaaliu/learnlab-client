@@ -3,6 +3,25 @@ import api from "../../utils/Api";
 import { CheckCircle, Eye, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+const levelColorClasses = (level) => {
+  if (!level) {
+    return "bg-slate-100 text-slate-700";
+  }
+  const lvl = level.toLowerCase();
+
+  if (lvl.includes("beginner") || lvl === "easy") {
+    return "bg-emerald-50 text-emerald-700 border border-emerald-100";
+  }
+  if (lvl.includes("intermediate") || lvl === "medium") {
+    return "bg-amber-50 text-amber-700 border border-amber-100";
+  }
+  if (lvl.includes("advanced") || lvl === "hard") {
+    return "bg-rose-50 text-rose-700 border border-rose-100";
+  }
+  // fallback for custom levels
+  return "bg-indigo-50 text-indigo-700 border border-indigo-100";
+};
+
 const AdminCourseList = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +81,8 @@ const AdminCourseList = () => {
       courses
         .map((c) => c.level)
         .filter(Boolean)
-        .map((lvl) => lvl.toLowerCase())
-    )
+        .map((lvl) => lvl.toLowerCase()),
+    ),
   );
 
   return (
@@ -82,7 +101,10 @@ const AdminCourseList = () => {
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={20}
+            />
             <input
               type="text"
               placeholder="Search by course title or instructor..."
@@ -137,13 +159,28 @@ const AdminCourseList = () => {
           </thead>
           <tbody className="divide-y divide-slate-200">
             {filteredCourses.map((course) => (
-              <tr key={course.id} className="hover:bg-slate-50 transition-colors">
+              <tr
+                key={course.id}
+                className="hover:bg-slate-50 transition-colors"
+              >
                 <td className="p-4 font-medium">{course.title}</td>
                 <td className="p-4">
                   {course.Users?.first_name} {course.Users?.last_name}
                 </td>
                 <td className="p-4">{course.Categories?.name}</td>
-                <td className="p-4 text-sm capitalize">{course.level}</td>
+                <td className="p-4 text-sm">
+                  {course.level ? (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${levelColorClasses(
+                        course.level,
+                      )}`}
+                    >
+                      {course.level}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">Unspecified</span>
+                  )}
+                </td>
                 <td className="p-4 text-sm text-gray-500">
                   {formatDate(course.created_at)}
                 </td>
@@ -154,9 +191,6 @@ const AdminCourseList = () => {
                   >
                     <Eye size={18} />
                   </button>
-                  {/* <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-                    <CheckCircle size={18} />
-                  </button> */}
                 </td>
               </tr>
             ))}
@@ -175,4 +209,3 @@ const AdminCourseList = () => {
 };
 
 export default AdminCourseList;
-

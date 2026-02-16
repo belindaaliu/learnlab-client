@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../utils/Api";
 import Input from "../../components/common/Input";
@@ -11,6 +11,9 @@ const AdminCourseDetail = () => {
   const [course, setCourse] = useState(null);
   const [stats, setStats] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [studentFilter, setStudentFilter] = useState("all");
+  const hasFetchedRef = useRef(false);
 
   const [formData, setFormData] = useState({
     price: "",
@@ -39,9 +42,10 @@ const AdminCourseDetail = () => {
         params,
       });
 
-      const { course, stats } = res.data.data;
+      const { course, stats, enrolledStudents } = res.data.data;
       setCourse(course);
       setStats(stats);
+      setStudents(enrolledStudents || []);
 
       setFormData({
         price: course.price ?? 0,
@@ -64,6 +68,19 @@ const AdminCourseDetail = () => {
   useEffect(() => {
     fetchDetail();
   }, [courseId]);
+
+  useEffect(() => {
+  if (hasFetchedRef.current) return;
+  hasFetchedRef.current = true;
+  fetchDetail();
+}, [courseId]);
+
+  const filteredStudents = students.filter((s) => {
+    if (studentFilter === "completed") return s.status === "completed";
+    if (studentFilter === "in_progress") return s.status === "in_progress";
+    if (studentFilter === "not_started") return s.status === "not_started";
+    return true;
+  });
 
   const handleApplyRange = () => {
     if (range.start && range.end && range.start > range.end) {
@@ -308,6 +325,89 @@ const AdminCourseDetail = () => {
         <Button onClick={handleSave} isLoading={saving}>
           Save Pricing
         </Button>
+      </div>
+
+      {/* Enrolled students table */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border space-y-4 mt-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">Enrolled Students</h2>
+          <select
+            className="border rounded-lg px-3 py-1 text-sm"
+            value={studentFilter}
+            onChange={(e) => setStudentFilter(e.target.value)}
+          >
+            <option value="all">All</option>
+            <option value="completed">Completed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="not_started">Not Started</option>
+          </select>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-2 font-semibold text-xs text-gray-500 uppercase">
+                  Student
+                </th>
+                <th className="px-4 py-2 font-semibold text-xs text-gray-500 uppercase">
+                  Enrolled At
+                </th>
+                <th className="px-4 py-2 font-semibold text-xs text-gray-500 uppercase">
+                  Progress
+                </th>
+                <th className="px-4 py-2 font-semibold text-xs text-gray-500 uppercase">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredStudents.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-4 text-center text-gray-500 text-sm"
+                  >
+                    No students found for this filter.
+                  </td>
+                </tr>
+              )}
+              {filteredStudents.map((s) => (
+                <tr key={s.id.toString()}>
+                  <td className="px-4 py-2">
+                    <p className="font-semibold">
+                      {s.user.first_name} {s.user.last_name}
+                    </p>
+                    <p className="text-xs text-gray-500">{s.user.email}</p>
+                  </td>
+                  <td className="px-4 py-2 text-gray-600">
+                    {s.enrolled_at
+                      ? new Date(s.enrolled_at).toLocaleDateString()
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-gray-600">
+                    {s.totalLessons > 0
+                      ? `${s.completedLessons}/${s.totalLessons} lessons`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+                        s.status === "completed"
+                          ? "bg-green-100 text-green-700"
+                          : s.status === "in_progress"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {s.status.replace("_", " ")}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
