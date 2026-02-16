@@ -271,12 +271,6 @@ const AdminAnalytics = () => {
 
           {/* Actions */}
           <div className="flex gap-3">
-            {/* <button
-              onClick={handleExportPDF}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold shadow-sm hover:bg-slate-50 transition-all"
-            >
-              Export PDF
-            </button> */}
             <button
               onClick={handleExportPDF}
               disabled={isExporting}
