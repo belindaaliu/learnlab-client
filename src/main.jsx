@@ -6,6 +6,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { router } from "./router/AppRouter";
 import "./styles/global.css";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             },
           }}
         />
-        <RouterProvider router={router} />
+        <AppErrorBoundary>
+          <RouterProvider router={router} />
+        </AppErrorBoundary>
       </CartProvider>
     </AuthProvider>
   </React.StrictMode>,
