@@ -448,7 +448,7 @@ const CourseDetails = () => {
           price: course.price,
           thumbnail: course.thumbnail_url,
           instructor_id: course.Users?.id,
-          instructor_name: `${course.Users?.first_name} ${course.Users?.last_name}`,
+          instructor_name: `${course.Users?.first_name || 'Instructor'} ${course.Users?.last_name || ''}`.trim(),
         });
         localStorage.setItem("cart", JSON.stringify(guestCart));
         toast.success("Added to cart as guest!");
@@ -534,7 +534,7 @@ const CourseDetails = () => {
         setActivePreviewLesson(firstPreview);
         setIsPreviewOpen(true);
       } else {
-        toast("No preview content available for this course.");
+        toast("No preview content available for this course.", { icon: "ℹ️" });
       }
     }
   };
@@ -570,7 +570,7 @@ const CourseDetails = () => {
           price: course.price,
           thumbnail: course.thumbnail_url,
           instructor_id: course.Users?.id,
-          instructor_name: `${course.Users?.first_name} ${course.Users?.last_name}`,
+          instructor_name: `${course.Users?.first_name || 'Instructor'} ${course.Users?.last_name || ''}`.trim(),
         });
         localStorage.setItem("cart", JSON.stringify(guestCart));
       }
@@ -647,7 +647,7 @@ const CourseDetails = () => {
               <div className="text-slate-300">
                 Created by{" "}
                 <span className="text-purple-300 underline cursor-pointer">
-                  {course.Users?.first_name} {course.Users?.last_name}
+                  {course.Users?.first_name || 'Instructor'} {course.Users?.last_name || ''}
                 </span>
               </div>
             </div>

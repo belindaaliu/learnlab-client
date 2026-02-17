@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, ThumbsUp, Edit2, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../utils/Api';
 import ReviewForm from './ReviewForm';
 
@@ -49,17 +50,39 @@ const ReviewsList = ({ courseId }) => {
     }
   };
 
-  const handleDeleteReview = async () => {
-    if (!window.confirm('Are you sure you want to delete your review?')) return;
 
-    try {
-      await api.delete(`/reviews/${userReview.id}`);
-      setUserReview(null);
-      fetchReviews();
-    } catch (error) {
-      console.error('Error deleting review:', error);
-      alert('Failed to delete review');
-    }
+  const handleDeleteReview = () => {
+    toast((t) => (
+      <div className="flex flex-col gap-3 p-1">
+        <span className="font-bold text-gray-900">Delete your review?</span>
+        <span className="text-sm text-gray-500">This action cannot be undone.</span>
+        <div className="flex gap-2 justify-end mt-2">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-200 transition"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await api.delete(`/reviews/${userReview.id}`);
+                setUserReview(null);
+                fetchReviews();
+                toast.success('Review deleted successfully!');
+              } catch (error) {
+                console.error('Error deleting review:', error);
+                toast.error('Failed to delete review');
+              }
+            }} 
+            className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 transition"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
   };
 
   const handleReviewSubmit = () => {
@@ -228,14 +251,16 @@ const ReviewsList = ({ courseId }) => {
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-semibold">
-                  {review.user.first_name?.[0]}{review.user.last_name?.[0]}
+
+                  {review.user?.first_name?.[0] || 'A'}{review.user?.last_name?.[0] || 'U'}
                 </div>
                 
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <h4 className="font-semibold text-gray-900">
-                        {review.user.first_name} {review.user.last_name}
+
+                        {review.user?.first_name || 'Anonymous'} {review.user?.last_name || 'User'}
                       </h4>
                       {renderStars(review.rating)}
                     </div>
