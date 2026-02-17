@@ -437,7 +437,7 @@ export default function StudentLayout() {
                   <div className="border-t my-2"></div>
                   
                   <Link
-                    to={`/${user?.role}/public-profile/${user?.id}`}
+                    to={`/profile/${user?.id}`}
                     className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100"
                     onClick={() => setActiveDropdown(null)}
                   >
