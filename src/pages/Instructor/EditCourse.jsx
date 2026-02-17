@@ -447,11 +447,30 @@ const EditCourse = () => {
   const handleFileUpload = async (e, lessonId) => {
     const file = e.target.files[0];
     if (!file) return;
+
     setUploadingLessonId(lessonId);
     setUploadProgress(0);
-    const formDataUpload = new FormData();
-    formDataUpload.append("file", file);
+
     try {
+      // 1. Extract video duration from selected file (before uploading)
+      const videoDuration = await new Promise((resolve) => {
+        const videoElement = document.createElement("video");
+        videoElement.preload = "metadata";
+        
+        videoElement.onloadedmetadata = () => {
+
+          window.URL.revokeObjectURL(videoElement.src);
+
+          resolve(Math.round(videoElement.duration)); 
+        };
+        
+        videoElement.src = URL.createObjectURL(file);
+      });
+
+      // 2. Preparing and uploading the video file
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      
       const uploadRes = await axios.post(`${API_URL}/upload`, formDataUpload, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -460,13 +479,19 @@ const EditCourse = () => {
         onUploadProgress: (p) =>
           setUploadProgress(Math.round((p.loaded * 100) / p.total)),
       });
+
+      // 3. Send the video address and duration to the backend to update the database
       await axios.put(
         `${API_URL}/courses/${courseId}/lessons/${lessonId}`,
-        { video_url: uploadRes.data.url },
+        { 
+          video_url: uploadRes.data.url,
+          duration_seconds: videoDuration
+        },
         config,
       );
+
       fetchData();
-      toast.success("Video uploaded!");
+      toast.success("Video uploaded successfully!");
     } catch (error) {
       console.error(error);
       toast.error("Upload failed.");
