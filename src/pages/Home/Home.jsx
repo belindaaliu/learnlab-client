@@ -47,14 +47,12 @@ const Home = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-
         const response = await api.get("/public/stats"); 
         const data = response.data;
 
         setStats([
           { 
             label: "Active Students", 
-
             value: `${data.students.toLocaleString()}+` 
           },
           { 

@@ -1,415 +1,330 @@
-import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { toast } from "react-hot-toast";
-import {
-  Search,
-  Filter,
-  SlidersHorizontal,
-  ChevronDown,
-  Loader2,
-} from "lucide-react";
-import CourseCard from "../../components/CourseCard";
-import Input from "../../components/common/Input";
-import Button from "../../components/common/Button";
-import api from "../../utils/Api";
-import { addToCart } from "../../services/cartService";
-import { useAuth } from "../../context/AuthContext";
-import { useCart } from "../../context/CartContext";
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { Plus, Edit, Trash2, Eye, UploadCloud, Loader2, RotateCcw, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
-const CATEGORIES = ["All", "Development", "Business", "Design"];
-
-const SORT_OPTIONS = [
-  { label: "Newest", value: "newest" },
-  { label: "Price: Low to High", value: "price_asc" },
-  { label: "Price: High to Low", value: "price_desc" },
-  { label: "Highest Rated", value: "rating_desc" },
-];
-
-const CoursesList = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
-  const { fetchCartCount } = useCart();
-
+const InstructorCoursesList = () => {
   const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showSortMenu, setShowSortMenu] = useState(false);
-  const [error, setError] = useState(null);
-  const [wishlistIds, setWishlistIds] = useState([]);
+  const [archivedCourses, setArchivedCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('active'); // 'active' | 'archived'
+  
+  const [uploadingId, setUploadingId] = useState(null);
 
-  // Read initial values from URL to preserve filter state when refreshing or copying link
-  const [filters, setFilters] = useState({
-    search: searchParams.get("search") || "",
-    category: searchParams.get("category") || "All",
-    priceRange: searchParams.get("price") ? searchParams.get("price").split(",") : [],
-    sortBy: searchParams.get("sort") || "newest",
-  });
+  const token = localStorage.getItem('accessToken'); 
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const defaultImage = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
+  const config = { headers: { Authorization: `Bearer ${token}` } };
 
-  // Sync filter changes with the URL above the browser
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (filters.search) params.set("search", filters.search);
-    if (filters.category !== "All") params.set("category", filters.category);
-    if (filters.priceRange.length > 0) params.set("price", filters.priceRange.join(","));
-    if (filters.sortBy !== "newest") params.set("sort", filters.sortBy);
-    
-    setSearchParams(params, { replace: true });
-  }, [filters, setSearchParams]);
-
-  // Track which courses the logged-in user is enrolled in
-  const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
-
-  // Fetch enrolled courses once when user changes
-  useEffect(() => {
-    if (!user) {
-      setEnrolledCourseIds([]);
-      return;
-    }
-
-    const fetchEnrolled = async () => {
-      try {
-        const res = await api.get(`/student/${user.id}/courses`);
-        const data = res.data?.data || res.data || [];
-        const ids = data.map((c) => Number(c.id));
-        setEnrolledCourseIds(ids);
-      } catch (err) {
-        console.error("Failed to fetch enrolled courses:", err);
-      }
-    };
-
-    fetchEnrolled();
-  }, [user]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchWishlist = async () => {
-      if (user) {
-        try {
-          const response = await api.get(`/student/${user.id}/wishlist`);
-          const ids = response.data.map(item => item.course_id || item.Course?.id || item.id);
-          setWishlistIds(ids);
-        } catch (err) {
-          console.error("Failed to fetch wishlist:", err);
-        }
-      }
-    };
-    
-    fetchWishlist();
-  }, [user]);
+    fetchData();
+  }, [token, viewMode]);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const params = {};
-        if (filters.search) params.search = filters.search;
-        if (filters.category !== "All") params.category = filters.category;
-        if (filters.sortBy) params.sort = filters.sortBy;
-
-        const response = await api.get("/courses", { params });
-        const data = response.data.data || response.data;
-
-        let result = data;
-        
-        if (filters.priceRange.length > 0) {
-          result = result.filter((c) => {
-            const price = Number(c.price);
-            if (filters.priceRange.includes("free") && price === 0) return true;
-            if (filters.priceRange.includes("under_20") && price > 0 && price <= 20) return true;
-            if (filters.priceRange.includes("mid") && price > 20 && price <= 100) return true;
-            if (filters.priceRange.includes("high") && price > 100) return true;
-            return false;
-          });
-        }
-
-        setCourses(result);
-      } catch (err) {
-        console.error("API Error:", err);
-        setError(err.response?.data?.message || "Could not load courses.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const timeoutId = setTimeout(fetchCourses, 500);
-    return () => clearTimeout(timeoutId);
-  }, [filters]);
-
-  const handlePriceChange = (value) => {
-    setFilters((prev) => {
-      const current = prev.priceRange;
-      const updated = current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value];
-      return { ...prev, priceRange: updated };
-    });
-  };
-
-  const handleSortChange = (value) => {
-    setFilters((prev) => ({ ...prev, sortBy: value }));
-    setShowSortMenu(false);
-  };
-
-  const handleAddToCart = async (course) => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const courseIdNum = Number(course.id);
-
-      if (user) {
-        // Block adding if already enrolled
-        if (enrolledCourseIds.includes(courseIdNum)) {
-          toast("You already own this course.", { icon: "ℹ️" });
-          return;
-        }
-
-        // Logged-in user: backend cart
-        await addToCart(course.id);
-        toast.success("Course added to your cart!");
+      if (viewMode === 'active') {
+        const res = await axios.get(`${API_URL}/courses/instructor/my-courses`, config);
+        setCourses(res.data);
       } else {
-        // Guest: localStorage cart
-        const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
-        const isAlreadyInCart = guestCart.some(
-          (item) => String(item.id) === String(course.id),
-        );
-
-        if (!isAlreadyInCart) {
-          guestCart.push({
-            id: course.id,
-            title: course.title,
-            price: course.price,
-            thumbnail: course.thumbnail_url || course.image,
-            instructor_id: course.Users?.id,
-            instructor_name: course.Users
-              ? `${course.Users.first_name} ${course.Users.last_name}`
-              : "Instructor",
-          });
-          localStorage.setItem("cart", JSON.stringify(guestCart));
-          toast.success("Course added to your cart!");
-        } else {
-          toast("This course is already in your cart.", { icon: "ℹ️" });
-        }
+        const res = await axios.get(`${API_URL}/courses/instructor/archived`, config);
+        setArchivedCourses(res.data);
       }
-
-      await fetchCartCount();
-    } catch (err) {
-      console.error("Add to cart error:", err);
-      toast.error(
-        err.response?.data?.message || "Failed to add course to cart.",
-      );
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAddToWishlist = async (courseId) => {
-    try {
-      if (!user) {
-        toast.error("Please login to add courses to your wishlist");
-        return;
-      }
+  // --- ACTIONS ---
 
-      await api.post(`/student/${user.id}/wishlist`, { course_id: courseId });
-      setWishlistIds(prev => [...prev, courseId]);
-      toast.success("Added to wishlist!");
-    } catch (err) {
-      console.error("Wishlist error:", err);
-      
-      if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
-        toast("This course is already in your wishlist", { icon: "ℹ️" });
-      } else {
-        toast.error(
-          err.response?.data?.message || "Failed to add to wishlist"
-        );
-      }
-    }
-  };
-
-  const handleRemoveFromWishlist = async (courseId) => {
-    try {
-      if (!user) return;
-
-      await api.delete(`/student/${user.id}/wishlist/${courseId}`);
-      setWishlistIds(prev => prev.filter(id => id !== courseId));
-      toast.success("Removed from wishlist");
-    } catch (err) {
-      console.error("Remove from wishlist error:", err);
-      toast.error("Failed to remove from wishlist");
-    }
-  };
-
-  // Finding the right text for the Sort button
-  const currentSortLabel = SORT_OPTIONS.find(opt => opt.value === filters.sortBy)?.label || "Sort";
-
-  return (
-    <div
-      className="bg-gray-50 min-h-screen py-8"
-      onClick={() => setShowSortMenu(false)}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Browse Courses</h1>
-            <p className="text-gray-500 mt-1">Found {courses.length} results</p>
-          </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto relative">
-            <div className="w-full md:w-80">
-              <Input
-                placeholder="Search (e.g. React)..."
-                icon={Search}
-                value={filters.search}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, search: e.target.value }))
-                }
-              />
-            </div>
-
-            {/* Sort Dropdown */}
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <Button
-                variant="outline"
-                onClick={() => setShowSortMenu(!showSortMenu)}
-                className="whitespace-nowrap"
-              >
-                <SlidersHorizontal className="w-4 h-4 mr-2" />
-                {currentSortLabel}
-                <ChevronDown className="w-4 h-4 ml-2" />
-              </Button>
-
-              {showSortMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
-                  {SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleSortChange(opt.value)}
-                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${
-                        filters.sortBy === opt.value
-                          ? "text-primary font-bold bg-purple-50"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ERROR MESSAGE */}
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 flex items-center justify-center">
-            {error}
-          </div>
-        )}
-
-        {/* MAIN LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* SIDEBAR FILTERS */}
-          <div className="hidden lg:block space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Filter className="w-4 h-4 text-primary" /> Categories
-              </h3>
-              <div className="space-y-1">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() =>
-                      setFilters((prev) => ({ ...prev, category: cat }))
-                    }
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      filters.category === cat
-                        ? "bg-primary text-white font-medium shadow-md shadow-purple-200"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-4">Price</h3>
-              <div className="space-y-3">
-                {[
-                  { label: "Free", value: "free" },
-                  { label: "Under $20", value: "under_20" },
-                  { label: "$20 - $100", value: "mid" },
-                  { label: "$100+", value: "high" },
-                ].map((item) => (
-                  <label
-                    key={item.value}
-                    className="flex items-center gap-3 text-sm text-gray-600 cursor-pointer hover:text-gray-900 select-none"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.priceRange.includes(item.value)}
-                      onChange={() => handlePriceChange(item.value)}
-                      className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    {item.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* RESULTS GRID */}
-          <div className="lg:col-span-3">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-              </div>
-            ) : courses.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map((course) => (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    onAddToCart={() => handleAddToCart(course)}
-                    onAddToWishlist={() => handleAddToWishlist(course.id)}
-                    // ارسال توابع و دیتای صحیح به CourseCard
-                    onRemoveFromWishlist={() => handleRemoveFromWishlist(course.id)}
-                    isInWishlist={wishlistIds.includes(course.id)}
-                    isPremiumCourse={
-                      !!course.plan_id || !!course.SubscriptionPlans
-                    }
-                    isOwned={
-                      user && enrolledCourseIds.includes(Number(course.id))
-                    }
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-                <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  No courses found
-                </h3>
-                <p className="text-gray-500">Try adjusting your filters.</p>
-                <button
-                  onClick={() =>
-                    setFilters({
-                      search: "",
-                      category: "All",
-                      priceRange: [],
-                      sortBy: "newest",
-                    })
-                  }
-                  className="mt-4 text-primary font-bold hover:underline"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            )}
-          </div>
+  // 1. Soft Delete (Archive)
+  const handleArchive = (courseId) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <span className="font-bold text-sm text-white">Move this course to trash?</span>
+        <div className="flex gap-2 justify-end">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-xs transition"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await axios.delete(`${API_URL}/courses/${courseId}`, config);
+                setCourses(courses.filter(c => c.id !== courseId));
+                toast.success("Course moved to trash!");
+              } catch (error) {
+                console.error("Archive error:", error);
+                toast.error("Failed to archive");
+              }
+            }} 
+            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs transition"
+          >
+            Yes, Trash it
+          </button>
         </div>
       </div>
+    ), { duration: Infinity });
+  };
+
+  // 2. Restore
+  const handleRestore = async (courseId) => {
+    try {
+      await axios.put(`${API_URL}/courses/${courseId}/restore`, {}, config);
+      setArchivedCourses(archivedCourses.filter(c => c.id !== courseId));
+      toast.success("Course restored to Active list!");
+    } catch (error) {
+      console.error("Restore error:", error);
+      toast.error("Failed to restore");
+    }
+  };
+
+  // 3. Permanent Delete
+  const handlePermanentDelete = (courseId) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <span className="font-bold text-sm text-red-400">⚠️ PERMANENTLY delete?</span>
+        <span className="text-xs text-gray-300">This cannot be undone!</span>
+        <div className="flex gap-2 justify-end mt-1">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-xs transition"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await axios.delete(`${API_URL}/courses/${courseId}/permanent`, config);
+                setArchivedCourses(archivedCourses.filter(c => c.id !== courseId));
+                toast.success("Course permanently deleted.");
+              } catch (error) {
+                console.error("Delete error:", error);
+                toast.error("Failed to delete permanently");
+              }
+            }} 
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold transition"
+          >
+            Delete Forever
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
+  };
+  
+  // 4. Image Upload (Corrected Logic)
+  const handleImageUpload = async (e, courseId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingId(courseId);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // 1. Upload to server/S3
+      const uploadRes = await axios.post(`${API_URL}/upload`, formData, {
+        headers: { ...config.headers, 'Content-Type': 'multipart/form-data' }
+      });
+      const imageUrl = uploadRes.data.url;
+
+      // 2. Update course in DB
+      await axios.put(`${API_URL}/courses/${courseId}`, { thumbnail_url: imageUrl }, config);
+
+      // 3. Update UI state locally
+      setCourses(prevCourses => prevCourses.map(course => 
+        course.id === courseId ? { ...course, thumbnail_url: imageUrl } : course
+      ));
+
+      toast.success("Course thumbnail updated successfully!");
+
+    } catch (error) {
+      console.error("Thumbnail upload failed:", error);
+      toast.error("Failed to upload image.");
+    } finally {
+      setUploadingId(null);
+      e.target.value = null; // Reset input
+    }
+  };
+
+  if (loading && courses.length === 0 && archivedCourses.length === 0) 
+    return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-600"/></div>;
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      
+      {/* Header & Tabs */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">My Courses</h1>
+        <Link to="/instructor/courses/create" className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition">
+          <Plus className="w-4 h-4" /> New Course
+        </Link>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button 
+          onClick={() => setViewMode('active')}
+          className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+            viewMode === 'active' 
+              ? 'border-purple-600 text-purple-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Active Courses
+        </button>
+        <button 
+          onClick={() => setViewMode('archived')}
+          className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+            viewMode === 'archived' 
+              ? 'border-red-500 text-red-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Trash2 className="w-4 h-4"/> Trash / Archived
+        </button>
+      </div>
+
+      {/* CONTENT: ACTIVE LIST */}
+      {viewMode === 'active' && (
+        courses.length === 0 ? (
+          <div className="text-center py-20 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <p className="text-gray-500">No active courses found.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 text-gray-600 text-xs uppercase border-b">
+                <tr>
+                  <th className="p-4">Course</th>
+                  <th className="p-4">Price</th>
+                  <th className="p-4">Students</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {courses.map(course => (
+                  <tr key={course.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Image & Upload Logic */}
+                        <div className="relative group w-24 h-16 shrink-0 rounded border border-gray-200 overflow-hidden bg-gray-100">
+                            <img 
+                              src={course.thumbnail_url || defaultImage} 
+                              onError={(e) => { e.target.onerror = null; e.target.src = defaultImage; }}
+                              alt={course.title} 
+                              className={`w-full h-full object-cover transition-opacity ${uploadingId === course.id ? 'opacity-50' : ''}`} 
+                            />
+                            
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                              {uploadingId === course.id ? (
+                                <Loader2 className="w-6 h-6 text-white animate-spin" />
+                              ) : (
+                                <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-white">
+                                  <UploadCloud className="w-6 h-6 mb-1" />
+                                  <span className="text-[10px] font-bold">Change</span>
+                                  <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    accept="image/*" 
+                                    onChange={(e) => handleImageUpload(e, course.id)}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                        </div>
+
+                        <span className="font-bold text-gray-800 text-sm">{course.title}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 font-medium text-sm">${course.price}</td>
+                    <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">
+                        {course.student_count || 0}
+                      </span>
+                      <button
+                        onClick={() => navigate(`/instructor/courses/${course.id}/students`)}
+                        className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100 transition flex items-center gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        View Students
+                      </button>
+                    </div>
+                  </td>
+                    <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Active</span></td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Link to={`/instructor/courses/edit/${course.id}`} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4"/></Link>
+                        <button onClick={() => handleArchive(course.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" title="Move to Trash"><Trash2 className="w-4 h-4"/></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* CONTENT: ARCHIVED LIST */}
+      {viewMode === 'archived' && (
+        archivedCourses.length === 0 ? (
+          <div className="text-center py-20 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">Trash is empty.</p>
+          </div>
+        ) : (
+          <div className="bg-red-50 rounded-lg shadow-sm border border-red-100 overflow-hidden">
+            <div className="p-4 bg-red-100 text-red-800 text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4"/> Items in trash will be permanently deleted after 30 days.
+            </div>
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-red-50 text-gray-600 text-xs uppercase border-b border-red-200">
+                <tr>
+                  <th className="p-4">Course</th>
+                  <th className="p-4">Days Left</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archivedCourses.map(course => (
+                  <tr key={course.id} className="border-b border-red-100 hover:bg-red-100/50">
+                    <td className="p-4 flex items-center gap-3">
+                        <img src={course.thumbnail_url || defaultImage} className="w-16 h-10 rounded opacity-50 grayscale" />
+                        <span className="text-gray-600 text-sm line-through">{course.title}</span>
+                    </td>
+                    <td className="p-4 text-sm text-red-600 font-bold">{course.daysLeft} days</td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleRestore(course.id)} className="px-3 py-1 bg-white border border-green-300 text-green-700 text-xs rounded hover:bg-green-50 flex items-center gap-1">
+                            <RotateCcw className="w-3 h-3"/> Restore
+                        </button>
+                        <button onClick={() => handlePermanentDelete(course.id)} className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                            Delete Forever
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
     </div>
   );
 };
 
-export default CoursesList;
+export default InstructorCoursesList;
