@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area 
 } from 'recharts';
-import { DollarSign, Users, TrendingUp, Calendar, Loader2 } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, Calendar, Loader2, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 const InstructorPerformance = () => {
   const [loading, setLoading] = useState(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const reportRef = useRef(null);
   
   // Single state for all data
   const [data, setData] = useState({
@@ -30,6 +35,7 @@ const InstructorPerformance = () => {
         setData(res.data);
       } catch (error) {
         console.error("Error fetching performance stats:", error);
+        toast.error("Failed to load performance data.");
       } finally {
         setLoading(false);
       }
@@ -38,6 +44,41 @@ const InstructorPerformance = () => {
     fetchStats();
   }, [token]);
 
+  // --- PDF generation and download function ---
+  const generatePDF = async () => {
+    if (!reportRef.current) return;
+    
+    setIsGeneratingPdf(true);
+    const toastId = toast.loading('Generating PDF report...');
+
+    try {
+      // 1. Convert the desired section to Canvas (Photo)
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, // High quality
+        useCORS: true, // To load external images and fonts correctly
+        backgroundColor: '#f9fafb' // Soft background for PDF
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      // 2. Create PDF file (A4 portrait size)
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      // 3. Inserting an image into a PDF and downloading it
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('Performance_Report.pdf');
+
+      toast.success('PDF downloaded successfully!', { id: toastId });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Failed to generate PDF.', { id: toastId });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   if (loading) return (
     <div className="flex justify-center items-center h-screen text-purple-600">
         <Loader2 className="w-10 h-10 animate-spin" />
@@ -45,7 +86,8 @@ const InstructorPerformance = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-10 animate-in fade-in duration-500">
+
+    <div ref={reportRef} className="max-w-7xl mx-auto space-y-8 pb-10 animate-in fade-in duration-500 bg-gray-50/50 p-4 rounded-xl">
       
       {/* Title Header */}
       <div className="flex justify-between items-end">
@@ -54,7 +96,7 @@ const InstructorPerformance = () => {
           <p className="text-gray-500 mt-1">Track your revenue, students growth, and course insights.</p>
         </div>
         
-        {/* Date Filter (Visual Only - Backend currently defaults to 6 months) */}
+        {/* Date Filter */}
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-1">
             <button className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-800 rounded">6 Months</button>
         </div>
@@ -94,7 +136,7 @@ const InstructorPerformance = () => {
             </div>
         </div>
 
-        {/* Rating Card (Static for now as Review system logic is separate) */}
+        {/* Rating Card */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
                 <div>
@@ -162,12 +204,18 @@ const InstructorPerformance = () => {
              <div className="bg-purple-50 p-4 rounded-full mb-4">
                 <Calendar className="w-8 h-8 text-purple-600" />
              </div>
-             <h3 className="text-lg font-bold text-gray-800 mb-2">Detailed Reports?</h3>
+             <h3 className="text-lg font-bold text-gray-800 mb-2">Detailed Reports</h3>
              <p className="text-gray-500 mb-6 text-sm max-w-xs">
-                Download a detailed CSV report of all your transactions and student enrollments for accounting.
+                Download a detailed PDF report of all your performance analytics and charts for your records.
              </p>
-             <button className="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-50 transition">
-                Download Report (CSV)
+
+             <button 
+                onClick={generatePDF}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-50 transition disabled:opacity-50"
+             >
+                {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                {isGeneratingPdf ? 'Generating...' : 'Download Report (PDF)'}
              </button>
           </div>
       </div>

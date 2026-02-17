@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, UploadCloud, Loader2, RotateCcw, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const InstructorCoursesList = () => {
   const [courses, setCourses] = useState([]);
@@ -43,15 +44,36 @@ const InstructorCoursesList = () => {
   // --- ACTIONS ---
 
   // 1. Soft Delete (Archive)
-  const handleArchive = async (courseId) => {
-    if (!window.confirm("Move this course to trash? You can restore it later.")) return;
-    try {
-      await axios.delete(`${API_URL}/courses/${courseId}`, config);
-      setCourses(courses.filter(c => c.id !== courseId));
-    } catch (error) {
-      console.error("Archive error:", error);
-      alert("Failed to archive");
-    }
+  const handleArchive = (courseId) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <span className="font-bold text-sm text-white">Move this course to trash?</span>
+        <div className="flex gap-2 justify-end">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-xs transition"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await axios.delete(`${API_URL}/courses/${courseId}`, config);
+                setCourses(courses.filter(c => c.id !== courseId));
+                toast.success("Course moved to trash!");
+              } catch (error) {
+                console.error("Archive error:", error);
+                toast.error("Failed to archive");
+              }
+            }} 
+            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs transition"
+          >
+            Yes, Trash it
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
   };
 
   // 2. Restore
@@ -59,25 +81,47 @@ const InstructorCoursesList = () => {
     try {
       await axios.put(`${API_URL}/courses/${courseId}/restore`, {}, config);
       setArchivedCourses(archivedCourses.filter(c => c.id !== courseId));
-      alert("Course restored to Active list!");
+      toast.success("Course restored to Active list!");
     } catch (error) {
       console.error("Restore error:", error);
-      alert("Failed to restore");
+      toast.error("Failed to restore");
     }
   };
 
   // 3. Permanent Delete
-  const handlePermanentDelete = async (courseId) => {
-    if (!window.confirm("⚠️ WARNING: This will PERMANENTLY delete this course. This cannot be undone!")) return;
-    try {
-      await axios.delete(`${API_URL}/courses/${courseId}/permanent`, config);
-      setArchivedCourses(archivedCourses.filter(c => c.id !== courseId));
-    } catch (error) {
-      console.error("Delete error:", error);
-      alert("Failed to delete permanently");
-    }
+  const handlePermanentDelete = (courseId) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <span className="font-bold text-sm text-red-400">⚠️ PERMANENTLY delete?</span>
+        <span className="text-xs text-gray-300">This cannot be undone!</span>
+        <div className="flex gap-2 justify-end mt-1">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-xs transition"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await axios.delete(`${API_URL}/courses/${courseId}/permanent`, config);
+                setArchivedCourses(archivedCourses.filter(c => c.id !== courseId));
+                toast.success("Course permanently deleted.");
+              } catch (error) {
+                console.error("Delete error:", error);
+                toast.error("Failed to delete permanently");
+              }
+            }} 
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold transition"
+          >
+            Delete Forever
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
   };
-
+  
   // 4. Image Upload (Corrected Logic)
   const handleImageUpload = async (e, courseId) => {
     const file = e.target.files[0];
@@ -102,11 +146,11 @@ const InstructorCoursesList = () => {
         course.id === courseId ? { ...course, thumbnail_url: imageUrl } : course
       ));
 
-      alert("Course thumbnail updated successfully!");
+      toast.success("Course thumbnail updated successfully!");
 
     } catch (error) {
       console.error("Thumbnail upload failed:", error);
-      alert("Failed to upload image.");
+      toast.error("Failed to upload image.");
     } finally {
       setUploadingId(null);
       e.target.value = null; // Reset input
