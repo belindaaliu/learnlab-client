@@ -411,18 +411,18 @@ export default function MyLearning() {
                             {/* Course Info & Actions */}
                             <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-gray-100">
                               <div className="flex items-center gap-4 text-sm text-gray-500">
-                                {course.duration && (
+                                {/* {course.duration && (
                                   <div className="flex items-center gap-1">
                                     <Clock className="w-4 h-4" />
                                     {formatDuration(course.duration)}
                                   </div>
-                                )}
-                                {course.rating && (
+                                )} */}
+                                {/* {course.rating && (
                                   <div className="flex items-center gap-1">
                                     <span className="text-yellow-500">★</span>
                                     {course.rating.toFixed(1)} ({course.reviews || 0})
                                   </div>
-                                )}
+                                )} */}
                               </div>
 
                               <div className="flex items-center gap-3">

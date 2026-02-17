@@ -198,12 +198,6 @@ const Teach = () => {
                 >
                   Become an Instructor <ArrowRight className="w-5 h-5" />
                 </button>
-                <button 
-                  onClick={() => window.open('https://www.youtube.com/watch?v=demo', '_blank')}
-                  className="px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl font-semibold text-lg hover:bg-white/20 transition flex items-center justify-center gap-2"
-                >
-                  <PlayCircle className="w-5 h-5" /> Watch Demo
-                </button>
               </div>
 
               <div className="flex items-center gap-6 mt-8 text-sm text-gray-300">

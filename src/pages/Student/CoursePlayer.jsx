@@ -13,14 +13,18 @@ import {
   X,
   ChevronUp,
   Target,
+  Sparkles,
 } from "lucide-react";
 import logo from "../../assets/images/logo.png";
 import QuizPlayer from "./QuizPlayer";
 import { toast } from "react-hot-toast";
+import AIVideoNotes from "../../components/AIVideoNotes";
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+
+
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -46,6 +50,7 @@ export default function CoursePlayer() {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [parsedRequirements, setParsedRequirements] = useState([]);
   const [parsedAudience, setParsedAudience] = useState([]);
+  const [videoNotes, setVideoNotes] = useState(null);
 
   // Review states
   const [reviews, setReviews] = useState([]);
@@ -1011,6 +1016,17 @@ export default function CoursePlayer() {
               </button>
 
               <button
+                onClick={() => setActiveTab("notes")}
+                className={`pb-2 text-sm font-semibold ${
+                  activeTab === "notes"
+                    ? "text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                AI Notes
+              </button>
+
+              <button
                 onClick={() => setActiveTab("reviews")}
                 className={`pb-2 text-sm font-semibold ${
                   activeTab === "reviews"
@@ -1141,6 +1157,36 @@ export default function CoursePlayer() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === "notes" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">AI-Powered Video Notes</h3>
+                  <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    Powered by Gemini AI
+                  </div>
+                </div>
+                
+                {currentLesson?.type === "video" ? (
+                  <AIVideoNotes 
+                    contentId={currentLesson.id} 
+                    videoTitle={currentLesson.title}
+                  />
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-8 text-center border border-gray-200">
+                    <div className="flex flex-col items-center gap-3">
+                      <PlayCircle className="w-12 h-12 text-gray-400" />
+                      <h4 className="font-medium text-gray-700">Select a Video</h4>
+                      <p className="text-sm text-gray-500 max-w-md">
+                        Choose a video lesson from the sidebar to generate AI-powered notes.
+                        Click once and AI will automatically transcribe and create study notes.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
