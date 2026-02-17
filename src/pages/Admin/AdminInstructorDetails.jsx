@@ -16,7 +16,7 @@ const AdminInstructorDetails = () => {
         const instr = instrRes.data.data || instrRes.data;
         setInstructor(instr);
 
-        const coursesRes = await api.get(`/users/instructor/${id}/courses`);
+        const coursesRes = await api.get(`/admin/instructors/${id}/courses`);
         const courseList = coursesRes.data.data || coursesRes.data;
         setCourses(courseList || []);
       } catch (err) {
