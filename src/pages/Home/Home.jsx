@@ -47,14 +47,14 @@ const Home = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // فرض بر این است که مسیر API شما /public/stats است
+
         const response = await api.get("/public/stats"); 
         const data = response.data;
 
         setStats([
           { 
             label: "Active Students", 
-            // اعداد بزرگ را فرمت می‌کند (مثلا 12000 می‌شود 12,000)
+
             value: `${data.students.toLocaleString()}+` 
           },
           { 
@@ -72,13 +72,11 @@ const Home = () => {
         ]);
       } catch (error) {
         console.error("Failed to fetch stats:", error);
-        // در صورت خطا، مقادیر پیش‌فرض یا قبلی باقی می‌مانند
       }
     };
 
     fetchStats();
   }, []);
-  // ---------------------------------------
 
   useEffect(() => {
     const fetchWishlist = async () => {
