@@ -2,14 +2,14 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Crown, Star } from "lucide-react";
 
-const CartItem = ({ item, onRemove }) => {
+const CartItem = ({ item, onRemove, onMoveToWishlist }) => {
   const course = item.course || item;
   const courseId = course.id || item.course_id;
   const itemIdToRemove = item.id;
 
   // Price Section
   const originalPrice = course.original_price ?? course.price;
-  const finalPrice = course.price; 
+  const finalPrice = course.price;
   const hasDiscount = originalPrice > finalPrice;
   const discountPercent = hasDiscount
     ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
@@ -50,19 +50,20 @@ const CartItem = ({ item, onRemove }) => {
     for (let i = 0; i < 5; i++) {
       if (i < fullStars) {
         stars.push(
-          <Star key={i} className="w-3 h-3 fill-[#b4690e] text-[#b4690e]" />
+          <Star key={i} className="w-3 h-3 fill-[#b4690e] text-[#b4690e]" />,
         );
       } else if (i === fullStars && hasHalfStar) {
         stars.push(
           <div key={i} className="relative w-3 h-3">
             <Star className="w-3 h-3 text-[#b4690e]" />
-            <Star className="w-3 h-3 fill-[#b4690e] text-[#b4690e] absolute top-0 left-0" style={{ clipPath: 'inset(0 50% 0 0)' }} />
-          </div>
+            <Star
+              className="w-3 h-3 fill-[#b4690e] text-[#b4690e] absolute top-0 left-0"
+              style={{ clipPath: "inset(0 50% 0 0)" }}
+            />
+          </div>,
         );
       } else {
-        stars.push(
-          <Star key={i} className="w-3 h-3 text-[#b4690e]" />
-        );
+        stars.push(<Star key={i} className="w-3 h-3 text-[#b4690e]" />);
       }
     }
     return stars;
@@ -130,11 +131,10 @@ const CartItem = ({ item, onRemove }) => {
             <span className="text-[#b4690e] font-bold text-sm">
               {rating.toFixed(1)}
             </span>
-            <div className="flex gap-0.5">
-              {renderStars(rating)}
-            </div>
+            <div className="flex gap-0.5">{renderStars(rating)}</div>
             <span className="text-gray-400 text-xs">
-              ({totalReviews.toLocaleString()} {totalReviews === 1 ? 'rating' : 'ratings'})
+              ({totalReviews.toLocaleString()}{" "}
+              {totalReviews === 1 ? "rating" : "ratings"})
             </span>
           </div>
         ) : (
@@ -151,8 +151,14 @@ const CartItem = ({ item, onRemove }) => {
           >
             Remove
           </button>
-          <button className="text-primary hover:text-indigo-800 transition-colors">
-            Move to Wishlist
+
+          {/* MOVE TO WISHLIST BUTTON */}
+          <button
+            type="button"
+            className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+            onClick={() => onMoveToWishlist(courseId)}
+          >
+            Move to wishlist
           </button>
         </div>
       </div>

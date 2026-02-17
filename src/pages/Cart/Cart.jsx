@@ -12,6 +12,7 @@ import {
 } from "../../services/cartService.js";
 import { useCart } from "../../context/CartContext";
 import api from "../../utils/Api";
+import { toast } from "react-hot-toast";
 
 const Cart = () => {
   const { user } = useAuth();
@@ -57,19 +58,25 @@ const Cart = () => {
               // Fetch full course details
               const response = await api.get(`/courses/${item.id}`);
               const courseData = response.data?.data || response.data;
-              
+
               return {
                 id: item.id,
                 course: {
                   id: item.id,
                   title: courseData.title || item.title,
                   price: courseData.price || item.price,
-                  image: courseData.thumbnail_url || courseData.image || item.thumbnail || item.image,
-                  instructor_name: courseData.instructor_name || item.instructor_name,
+                  image:
+                    courseData.thumbnail_url ||
+                    courseData.image ||
+                    item.thumbnail ||
+                    item.image,
+                  instructor_name:
+                    courseData.instructor_name || item.instructor_name,
                   Users: courseData.Users || item.Users,
                   rating: courseData.rating || 0,
                   reviews: courseData.reviews || 0,
-                  total_reviews: courseData.total_reviews || courseData.reviews || 0,
+                  total_reviews:
+                    courseData.total_reviews || courseData.reviews || 0,
                 },
               };
             } catch (err) {
@@ -90,7 +97,7 @@ const Cart = () => {
                 },
               };
             }
-          })
+          }),
         );
 
         const total = enrichedItems.reduce(
@@ -142,6 +149,42 @@ const Cart = () => {
   useEffect(() => {
     console.log("cartData:", cartData);
   }, [cartData]);
+
+  const handleMoveToWishlist = async (courseId) => {
+    try {
+      if (!user) {
+        toast.error("Please log in to save courses");
+        return;
+      }
+
+      await api.post(`/student/${user.id}/wishlist`, { courseId });
+
+      if (user) {
+        // find matching cart item ID
+        const cartItem = cartData.items.find(
+          (i) =>
+            Number(i.course_id || i.course?.id || i.id) === Number(courseId),
+        );
+        if (cartItem) {
+          await removeCartItem(cartItem.id);
+        }
+      } else {
+        const localItems = JSON.parse(localStorage.getItem("cart")) || [];
+        const filtered = localItems.filter(
+          (item) => Number(item.id) !== Number(courseId),
+        );
+        localStorage.setItem("cart", JSON.stringify(filtered));
+      }
+
+      await fetchCart();
+      await fetchCartCount();
+
+      toast.success("Moved to wishlist");
+    } catch (err) {
+      console.error("Move to wishlist failed:", err);
+      toast.error("Could not move to wishlist");
+    }
+  };
 
   const handleRemove = async (id) => {
     try {
@@ -243,7 +286,12 @@ const Cart = () => {
           <div className="border-t border-gray-200">
             {cartData.items.length > 0 ? (
               cartData.items.map((item) => (
-                <CartItem key={item.id} item={item} onRemove={handleRemove} />
+                <CartItem
+                  key={item.id}
+                  item={item}
+                  onRemove={handleRemove}
+                  onMoveToWishlist={handleMoveToWishlist}
+                />
               ))
             ) : (
               <div className="py-20 text-center border-b border-gray-200">
