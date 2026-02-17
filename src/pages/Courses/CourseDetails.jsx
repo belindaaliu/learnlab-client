@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import {
@@ -83,28 +83,34 @@ const CourseDetails = () => {
   useEffect(() => {
     const incrementView = async () => {
       if (!id || viewCounted || !course) return;
-      
-      const viewedCourses = JSON.parse(sessionStorage.getItem('viewed_courses') || '[]');
-      
+
+      const viewedCourses = JSON.parse(
+        sessionStorage.getItem("viewed_courses") || "[]",
+      );
+
       if (viewedCourses.includes(id.toString())) {
         setViewCounted(true);
         return;
       }
-      
+
       try {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
         await api.put(`/courses/${id}/views`);
-        
+
         viewedCourses.push(id.toString());
-        sessionStorage.setItem('viewed_courses', JSON.stringify(viewedCourses));
-        
+        sessionStorage.setItem("viewed_courses", JSON.stringify(viewedCourses));
+
         setViewCounted(true);
-        setCourse(prev => prev ? {
-          ...prev,
-          views: (prev.views || 0) + 1
-        } : null);
+        setCourse((prev) =>
+          prev
+            ? {
+                ...prev,
+                views: (prev.views || 0) + 1,
+              }
+            : null,
+        );
       } catch (error) {
-        console.debug('Failed to increment view count:', error.message);
+        console.debug("Failed to increment view count:", error.message);
       }
     };
 
@@ -203,12 +209,21 @@ const CourseDetails = () => {
             }
 
             const hasAllCoursesAccess = features.all_courses_access === true;
-            const userPlanName = String(subData.planName || "").trim().toLowerCase();
+            const userPlanName = String(subData.planName || "")
+              .trim()
+              .toLowerCase();
             const coursePlanName = String(
-              course?.SubscriptionPlans?.name || course?.required_plan_name || "",
-            ).trim().toLowerCase();
+              course?.SubscriptionPlans?.name ||
+                course?.required_plan_name ||
+                "",
+            )
+              .trim()
+              .toLowerCase();
 
-            const planNamesMatch = !!coursePlanName && !!userPlanName && userPlanName === coursePlanName;
+            const planNamesMatch =
+              !!coursePlanName &&
+              !!userPlanName &&
+              userPlanName === coursePlanName;
             const hasSubAccess = hasAllCoursesAccess || planNamesMatch;
             setHasSubscriberAccess(hasSubAccess);
           } else {
@@ -221,7 +236,9 @@ const CourseDetails = () => {
 
           const wishlistData = wishlistRes.data?.data || wishlistRes.data || [];
           const courseId = Number(id);
-          setIsInWishlist(wishlistData.some((item) => Number(item.id) === courseId));
+          setIsInWishlist(
+            wishlistData.some((item) => Number(item.id) === courseId),
+          );
         } catch (err) {
           console.error("Status check failed:", err);
           setIsInCart(inGuestCart);
@@ -256,8 +273,10 @@ const CourseDetails = () => {
 
   // --- LOGIC VARIABLES ---
   const isActuallyFree = course && Number(course.price) === 0;
-  const hasAccess = isActuallyFree || (!!user && (isEnrolled || hasSubscriberAccess));
-  const requiredPlan = course?.SubscriptionPlans?.name || course?.required_plan_name;
+  const hasAccess =
+    isActuallyFree || (!!user && (isEnrolled || hasSubscriberAccess));
+  const requiredPlan =
+    course?.SubscriptionPlans?.name || course?.required_plan_name;
   const hasRequiredPlan = !!requiredPlan;
   const isPremium = Number(course?.price) > 0;
 
@@ -267,8 +286,10 @@ const CourseDetails = () => {
     course?.discount_active &&
     course?.discount_type &&
     course?.discount_value != null &&
-    (!course?.discount_starts_at || new Date(course.discount_starts_at) <= new Date()) &&
-    (!course?.discount_ends_at || new Date(course.discount_ends_at) >= new Date());
+    (!course?.discount_starts_at ||
+      new Date(course.discount_starts_at) <= new Date()) &&
+    (!course?.discount_ends_at ||
+      new Date(course.discount_ends_at) >= new Date());
 
   let finalPrice = basePrice;
   let discountPercent = 0;
@@ -291,9 +312,14 @@ const CourseDetails = () => {
   const courseStats = useMemo(() => {
     // Default values
     if (!course?.CourseContent || !Array.isArray(course.CourseContent)) {
-      return { 
-        totalHours: 0, totalMinutes: 0, articles: 0, lessons: 0, 
-        ratingAvg: "New", ratingCount: 0, studentsFormatted: "0" 
+      return {
+        totalHours: 0,
+        totalMinutes: 0,
+        articles: 0,
+        lessons: 0,
+        ratingAvg: "New",
+        ratingCount: 0,
+        studentsFormatted: "0",
       };
     }
 
@@ -318,42 +344,52 @@ const CourseDetails = () => {
     let h = Math.floor(totalSeconds / 3600);
     let m = Math.floor((totalSeconds % 3600) / 60);
     if ((totalSeconds % 3600) % 60 > 0) m += 1;
-    if (m === 60) { h += 1; m = 0; }
+    if (m === 60) {
+      h += 1;
+      m = 0;
+    }
     if (totalSeconds > 0 && h === 0 && m === 0) m = 1;
 
     // 2. Rating Calculation
     let avg = 0;
     let count = 0;
-    
+
     if (course.rating) {
-        avg = Number(course.rating);
-        count = course.reviews_count || 0;
-    } 
-    else if (course.Reviews && Array.isArray(course.Reviews) && course.Reviews.length > 0) {
-        const total = course.Reviews.reduce((acc, curr) => acc + curr.rating, 0);
-        avg = Number((total / course.Reviews.length).toFixed(1));
-        count = course.Reviews.length;
+      avg = Number(course.rating);
+      count = course.reviews_count || 0;
+    } else if (
+      course.Reviews &&
+      Array.isArray(course.Reviews) &&
+      course.Reviews.length > 0
+    ) {
+      const total = course.Reviews.reduce((acc, curr) => acc + curr.rating, 0);
+      avg = Number((total / course.Reviews.length).toFixed(1));
+      count = course.Reviews.length;
     }
 
     // 3. Student number format
     let studCount = course._count?.Enrollments || course.enrollments_count || 0;
     let studFmt = studCount.toString();
-    if(studCount > 1000) studFmt = (studCount / 1000).toFixed(1) + "k";
+    if (studCount > 1000) studFmt = (studCount / 1000).toFixed(1) + "k";
 
     return {
       totalHours: h,
       totalMinutes: m,
       articles: articlesCount,
-      lessons: lessonsCount, 
+      lessons: lessonsCount,
       ratingAvg: avg > 0 ? avg : "New",
       ratingCount: count,
-      studentsFormatted: studFmt
+      studentsFormatted: studFmt,
     };
   }, [course]);
 
-  const isBestseller = (course?.enrollments_count > 50 && courseStats.ratingAvg !== "New" && courseStats.ratingAvg >= 4.5);
+  const isBestseller =
+    course?.enrollments_count > 50 &&
+    courseStats.ratingAvg !== "New" &&
+    courseStats.ratingAvg >= 4.5;
 
-  const sections = course?.CourseContent?.filter((item) => item.type === "section") || [];
+  const sections =
+    course?.CourseContent?.filter((item) => item.type === "section") || [];
 
   // --- Handlers ---
 
@@ -371,26 +407,34 @@ const CourseDetails = () => {
     setEnrolling(true);
     try {
       const response = await api.post(`/student/${user.id}/enroll`, {
-        course_id: Number(course.id)
+        course_id: Number(course.id),
       });
 
       if (response.data.success) {
         setIsEnrolled(true);
-        
+
         if (response.data.enrollments_count) {
-          setCourse(prev => prev ? {
-            ...prev,
-            enrollments_count: response.data.enrollments_count
-          } : null);
+          setCourse((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  enrollments_count: response.data.enrollments_count,
+                }
+              : null,
+          );
         } else {
-          setCourse(prev => prev ? {
-            ...prev,
-            enrollments_count: (prev.enrollments_count || 0) + 1
-          } : null);
+          setCourse((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  enrollments_count: (prev.enrollments_count || 0) + 1,
+                }
+              : null,
+          );
         }
 
         toast.success("Successfully enrolled in the course!");
-        
+
         if (isInCart) {
           setIsInCart(false);
           await fetchCartCount();
@@ -411,7 +455,9 @@ const CourseDetails = () => {
       }
     } catch (error) {
       console.error("Enrollment failed:", error);
-      const errorMessage = error.response?.data?.message || "Failed to enroll in the course. Please try again.";
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to enroll in the course. Please try again.";
       toast.error(errorMessage);
     } finally {
       setEnrolling(false);
@@ -434,7 +480,10 @@ const CourseDetails = () => {
         toast.success("Course added to your cart!");
       } catch (err) {
         console.error("Add to cart failed:", err);
-        const msg = err.response?.data?.message || err.message || "Could not add to cart.";
+        const msg =
+          err.response?.data?.message ||
+          err.message ||
+          "Could not add to cart.";
         toast.error(msg);
       } finally {
         setAddingToCart(false);
@@ -448,7 +497,8 @@ const CourseDetails = () => {
           price: course.price,
           thumbnail: course.thumbnail_url,
           instructor_id: course.Users?.id,
-          instructor_name: `${course.Users?.first_name || 'Instructor'} ${course.Users?.last_name || ''}`.trim(),
+          instructor_name:
+            `${course.Users?.first_name || "Instructor"} ${course.Users?.last_name || ""}`.trim(),
         });
         localStorage.setItem("cart", JSON.stringify(guestCart));
         toast.success("Added to cart as guest!");
@@ -480,13 +530,19 @@ const CourseDetails = () => {
       navigate("/checkout", {
         state: {
           checkoutType: "cart",
-          cartItems: [{ id: course.id, title: course.title, price: course.price }],
+          cartItems: [
+            { id: course.id, title: course.title, price: course.price },
+          ],
           totalAmount: Number(course.price),
         },
       });
     } catch (err) {
       console.error("Checkout failed:", err);
-      toast.error(err.response?.data?.message || err.message || "We encountered an issue starting your checkout.");
+      toast.error(
+        err.response?.data?.message ||
+          err.message ||
+          "We encountered an issue starting your checkout.",
+      );
     }
   };
 
@@ -558,7 +614,11 @@ const CourseDetails = () => {
         navigate("/cart");
       } catch (err) {
         console.error("Not added to Cart!", err);
-        toast.error(err.response?.data?.message || err.message || "Could not add to cart.");
+        toast.error(
+          err.response?.data?.message ||
+            err.message ||
+            "Could not add to cart.",
+        );
         navigate("/cart");
       }
     } else {
@@ -570,7 +630,8 @@ const CourseDetails = () => {
           price: course.price,
           thumbnail: course.thumbnail_url,
           instructor_id: course.Users?.id,
-          instructor_name: `${course.Users?.first_name || 'Instructor'} ${course.Users?.last_name || ''}`.trim(),
+          instructor_name:
+            `${course.Users?.first_name || "Instructor"} ${course.Users?.last_name || ""}`.trim(),
         });
         localStorage.setItem("cart", JSON.stringify(guestCart));
       }
@@ -578,8 +639,10 @@ const CourseDetails = () => {
     }
   };
 
-  if (loading) return <div className="text-center py-20">Loading course details...</div>;
-  if (!course || !course.title) return <div className="text-center py-20">Course not found.</div>;
+  if (loading)
+    return <div className="text-center py-20">Loading course details...</div>;
+  if (!course || !course.title)
+    return <div className="text-center py-20">Course not found.</div>;
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 relative animate-in fade-in duration-500">
@@ -592,7 +655,9 @@ const CourseDetails = () => {
         courseImage={course?.thumbnail_url}
         onChangeLesson={(lesson) => setActivePreviewLesson(lesson)}
         onUnlock={handleModalUnlock}
-        unlockLabel={isSubscriberOnlyCourse ? "Get Subscription Access" : "Buy This Course"}
+        unlockLabel={
+          isSubscriberOnlyCourse ? "Get Subscription Access" : "Buy This Course"
+        }
         coursePrice={course?.price}
       />
 
@@ -628,7 +693,8 @@ const CourseDetails = () => {
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        courseStats.ratingAvg !== "New" && i < Math.floor(Number(courseStats.ratingAvg))
+                        courseStats.ratingAvg !== "New" &&
+                        i < Math.floor(Number(courseStats.ratingAvg))
                           ? "fill-current"
                           : "text-gray-500"
                       }`}
@@ -638,30 +704,39 @@ const CourseDetails = () => {
                 <span className="text-blue-300 underline ml-1 cursor-pointer">
                   ({courseStats.ratingCount} ratings)
                 </span>
-                
+
                 <span className="text-slate-300 ml-2 border-l border-slate-600 pl-3 flex items-center gap-1">
-                  <Users className="w-4 h-4" /> {courseStats.studentsFormatted} students
+                  <Users className="w-4 h-4" /> {courseStats.studentsFormatted}{" "}
+                  students
                 </span>
               </div>
 
               <div className="text-slate-300">
                 Created by{" "}
-                <span className="text-purple-300 underline cursor-pointer">
-                  {course.Users?.first_name || 'Instructor'} {course.Users?.last_name || ''}
-                </span>
+                <Link
+                  to={`/profile/${course.Users?.id}`}
+                  className="text-purple-300 underline hover:text-purple-400 transition-colors cursor-pointer"
+                >
+                  {course.Users?.first_name || "Instructor"}{" "}
+                  {course.Users?.last_name || ""}
+                </Link>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300 mt-2">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" /> Last updated{" "}
-                {course.updated_at ? new Date(course.updated_at).toLocaleDateString() : new Date().toLocaleDateString()}
+                {course.updated_at
+                  ? new Date(course.updated_at).toLocaleDateString()
+                  : new Date().toLocaleDateString()}
               </span>
               <span className="flex items-center gap-1">
-                <Globe className="w-4 h-4" /> {course.language || "Not Specified"}
+                <Globe className="w-4 h-4" />{" "}
+                {course.language || "Not Specified"}
               </span>
               <span className="flex items-center gap-1">
-                <Eye className="w-4 h-4" /> {course.views?.toLocaleString() || 0} views
+                <Eye className="w-4 h-4" />{" "}
+                {course.views?.toLocaleString() || 0} views
               </span>
             </div>
           </div>
@@ -680,31 +755,41 @@ const CourseDetails = () => {
             <div className="grid grid-cols-1 gap-3">
               {parsedRequirements.length > 0 ? (
                 parsedRequirements.map((req, idx) => (
-                  <div key={idx} className="flex gap-2 items-start text-sm text-gray-700">
+                  <div
+                    key={idx}
+                    className="flex gap-2 items-start text-sm text-gray-700"
+                  >
                     <CheckCircle className="w-4 h-4 text-gray-800 shrink-0 mt-0.5" />
                     <span>{req}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-sm">No specific requirements listed.</p>
+                <p className="text-gray-500 text-sm">
+                  No specific requirements listed.
+                </p>
               )}
             </div>
           </div>
 
           {/* Course Content */}
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Course Content</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              Course Content
+            </h3>
             {sections.length > 0 ? (
               <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                 {sections
                   .sort((a, b) => a.order_index - b.order_index)
                   .map((section, idx) => {
                     const lessons = course.CourseContent.filter(
-                      (c) => c.parent_id === section.id && c.type !== "section"
+                      (c) => c.parent_id === section.id && c.type !== "section",
                     ).sort((a, b) => a.order_index - b.order_index);
 
                     return (
-                      <div key={section.id} className="border-b border-gray-100 last:border-0">
+                      <div
+                        key={section.id}
+                        className="border-b border-gray-100 last:border-0"
+                      >
                         <div className="bg-gray-50 px-4 py-3 font-bold text-gray-800 flex justify-between items-center cursor-default">
                           <span>
                             Section {idx + 1}: {section.title}
@@ -715,27 +800,46 @@ const CourseDetails = () => {
                         </div>
                         <div className="p-4 space-y-3 bg-white">
                           {lessons.map((lesson, lIdx) => (
-                            <div key={lesson.id} className="flex justify-between text-sm text-gray-600 group">
+                            <div
+                              key={lesson.id}
+                              className="flex justify-between text-sm text-gray-600 group"
+                            >
                               <div className="flex items-center gap-3">
-                                {lesson.type === "video" && <Video className="w-4 h-4 text-gray-400" />}
-                                {lesson.type === "note" && <FileText className="w-4 h-4 text-gray-400" />}
-                                {lesson.type === "assessment" && <HelpCircle className="w-4 h-4 text-gray-400" />}
-                                
+                                {lesson.type === "video" && (
+                                  <Video className="w-4 h-4 text-gray-400" />
+                                )}
+                                {lesson.type === "note" && (
+                                  <FileText className="w-4 h-4 text-gray-400" />
+                                )}
+                                {lesson.type === "assessment" && (
+                                  <HelpCircle className="w-4 h-4 text-gray-400" />
+                                )}
+
                                 <span
-                                  className={lesson.is_preview ? "group-hover:underline cursor-pointer" : ""}
-                                  onClick={() => lesson.is_preview && openPreview(lesson)}
+                                  className={
+                                    lesson.is_preview
+                                      ? "group-hover:underline cursor-pointer"
+                                      : ""
+                                  }
+                                  onClick={() =>
+                                    lesson.is_preview && openPreview(lesson)
+                                  }
                                 >
                                   {lIdx + 1}. {lesson.title}
                                 </span>
                               </div>
                               {lesson.is_preview ? (
                                 <div className="flex items-center gap-4">
-                                  <span className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline" onClick={() => openPreview(lesson)}>
+                                  <span
+                                    className="text-purple-600 font-bold text-xs cursor-pointer hover:text-purple-800 underline"
+                                    onClick={() => openPreview(lesson)}
+                                  >
                                     Preview
                                   </span>
                                   {lesson.duration_seconds && (
                                     <span className="text-xs">
-                                      {Math.floor(lesson.duration_seconds / 60)}:00
+                                      {Math.floor(lesson.duration_seconds / 60)}
+                                      :00
                                     </span>
                                   )}
                                 </div>
@@ -745,7 +849,9 @@ const CourseDetails = () => {
                             </div>
                           ))}
                           {lessons.length === 0 && (
-                            <p className="text-xs text-gray-400 italic">No lessons in this section yet.</p>
+                            <p className="text-xs text-gray-400 italic">
+                              No lessons in this section yet.
+                            </p>
                           )}
                         </div>
                       </div>
@@ -753,13 +859,17 @@ const CourseDetails = () => {
                   })}
               </div>
             ) : (
-              <div className="text-gray-500 text-sm italic">Content is being updated.</div>
+              <div className="text-gray-500 text-sm italic">
+                Content is being updated.
+              </div>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Description</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              Description
+            </h3>
             <div
               className={`prose text-gray-700 text-sm max-w-none overflow-hidden transition-all duration-300 ${
                 showFullDesc ? "max-h-full" : "max-h-48"
@@ -768,7 +878,8 @@ const CourseDetails = () => {
                 __html: course.long_description || course.description,
               }}
             />
-            {(course.long_description?.length > 300 || course.description?.length > 300) && (
+            {(course.long_description?.length > 300 ||
+              course.description?.length > 300) && (
               <button
                 onClick={() => setShowFullDesc(!showFullDesc)}
                 className="text-purple-600 font-bold text-sm mt-3 hover:underline flex items-center gap-1"
@@ -781,7 +892,9 @@ const CourseDetails = () => {
           {/* Who this course is for */}
           {parsedAudience.length > 0 && (
             <div className="bg-white p-6 border border-gray-200 rounded-lg">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Who this course is for:</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Who this course is for:
+              </h3>
               <ul className="space-y-2">
                 {parsedAudience.map((item, idx) => (
                   <li key={idx} className="flex gap-3 text-sm text-gray-700">
@@ -807,10 +920,15 @@ const CourseDetails = () => {
               onClick={() => openPreview()}
             >
               <img
-                src={course.thumbnail_url || "https://via.placeholder.com/640x360"}
+                src={
+                  course.thumbnail_url || "https://via.placeholder.com/640x360"
+                }
                 alt={course.title}
                 className="w-full h-full object-cover"
-                onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/640x360"; }}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://via.placeholder.com/640x360";
+                }}
               />
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition">
                 <div className="bg-white rounded-full p-4 shadow-lg group-hover:scale-110 transition">
@@ -830,18 +948,26 @@ const CourseDetails = () => {
                       <>
                         <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
                         <p className="text-green-800 font-bold">Free Course</p>
-                        <p className="text-green-600 text-xs">Open for all students</p>
+                        <p className="text-green-600 text-xs">
+                          Open for all students
+                        </p>
                       </>
                     ) : hasSubscriberAccess && !isEnrolled ? (
                       <>
                         <Star className="w-8 h-8 text-blue-600 mx-auto mb-2 fill-current" />
-                        <p className="text-blue-800 font-bold">Included in your Plan</p>
-                        <p className="text-blue-600 text-xs">Subscriber Exclusive Access</p>
+                        <p className="text-blue-800 font-bold">
+                          Included in your Plan
+                        </p>
+                        <p className="text-blue-600 text-xs">
+                          Subscriber Exclusive Access
+                        </p>
                       </>
                     ) : (
                       <>
                         <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                        <p className="text-green-800 font-semibold">You own this course</p>
+                        <p className="text-green-800 font-semibold">
+                          You own this course
+                        </p>
                       </>
                     )}
                   </div>
@@ -866,10 +992,13 @@ const CourseDetails = () => {
                           <div>
                             <p className="text-sm font-bold text-gray-900 leading-tight">
                               Get access with{" "}
-                              <span className="text-purple-700">{requiredPlan}</span>
+                              <span className="text-purple-700">
+                                {requiredPlan}
+                              </span>
                             </p>
                             <p className="text-[12px] text-gray-600 mt-1">
-                              Upgrade your plan to watch this course and others in {requiredPlan}.
+                              Upgrade your plan to watch this course and others
+                              in {requiredPlan}.
                             </p>
                           </div>
                         </div>
@@ -884,12 +1013,16 @@ const CourseDetails = () => {
                           <p className="text-[11px] text-gray-500 font-medium">
                             Plans starting at ${starterPrice}/mo
                           </p>
-                          <p className="text-[11px] text-gray-500">Cancel anytime</p>
+                          <p className="text-[11px] text-gray-500">
+                            Cancel anytime
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center my-2">
                         <div className="flex-grow border-t border-gray-300" />
-                        <span className="px-3 text-xs text-gray-500 font-medium uppercase">or</span>
+                        <span className="px-3 text-xs text-gray-500 font-medium uppercase">
+                          or
+                        </span>
                         <div className="flex-grow border-t border-gray-300" />
                       </div>
                     </>
@@ -897,7 +1030,9 @@ const CourseDetails = () => {
 
                   <div className="flex items-center gap-3 mb-2">
                     {basePrice === 0 ? (
-                      <span className="text-3xl font-bold text-gray-900">Free</span>
+                      <span className="text-3xl font-bold text-gray-900">
+                        Free
+                      </span>
                     ) : hasDiscount ? (
                       <>
                         <span className="text-3xl font-bold text-gray-900">
@@ -906,7 +1041,9 @@ const CourseDetails = () => {
                         <span className="text-lg text-gray-400 line-through">
                           ${basePrice.toFixed(2)}
                         </span>
-                        <span className="text-sm text-gray-500">{discountPercent}% off</span>
+                        <span className="text-sm text-gray-500">
+                          {discountPercent}% off
+                        </span>
                       </>
                     ) : (
                       <span className="text-3xl font-bold text-gray-900">
@@ -932,8 +1069,8 @@ const CourseDetails = () => {
                           !statusReady
                             ? undefined
                             : isInCart
-                            ? () => navigate("/cart")
-                            : handleAddToCart
+                              ? () => navigate("/cart")
+                              : handleAddToCart
                         }
                         isLoading={addingToCart || !statusReady}
                         variant={isInCart ? "outline" : "primary"}
@@ -964,14 +1101,16 @@ const CourseDetails = () => {
                     : "border-purple-600 text-purple-600 hover:bg-purple-50"
                 } ${wishlistLoading || isEnrolled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <Heart className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`} />
+                <Heart
+                  className={`w-5 h-5 ${isInWishlist ? "fill-current" : ""}`}
+                />
                 {wishlistLoading
                   ? "Processing..."
                   : isEnrolled
-                  ? "Already Enrolled"
-                  : isInWishlist
-                  ? "Remove from Wishlist"
-                  : "Add to Wishlist"}
+                    ? "Already Enrolled"
+                    : isInWishlist
+                      ? "Remove from Wishlist"
+                      : "Add to Wishlist"}
               </button>
 
               {isPremium && (
@@ -990,10 +1129,12 @@ const CourseDetails = () => {
                   on-demand video
                 </div>
                 <div className="flex gap-2 items-center">
-                  <PlayCircle className="w-4 h-4" /> {courseStats.lessons} lessons
+                  <PlayCircle className="w-4 h-4" /> {courseStats.lessons}{" "}
+                  lessons
                 </div>
                 <div className="flex gap-2 items-center">
-                  <BookOpen className="w-4 h-4" /> {courseStats.articles} articles / notes
+                  <BookOpen className="w-4 h-4" /> {courseStats.articles}{" "}
+                  articles / notes
                 </div>
                 <div className="flex gap-2 items-center">
                   <Globe className="w-4 h-4" /> Access on mobile and TV
