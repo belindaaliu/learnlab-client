@@ -14,6 +14,7 @@ import {
   Check,
   X
 } from "lucide-react";
+import toast from 'react-hot-toast';
 
 export default function InstructorQuizReview() {
   const { attemptId } = useParams();
@@ -52,9 +53,10 @@ export default function InstructorQuizReview() {
     } catch (error) {
       console.error("Error fetching quiz attempt:", error);
       if (error.response?.status === 403) {
-        alert("You don't have permission to view this quiz attempt");
+        toast.error("You don't have permission to view this quiz attempt");
         navigate("/instructor/courses");
-      }
+      }else {
+        toast.error("Failed to load quiz details. Please try again.");}
     } finally {
       setLoading(false);
     }

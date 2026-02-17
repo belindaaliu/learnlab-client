@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout, DollarSign, BarChart, Globe, UploadCloud, Loader2, Tag } from 'lucide-react'; // Added Tag icon
 import Button from '../../components/common/Button'; 
 import CategorySelector from '../../components/common/CategorySelector';
+import toast from 'react-hot-toast';
 
 const CreateCourse = () => {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ const CreateCourse = () => {
       setFormData(prev => ({ ...prev, thumbnail_url: res.data.url }));
     } catch (error) {
       console.error("Upload failed", error);
-      alert("Failed to upload image");
+      toast.error("Failed to upload image");
     } finally {
       setUploadingImage(false);
     }
@@ -53,11 +54,11 @@ const CreateCourse = () => {
     e.preventDefault();
 
     if (!formData.category_id) {
-        alert("Please select a category.");
+        toast.error("Please select a category.");
         return;
     }
     if (parseFloat(formData.price) < 0) {
-        alert("Price cannot be negative!");
+        toast.error("Price cannot be negative!");
         return;
     }
 
@@ -75,6 +76,7 @@ const CreateCourse = () => {
       const newCourseId = res.data.id || res.data.data?.id;
 
       if (newCourseId) {
+        toast.success("Course created successfully!");
         navigate(`/instructor/courses/edit/${newCourseId}`);
       } else {
         throw new Error("Course created but ID is missing.");
@@ -82,7 +84,7 @@ const CreateCourse = () => {
       
     } catch (error) {
       console.error("Failed to create course", error);
-      alert(error.response?.data?.message || "Something went wrong creating the course.");
+      toast.error(error.response?.data?.message || "Something went wrong creating the course.");
     } finally {
       setLoading(false);
     }

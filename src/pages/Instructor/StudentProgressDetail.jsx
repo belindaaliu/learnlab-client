@@ -34,6 +34,7 @@ import autoTable from 'jspdf-autotable';
 import "jspdf-autotable";
 import html2canvas from "html2canvas";
 import { useRef } from "react";
+import toast from "react-hot-toast";
 
 export default function StudentProgressDetail() {
   const { courseId, studentId } = useParams();
@@ -120,7 +121,7 @@ export default function StudentProgressDetail() {
       } catch (error) {
         console.error("Error fetching student progress:", error);
         if (error.response?.status === 403) {
-          alert("You don't have permission to view this student's progress");
+          toast.error("You don't have permission to view this student's progress");
           navigate(`/instructor/courses/${courseId}/students`);
         }
       } finally {
@@ -239,7 +240,7 @@ const exportAsPDF = async () => {
     
   } catch (error) {
     console.error("Error generating PDF:", error);
-    alert("Failed to generate PDF report");
+    toast.error("Failed to generate PDF report");
   } finally {
     setExporting(false);
   }
@@ -308,7 +309,7 @@ const exportAsCSV = () => {
     
   } catch (error) {
     console.error("Error generating CSV:", error);
-    alert("Failed to generate CSV report");
+    toast.error("Failed to generate CSV report");
   } finally {
     setExporting(false);
   }
