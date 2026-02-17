@@ -26,26 +26,42 @@ const SORT_OPTIONS = [
 ];
 
 const CoursesList = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { fetchCartCount } = useCart();
-  const urlSearchQuery = searchParams.get("search");
 
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [error, setError] = useState(null);
   const [wishlistIds, setWishlistIds] = useState([]);
-
-  const [filters, setFilters] = useState({
-    search: urlSearchQuery || "",
-    category: "All",
-    priceRange: [],
-    sortBy: "newest",
-  });
-
-  // Track which courses the logged-in user is enrolled in
   const [enrolledCourseIds, setEnrolledCourseIds] = useState([]);
+
+  const currentSearch = searchParams.get("search") || "";
+  const currentCategory = searchParams.get("category") || "All";
+  const currentPriceParam = searchParams.get("price");
+  const currentPriceRange = currentPriceParam ? currentPriceParam.split(",") : [];
+  const currentSort = searchParams.get("sort") || "newest";
+
+  const updateURLParams = (updates) => {
+    const newParams = new URLSearchParams(searchParams);
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (
+        value === null || 
+        value === "" || 
+        (Array.isArray(value) && value.length === 0) || 
+        (key === 'category' && value === 'All') || 
+        (key === 'sort' && value === 'newest')
+      ) {
+        newParams.delete(key);
+      } else {
+        newParams.set(key, Array.isArray(value) ? value.join(",") : value);
+      }
+    });
+    
+    setSearchParams(newParams, { replace: true });
+  };
 
   // Fetch enrolled courses once when user changes
   useEffect(() => {
@@ -91,31 +107,22 @@ const CoursesList = () => {
 
       try {
         const params = {};
-        if (filters.search) params.search = filters.search;
-        if (filters.category !== "All") params.category = filters.category;
-        if (filters.sortBy) params.sort = filters.sortBy;
+        if (currentSearch) params.search = currentSearch;
+        if (currentCategory !== "All") params.category = currentCategory;
+        if (currentSort !== "newest") params.sort = currentSort;
 
         const response = await api.get("/courses", { params });
         const data = response.data.data || response.data;
 
         let result = data;
-        if (filters.priceRange.length > 0) {
+        
+        if (currentPriceRange.length > 0) {
           result = result.filter((c) => {
             const price = Number(c.price);
-            if (filters.priceRange.includes("free") && price === 0) return true;
-            if (
-              filters.priceRange.includes("under_20") &&
-              price > 0 &&
-              price < 20
-            )
-              return true;
-            if (
-              filters.priceRange.includes("mid") &&
-              price >= 20 &&
-              price <= 100
-            )
-              return true;
-            if (filters.priceRange.includes("high") && price > 100) return true;
+            if (currentPriceRange.includes("free") && price === 0) return true;
+            if (currentPriceRange.includes("under_20") && price > 0 && price <= 20) return true;
+            if (currentPriceRange.includes("mid") && price > 20 && price <= 100) return true;
+            if (currentPriceRange.includes("high") && price > 100) return true;
             return false;
           });
         }
@@ -131,21 +138,22 @@ const CoursesList = () => {
 
     const timeoutId = setTimeout(fetchCourses, 500);
     return () => clearTimeout(timeoutId);
-  }, [filters]);
+  }, [currentSearch, currentCategory, currentPriceRange.join(","), currentSort]);
 
   const handlePriceChange = (value) => {
-    setFilters((prev) => {
-      const current = prev.priceRange;
-      const updated = current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value];
-      return { ...prev, priceRange: updated };
-    });
+    const updated = currentPriceRange.includes(value)
+      ? currentPriceRange.filter((item) => item !== value)
+      : [...currentPriceRange, value];
+    updateURLParams({ price: updated });
   };
 
   const handleSortChange = (value) => {
-    setFilters((prev) => ({ ...prev, sortBy: value }));
+    updateURLParams({ sort: value });
     setShowSortMenu(false);
+  };
+
+  const handleClearFilters = () => {
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const handleAddToCart = async (course) => {
@@ -153,17 +161,14 @@ const CoursesList = () => {
       const courseIdNum = Number(course.id);
 
       if (user) {
-        // Block adding if already enrolled
         if (enrolledCourseIds.includes(courseIdNum)) {
           toast("You already own this course.", { icon: "ℹ️" });
           return;
         }
 
-        // Logged-in user: backend cart
         await addToCart(course.id);
         toast.success("Course added to your cart!");
       } else {
-        // Guest: localStorage cart
         const guestCart = JSON.parse(localStorage.getItem("cart")) || [];
         const isAlreadyInCart = guestCart.some(
           (item) => String(item.id) === String(course.id),
@@ -190,9 +195,7 @@ const CoursesList = () => {
       await fetchCartCount();
     } catch (err) {
       console.error("Add to cart error:", err);
-      toast.error(
-        err.response?.data?.message || "Failed to add course to cart.",
-      );
+      toast.error(err.response?.data?.message || "Failed to add course to cart.");
     }
   };
 
@@ -208,13 +211,10 @@ const CoursesList = () => {
       toast.success("Added to wishlist!");
     } catch (err) {
       console.error("Wishlist error:", err);
-      
       if (err.response?.status === 400 && err.response?.data?.message?.includes('already')) {
         toast("This course is already in your wishlist", { icon: "ℹ️" });
       } else {
-        toast.error(
-          err.response?.data?.message || "Failed to add to wishlist"
-        );
+        toast.error(err.response?.data?.message || "Failed to add to wishlist");
       }
     }
   };
@@ -231,6 +231,8 @@ const CoursesList = () => {
       toast.error("Failed to remove from wishlist");
     }
   };
+
+  const currentSortLabel = SORT_OPTIONS.find(opt => opt.value === currentSort)?.label || "Sort";
 
   return (
     <div
@@ -250,10 +252,8 @@ const CoursesList = () => {
               <Input
                 placeholder="Search (e.g. React)..."
                 icon={Search}
-                value={filters.search}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, search: e.target.value }))
-                }
+                value={currentSearch}
+                onChange={(e) => updateURLParams({ search: e.target.value })}
               />
             </div>
 
@@ -262,9 +262,10 @@ const CoursesList = () => {
               <Button
                 variant="outline"
                 onClick={() => setShowSortMenu(!showSortMenu)}
+                className="whitespace-nowrap"
               >
                 <SlidersHorizontal className="w-4 h-4 mr-2" />
-                Sort
+                {currentSortLabel}
                 <ChevronDown className="w-4 h-4 ml-2" />
               </Button>
 
@@ -275,7 +276,7 @@ const CoursesList = () => {
                       key={opt.value}
                       onClick={() => handleSortChange(opt.value)}
                       className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${
-                        filters.sortBy === opt.value
+                        currentSort === opt.value
                           ? "text-primary font-bold bg-purple-50"
                           : "text-gray-700"
                       }`}
@@ -308,11 +309,9 @@ const CoursesList = () => {
                 {CATEGORIES.map((cat) => (
                   <button
                     key={cat}
-                    onClick={() =>
-                      setFilters((prev) => ({ ...prev, category: cat }))
-                    }
+                    onClick={() => updateURLParams({ category: cat })}
                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      filters.category === cat
+                      currentCategory === cat
                         ? "bg-primary text-white font-medium shadow-md shadow-purple-200"
                         : "text-gray-600 hover:bg-gray-50"
                     }`}
@@ -338,7 +337,7 @@ const CoursesList = () => {
                   >
                     <input
                       type="checkbox"
-                      checked={filters.priceRange.includes(item.value)}
+                      checked={currentPriceRange.includes(item.value)}
                       onChange={() => handlePriceChange(item.value)}
                       className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
@@ -363,6 +362,8 @@ const CoursesList = () => {
                     course={course}
                     onAddToCart={() => handleAddToCart(course)}
                     onAddToWishlist={() => handleAddToWishlist(course.id)}
+                    onRemoveFromWishlist={() => handleRemoveFromWishlist(course.id)}
+                    isInWishlist={wishlistIds.includes(course.id)}
                     isPremiumCourse={
                       !!course.plan_id || !!course.SubscriptionPlans
                     }
@@ -382,14 +383,7 @@ const CoursesList = () => {
                 </h3>
                 <p className="text-gray-500">Try adjusting your filters.</p>
                 <button
-                  onClick={() =>
-                    setFilters({
-                      search: "",
-                      category: "All",
-                      priceRange: [],
-                      sortBy: "newest",
-                    })
-                  }
+                  onClick={handleClearFilters}
                   className="mt-4 text-primary font-bold hover:underline"
                 >
                   Clear all filters
