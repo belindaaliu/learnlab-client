@@ -5,6 +5,8 @@ import {
   Users, DollarSign, BookOpen, Eye, ArrowUpRight, Loader2, 
   X, Lightbulb, MessageCircle, Image, Video 
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+
 
 const InstructorDashboard = () => {
   const [stats, setStats] = useState({
@@ -28,6 +30,7 @@ const InstructorDashboard = () => {
         setStats(res.data);
       } catch (error) {
         console.error("Error fetching stats:", error);
+        toast.error("Failed to load dashboard statistics.");
       } finally {
         setLoading(false);
       }
