@@ -63,7 +63,7 @@ const CartItem = ({ item, onRemove }) => {
         <p className="text-xs text-gray-600">
           By{" "}
           <Link
-            to={`/student/public-profile/${instructorId}`}
+            to={`/profile/${instructorId}`}
             className="text-primary hover:text-indigo-800 underline transition-colors"
           >
             {instructorName}
