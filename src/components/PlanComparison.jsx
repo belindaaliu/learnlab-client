@@ -3,7 +3,7 @@ import { Check, Minus } from "lucide-react";
 
 const PlanComparison = ({ plans }) => {
   const comparisonRows = [
-    { label: "Course Access", key: "all_courses_access", type: "boolean" },
+    { label: "All Premium Courses Access", key: "all_courses_access", type: "boolean" },
     { label: "Free Courses / mo", key: "free_courses_per_month", type: "number" },
     { label: "Discount on Content", key: "discount_percent", type: "percent" },
     { label: "Certification", key: "has_certificates", type: "boolean" },

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Routes, Route } from "react-router-dom";
 
 // LAYOUTS
 import MainLayout from "../layouts/MainLayout";
@@ -20,6 +20,7 @@ import Home from "../pages/Home/Home";
 import CoursesList from "../pages/Courses/CoursesList";
 import CourseDetails from "../pages/Courses/CourseDetails";
 import VerifyCertificate from "../pages/VerifyCertificate";
+import NotFound from "../pages/NotFound";
 
 // CART & CHECKOUT PAGES
 import Cart from "../pages/Cart/Cart";
@@ -293,4 +294,5 @@ export const router = createBrowserRouter([
       { path: "subscriptions", element: <Subscriptions /> },
     ],
   },
+  { path: "*", element: <NotFound /> },
 ]);

@@ -444,7 +444,7 @@ const AdminAnalytics = () => {
               </h2>
               <p className="text-xs text-slate-400 mb-4">
                 Breakdown of collected revenue into courses, subscriptions, and
-                other payments (e.g. legacy or manual items).
+                other payments (payments with no course or subscription id).
               </p>
 
               <div className="h-64">

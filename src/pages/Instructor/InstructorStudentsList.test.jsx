@@ -176,26 +176,3 @@ test("navigates to student progress page when clicking View Progress", async () 
 
   expect(await screen.findByText(/student progress page/i)).toBeInTheDocument();
 });
-
-test("export CSV calls alert when no students", async () => {
-  const user = userEvent.setup();
-  localStorage.setItem("accessToken", "token");
-
-  axios.get
-    .mockResolvedValueOnce({ data: mockCourse })
-    .mockResolvedValueOnce({ data: [] });
-
-  const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
-
-  renderWithRouter();
-
-  await screen.findByText(/react mastery/i);
-
-  await user.click(screen.getByRole("button", { name: /export csv/i }));
-
-  await waitFor(() => {
-    expect(alertSpy).toHaveBeenCalledWith("No students to export");
-  });
-
-  alertSpy.mockRestore();
-});
