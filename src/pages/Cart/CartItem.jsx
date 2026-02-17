@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Crown } from "lucide-react";
+import { Crown, Star } from "lucide-react";
 
 const CartItem = ({ item, onRemove }) => {
   const course = item.course || item;
@@ -23,6 +23,11 @@ const CartItem = ({ item, onRemove }) => {
       ? `${course.Users.first_name} ${course.Users.last_name}`
       : "Instructor");
 
+  // Rating data
+  const rating = course.rating || 0;
+  const totalReviews = course.reviews || course.total_reviews || 0;
+  const hasRating = rating > 0;
+
   // BADGE LOGIC
   const isActuallyFree = Number(course.price) === 0;
   const isActuallyPremium = Boolean(
@@ -36,6 +41,33 @@ const CartItem = ({ item, onRemove }) => {
   const showBestsellerBadge =
     course.is_bestseller || (course.rating && course.rating >= 4.8);
 
+  // Helper function to render stars
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(
+          <Star key={i} className="w-3 h-3 fill-[#b4690e] text-[#b4690e]" />
+        );
+      } else if (i === fullStars && hasHalfStar) {
+        stars.push(
+          <div key={i} className="relative w-3 h-3">
+            <Star className="w-3 h-3 text-[#b4690e]" />
+            <Star className="w-3 h-3 fill-[#b4690e] text-[#b4690e] absolute top-0 left-0" style={{ clipPath: 'inset(0 50% 0 0)' }} />
+          </div>
+        );
+      } else {
+        stars.push(
+          <Star key={i} className="w-3 h-3 text-[#b4690e]" />
+        );
+      }
+    }
+    return stars;
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-4 py-6 border-b border-gray-200 items-start group">
       {/* Course Image */}
@@ -44,6 +76,7 @@ const CartItem = ({ item, onRemove }) => {
           src={
             course.image ||
             course.thumbnail ||
+            course.thumbnail_url ||
             "https://via.placeholder.com/300x200?text=No+Image"
           }
           alt={course.title}
@@ -91,17 +124,29 @@ const CartItem = ({ item, onRemove }) => {
           )}
         </div>
 
-        {/* Udemy Style Rating Placeholder */}
-        <div className="flex items-center gap-1.5 pt-1">
-          <span className="text-[#b4690e] font-bold text-sm">4.6</span>
-          <div className="flex text-[#b4690e] text-xs">★★★★★</div>
-          <span className="text-gray-400 text-xs">(12,450 ratings)</span>
-        </div>
+        {/* Rating */}
+        {hasRating ? (
+          <div className="flex items-center gap-1.5 pt-1">
+            <span className="text-[#b4690e] font-bold text-sm">
+              {rating.toFixed(1)}
+            </span>
+            <div className="flex gap-0.5">
+              {renderStars(rating)}
+            </div>
+            <span className="text-gray-400 text-xs">
+              ({totalReviews.toLocaleString()} {totalReviews === 1 ? 'rating' : 'ratings'})
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 pt-1">
+            <span className="text-gray-400 text-xs">No ratings yet</span>
+          </div>
+        )}
 
         {/* Action Links */}
         <div className="flex flex-wrap gap-4 pt-3 text-sm font-medium">
           <button
-            onClick={() => onRemove(item.id)}
+            onClick={() => onRemove(itemIdToRemove)}
             className="text-primary hover:text-indigo-800 transition-colors"
           >
             Remove

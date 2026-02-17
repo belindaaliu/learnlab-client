@@ -15,6 +15,7 @@ import {
   Download,
   ChevronRight
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function InstructorStudentsList() {
   const { courseId } = useParams();
@@ -51,6 +52,7 @@ export default function InstructorStudentsList() {
       
     } catch (error) {
       console.error("Error fetching students:", error);
+      toast.error("Failed to load students data.");
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ export default function InstructorStudentsList() {
   // ========== EXPORT STUDENTS LIST AS CSV ==========
 const exportStudentsList = () => {
   if (students.length === 0) {
-    alert("No students to export");
+    toast.error("No students to export");
     return;
   }
 
@@ -125,9 +127,11 @@ const exportStudentsList = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
+    toast.success("Exported successfully!");
+
   } catch (error) {
     console.error("Error exporting students:", error);
-    alert("Failed to export students list");
+    toast.error("Failed to export students list");
   }
 };
 

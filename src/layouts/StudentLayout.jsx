@@ -15,7 +15,8 @@ import {
   Settings,
   LogOut,
   GraduationCap,
-  Sparkles
+  Sparkles,
+  CheckCircle
 } from "lucide-react";
 import logo from "../assets/images/logo.png";
 import NotificationDropdown from "../components/NotificationDropdown";
@@ -26,6 +27,7 @@ export default function StudentLayout() {
   const [purchasedCourses, setPurchasedCourses] = useState([]);
   const [wishlistCourses, setWishlistCourses] = useState([]);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [courseProgress, setCourseProgress] = useState({});
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const user = JSON.parse(localStorage.getItem("user"));
@@ -44,6 +46,11 @@ export default function StudentLayout() {
 
     const fetchUserData = async () => {
       try {
+        const token = localStorage.getItem("accessToken");
+        const config = {
+          headers: { Authorization: `Bearer ${token}` },
+        };
+
         const [userRes, purchasedRes, wishlistRes] = await Promise.all([
           axios.get(`${API_URL}/student/me/${userId}`),
           axios.get(`${API_URL}/student/${userId}/courses`),
@@ -53,6 +60,25 @@ export default function StudentLayout() {
         setRealUser(userRes.data);
         setPurchasedCourses(purchasedRes.data || []);
         setWishlistCourses(wishlistRes.data || []);
+
+        // Fetch progress for each purchased course
+        if (purchasedRes.data && purchasedRes.data.length > 0) {
+          const progressPromises = purchasedRes.data.map(course => 
+            axios.get(`${API_URL}/course-player/${course.id}/progress`, config)
+              .then(res => ({ courseId: course.id, progress: res.data }))
+              .catch(err => {
+                console.error(`Error fetching progress for course ${course.id}:`, err);
+                return { courseId: course.id, progress: { completed_lessons: 0, total_lessons: 0 } };
+              })
+          );
+
+          const progressResults = await Promise.all(progressPromises);
+          const progressMap = {};
+          progressResults.forEach(result => {
+            progressMap[result.courseId] = result.progress;
+          });
+          setCourseProgress(progressMap);
+        }
       } catch (err) {
         console.error("Error fetching user data:", err);
       }
@@ -77,6 +103,25 @@ export default function StudentLayout() {
     if (!realUser) return "U";
     return `${realUser.first_name?.[0] || ''}${realUser.last_name?.[0] || ''}`.toUpperCase();
   };
+
+  const calculateProgress = (course) => {
+    const progress = courseProgress[course.id];
+    if (!progress) return 0;
+    return Math.round((progress.completed_lessons / progress.total_lessons) * 100) || 0;
+  };
+
+  const getCourseStatus = (course) => {
+    const progress = calculateProgress(course);
+    if (progress === 0) return { text: "Start learning", color: "text-primary" };
+    if (progress === 100) return { text: "Completed", color: "text-green-600" };
+    return { text: "Continue learning", color: "text-primary" };
+  };
+
+  // Filter out completed courses (progress === 100)
+  const inProgressCourses = purchasedCourses.filter(course => {
+    const progress = calculateProgress(course);
+    return progress < 100;
+  });
 
   return (
     <>
@@ -122,49 +167,82 @@ export default function StudentLayout() {
             </button>
 
             {activeDropdown === 'learning' && (
-              <div className="absolute left-0 top-full mt-2 w-80 bg-white shadow-lg border rounded-lg z-50">
-                <div className="p-4 space-y-4">
-                  {purchasedCourses.length > 0 ? (
-                    purchasedCourses.slice(0, 3).map((course) => (
-                      <Link
-                        key={course.id}
-                        to={`/course/${course.id}/learn`}
-                        className="flex gap-3 hover:bg-gray-50 p-2 rounded-lg transition"
-                        onClick={() => setActiveDropdown(null)}
-                      >
-                        <img
-                          src={course.thumbnail_url}
-                          alt={course.title}
-                          className="w-16 h-10 object-cover rounded"
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium line-clamp-2">
-                            {course.title}
-                          </p>
-                          <p className="text-xs text-primary font-semibold mt-1">
-                            {course.progress > 0
-                              ? "Continue learning"
-                              : "Start learning"}
-                          </p>
-                        </div>
-                      </Link>
-                    ))
+              <div className="absolute left-0 top-full mt-2 w-96 bg-white shadow-lg border rounded-lg z-50">
+                <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+                  {inProgressCourses.length > 0 ? (
+                    inProgressCourses.slice(0, 5).map((course) => {
+                      const progress = calculateProgress(course);
+                      const status = getCourseStatus(course);
+                      
+                      return (
+                        <Link
+                          key={course.id}
+                          to={`/course/${course.id}/learn`}
+                          className="flex gap-3 hover:bg-gray-50 p-2 rounded-lg transition group"
+                          onClick={() => setActiveDropdown(null)}
+                        >
+                          <img
+                            src={course.thumbnail_url}
+                            alt={course.title}
+                            className="w-20 h-14 object-cover rounded flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-1 group-hover:text-primary">
+                              {course.title}
+                            </p>
+                            
+                            {/* Progress Bar */}
+                            <div className="w-full h-1.5 bg-gray-200 rounded-full mb-1">
+                              <div 
+                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                  progress === 100 ? 'bg-green-500' : 'bg-primary'
+                                }`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-medium ${status.color}`}>
+                                {status.text}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {progress}%
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-6">
-                      <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No courses yet</p>
+                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                      <p className="text-sm text-gray-700 font-medium">All caught up!</p>
+                      <p className="text-xs text-gray-500 mt-1">You've completed all your courses</p>
+                      <Link
+                        to="/courses"
+                        className="inline-block mt-4 text-xs text-primary hover:underline font-medium"
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        Browse more courses
+                      </Link>
                     </div>
                   )}
                 </div>
-                <div className="border-t p-3">
-                  <Link
-                    to="/student/learning"
-                    className="block text-center text-sm font-semibold text-primary hover:underline"
-                    onClick={() => setActiveDropdown(null)}
-                  >
-                    Go to My Learning
-                  </Link>
-                </div>
+                {purchasedCourses.length > 0 && (
+                  <div className="border-t p-3 bg-gray-50">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2 px-1">
+                      <span>Total courses: {purchasedCourses.length}</span>
+                      <span>Completed: {purchasedCourses.length - inProgressCourses.length}</span>
+                    </div>
+                    <Link
+                      to="/student/learning"
+                      className="block text-center text-sm font-semibold text-primary hover:underline"
+                      onClick={() => setActiveDropdown(null)}
+                    >
+                      Go to My Learning
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -181,13 +259,13 @@ export default function StudentLayout() {
 
             {activeDropdown === 'wishlist' && (
               <div className="absolute left-0 top-full mt-2 w-80 bg-white shadow-lg border rounded-lg z-50">
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
                   {wishlistCourses.length > 0 ? (
                     wishlistCourses.slice(0, 3).map((course) => (
                       <Link
                         key={course.id}
                         to={`/courses/${course.id}`}
-                        className="flex gap-3 hover:bg-gray-50 p-2 rounded-lg transition"
+                        className="flex gap-3 hover:bg-gray-50 p-2 rounded-lg transition group"
                         onClick={() => setActiveDropdown(null)}
                       >
                         <img
@@ -196,7 +274,7 @@ export default function StudentLayout() {
                           className="w-16 h-10 object-cover rounded"
                         />
                         <div className="flex-1">
-                          <p className="text-sm font-medium line-clamp-2">
+                          <p className="text-sm font-medium line-clamp-2 group-hover:text-primary">
                             {course.title}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
@@ -212,15 +290,17 @@ export default function StudentLayout() {
                     </div>
                   )}
                 </div>
-                <div className="border-t p-3">
-                  <Link
-                    to="/student/learning?tab=wishlist"
-                    className="block text-center text-sm font-semibold text-primary hover:underline"
-                    onClick={() => setActiveDropdown(null)}
-                  >
-                    Go to Wishlist
-                  </Link>
-                </div>
+                {wishlistCourses.length > 0 && (
+                  <div className="border-t p-3">
+                    <Link
+                      to="/student/learning?tab=wishlist"
+                      className="block text-center text-sm font-semibold text-primary hover:underline"
+                      onClick={() => setActiveDropdown(null)}
+                    >
+                      View all ({wishlistCourses.length}) items
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -238,7 +318,7 @@ export default function StudentLayout() {
             )}
           </Link>
 
-          {/* Notifications - REPLACED WITH DROPDOWN COMPONENT */}
+          {/* Notifications */}
           <NotificationDropdown />
 
           {/* Messages */}
@@ -314,11 +394,6 @@ export default function StudentLayout() {
                   >
                     <Heart className="w-4 h-4 text-gray-500" />
                     Wishlist
-                    {wishlistCourses.length > 0 && (
-                      <span className="ml-auto px-1.5 py-0.5 bg-red-500 text-white text-xs font-medium rounded-full">
-                        {wishlistCourses.length}
-                      </span>
-                    )}
                   </Link>
                   
                   <div className="border-t my-2"></div>
@@ -362,7 +437,7 @@ export default function StudentLayout() {
                   <div className="border-t my-2"></div>
                   
                   <Link
-                    to={`/${user?.role}/public-profile/${user?.id}`}
+                    to={`/profile/${user?.id}`}
                     className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100"
                     onClick={() => setActiveDropdown(null)}
                   >
@@ -376,6 +451,14 @@ export default function StudentLayout() {
                   >
                     <Settings className="w-4 h-4 text-gray-500" />
                     Edit profile
+                  </Link>
+                  <Link
+                    to="/student/security"
+                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100"
+                    onClick={() => setActiveDropdown(null)}
+                  >
+                    <Settings className="w-4 h-4 text-gray-500" />
+                    Account Security
                   </Link>
                   
                   <div className="border-t my-2"></div>

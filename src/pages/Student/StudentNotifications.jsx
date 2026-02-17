@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Trash2, Check, CheckCheck } from 'lucide-react';
-import api from '../../utils/Api'; // ADD THIS IMPORT
+import { useNavigate } from 'react-router-dom';
+import api from '../../utils/Api';
 
 const StudentNotifications = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // 'all', 'unread', 'read'
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     fetchNotifications();
@@ -13,8 +15,7 @@ const StudentNotifications = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await api.get('/notifications'); // CHANGED from axios.get
-      
+      const response = await api.get('/notifications');
       setNotifications(response.data.notifications);
       setLoading(false);
     } catch (error) {
@@ -23,52 +24,64 @@ const StudentNotifications = () => {
     }
   };
 
-const markAsRead = async (notificationId) => {
-  try {
-    await api.patch(`/notifications/${notificationId}/read`); // CHANGED from put to patch
-    
-    fetchNotifications();
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-  }
-};
+  const markAsRead = async (notificationId) => {
+    try {
+      await api.patch(`/notifications/${notificationId}/read`);
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
 
   const markAllAsRead = async () => {
     try {
-      await api.patch('/notifications/mark-all-read'); // CHANGED from put to patch
-      
+      await api.patch('/notifications/mark-all-read');
       fetchNotifications();
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
   };
 
-    const deleteNotification = async (notificationId) => {
-      try {
-        await api.delete(`/notifications/${notificationId}`); // CHANGED from axios.delete
-        
-        fetchNotifications();
-      } catch (error) {
-        console.error('Error deleting notification:', error);
-      }
-    };
+  const deleteNotification = async (notificationId) => {
+    try {
+      await api.delete(`/notifications/${notificationId}`);
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const handleNotificationClick = (notification) => {
+    if (!notification.is_read) {
+      markAsRead(notification.notification_id || notification.id);
+    }
+    
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
-      case 'course_published':
-      case 'course_updated':
+      case 'purchase':
+      case 'course_enrollment':
         return '📚';
-      case 'new_enrollment':
-        return '👤';
-      case 'course_completion':
-        return '🎓';
-      case 'new_review':
-        return '⭐';
-      case 'subscription_activated':
-      case 'subscription_cancelled':
-        return '💳';
       case 'new_message':
         return '💬';
+      case 'wishlist':
+        return '⭐';
+      case 'course_update':
+        return '🔔';
+      case 'certificate_issued':
+        return '🎓';
+      case 'quiz_graded':
+        return '📝';
+      case 'new_review':
+        return '⭐';
+      case 'subscription_expiring':
+        return '💳';
+      case 'announcement':
+        return '📢';
       default:
         return '🔔';
     }
@@ -116,7 +129,6 @@ const markAsRead = async (notificationId) => {
         </p>
       </div>
 
-      {/* Filter Tabs */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex gap-4">
@@ -163,7 +175,6 @@ const markAsRead = async (notificationId) => {
           )}
         </div>
 
-        {/* Notifications List */}
         <div className="divide-y divide-gray-200">
           {filteredNotifications.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
@@ -179,15 +190,19 @@ const markAsRead = async (notificationId) => {
             filteredNotifications.map((notif) => (
               <div
                 key={notif.notification_id || notif.id}
-                className={`p-4 hover:bg-gray-50 transition-colors ${
-                  !notif.is_read ? 'bg-blue-50' : ''
-                }`}
+                className={`p-4 transition-colors ${
+                  !notif.is_read ? 'bg-blue-50' : 'hover:bg-gray-50'
+                } ${notif.link ? 'cursor-pointer' : ''}`}
+                onClick={() => notif.link && handleNotificationClick(notif)}
               >
                 <div className="flex items-start gap-4">
                   <span className="text-3xl">{getNotificationIcon(notif.type)}</span>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
+                      {notif.title}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-1">
                       {notif.message}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -198,7 +213,10 @@ const markAsRead = async (notificationId) => {
                   <div className="flex items-center gap-2">
                     {!notif.is_read && (
                       <button
-                        onClick={() => markAsRead(notif.notification_id || notif.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead(notif.notification_id || notif.id);
+                        }}
                         className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                         title="Mark as read"
                       >
@@ -206,7 +224,10 @@ const markAsRead = async (notificationId) => {
                       </button>
                     )}
                     <button
-                      onClick={() => deleteNotification(notif.notification_id || notif.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotification(notif.notification_id || notif.id);
+                      }}
                       className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                       title="Delete"
                     >

@@ -46,33 +46,64 @@ const Cart = () => {
           itemCount: data.itemCount ?? 0,
         });
       } else {
-        // GUEST: Get from LocalStorage
+        // GUEST: Get from LocalStorage and enrich with course data
         const localCart = localStorage.getItem("cart");
         const localItems = localCart ? JSON.parse(localCart) : [];
 
-        const formattedItems = localItems.map((item) => ({
-          id: item.id,
-          course: {
-            id: item.id,
-            title: item.title,
-            price: item.price,
-            image: item.thumbnail || item.image || item.thumbnail_url,
-            instructor_name: item.instructor_name,
-            Users: item.Users,
-          },
-        }));
+        // Fetch full course details for each item to get ratings
+        const enrichedItems = await Promise.all(
+          localItems.map(async (item) => {
+            try {
+              // Fetch full course details
+              const response = await api.get(`/courses/${item.id}`);
+              const courseData = response.data?.data || response.data;
+              
+              return {
+                id: item.id,
+                course: {
+                  id: item.id,
+                  title: courseData.title || item.title,
+                  price: courseData.price || item.price,
+                  image: courseData.thumbnail_url || courseData.image || item.thumbnail || item.image,
+                  instructor_name: courseData.instructor_name || item.instructor_name,
+                  Users: courseData.Users || item.Users,
+                  rating: courseData.rating || 0,
+                  reviews: courseData.reviews || 0,
+                  total_reviews: courseData.total_reviews || courseData.reviews || 0,
+                },
+              };
+            } catch (err) {
+              console.error(`Error fetching course ${item.id}:`, err);
+              // Fallback to local data if fetch fails
+              return {
+                id: item.id,
+                course: {
+                  id: item.id,
+                  title: item.title,
+                  price: item.price,
+                  image: item.thumbnail || item.image || item.thumbnail_url,
+                  instructor_name: item.instructor_name,
+                  Users: item.Users,
+                  rating: item.rating || 0,
+                  reviews: item.reviews || 0,
+                  total_reviews: item.total_reviews || item.reviews || 0,
+                },
+              };
+            }
+          })
+        );
 
-        const total = localItems.reduce(
-          (sum, item) => sum + Number(item.price || 0),
+        const total = enrichedItems.reduce(
+          (sum, item) => sum + Number(item.course.price || 0),
           0,
         );
 
         setCartData({
-          items: formattedItems,
+          items: enrichedItems,
           total: total,
           subtotal: total,
           discount_total: 0,
-          itemCount: localItems.length,
+          itemCount: enrichedItems.length,
         });
       }
     } catch (err) {
@@ -165,7 +196,7 @@ const Cart = () => {
         // LOGGED IN: call your existing cart service
         await addToCart(course.id);
       } else {
-        // GUEST: add to localStorage cart
+        // GUEST: add to localStorage cart with all relevant data
         const localCart = JSON.parse(localStorage.getItem("cart") || "[]");
 
         const exists = localCart.some((item) => item.id === course.id);
@@ -178,10 +209,14 @@ const Cart = () => {
             image: course.image,
             instructor_name:
               course.instructor ||
+              course.instructor_name ||
               (course.Users
                 ? `${course.Users.first_name} ${course.Users.last_name}`
                 : "Unknown Instructor"),
             Users: course.Users,
+            rating: course.rating || 0,
+            reviews: course.reviews || course.total_reviews || 0,
+            total_reviews: course.total_reviews || course.reviews || 0,
           });
           localStorage.setItem("cart", JSON.stringify(localCart));
         }

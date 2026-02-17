@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Bell, Check, X, ShoppingCart, MessageCircle, Star, BookOpen, Trash2, Award, FileText, TrendingUp, Megaphone } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../utils/Api";
 import { useAuth } from "../context/AuthContext";
 
 const NotificationDropdown = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -17,10 +18,8 @@ const NotificationDropdown = () => {
       fetchNotifications();
       fetchUnreadCount();
       
-      // Poll for new notifications every 10 seconds (more frequent)
       const interval = setInterval(() => {
         fetchUnreadCount();
-        // Also refresh the list if dropdown is open
         if (isOpen) {
           fetchNotifications();
         }
@@ -29,7 +28,6 @@ const NotificationDropdown = () => {
     }
   }, [user, isOpen]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -59,7 +57,6 @@ const NotificationDropdown = () => {
       const response = await api.get("/notifications/unread-count");
       const newCount = response.data.count;
       
-      // If count increased, refresh notifications list
       if (newCount > unreadCount) {
         fetchNotifications();
       }
@@ -118,6 +115,7 @@ const NotificationDropdown = () => {
       case "wishlist":
         return <Star className="w-4 h-4 text-yellow-500" />;
       case "course_enrollment":
+      case "new_enrollment":
         return <BookOpen className="w-4 h-4 text-purple-500" />;
       case "course_update":
         return <TrendingUp className="w-4 h-4 text-indigo-500" />;
@@ -126,6 +124,7 @@ const NotificationDropdown = () => {
       case "quiz_graded":
         return <FileText className="w-4 h-4 text-cyan-500" />;
       case "new_review":
+      case "course_completion":
         return <Star className="w-4 h-4 text-orange-500" />;
       case "subscription_expiring":
         return <Bell className="w-4 h-4 text-red-500" />;
@@ -150,14 +149,20 @@ const NotificationDropdown = () => {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
+    
+    // Close dropdown
     setIsOpen(false);
+    
+    // Navigate to the link if it exists
+    if (notification.link) {
+      navigate(notification.link);
+    }
   };
 
   if (!user) return null;
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell Icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-full transition-colors"
@@ -170,10 +175,8 @@ const NotificationDropdown = () => {
         )}
       </button>
 
-      {/* Dropdown */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[600px] flex flex-col">
-          {/* Header */}
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-bold text-gray-900 text-lg">Notifications</h3>
             {unreadCount > 0 && (
@@ -187,7 +190,6 @@ const NotificationDropdown = () => {
             )}
           </div>
 
-          {/* Notifications List */}
           <div className="overflow-y-auto flex-1">
             {loading ? (
               <div className="flex justify-center items-center py-12">
@@ -203,52 +205,34 @@ const NotificationDropdown = () => {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-gray-50 transition-colors ${
+                    className={`p-4 transition-colors ${
                       !notification.is_read ? "bg-purple-50" : ""
                     }`}
                   >
                     <div className="flex gap-3">
-                      {/* Icon */}
                       <div className="flex-shrink-0 mt-1">
                         <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                           {getNotificationIcon(notification.type)}
                         </div>
                       </div>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
-                        {notification.link ? (
-                          <Link
-                            to={notification.link}
-                            onClick={() => handleNotificationClick(notification)}
-                            className="block"
-                          >
-                            <h4 className="font-semibold text-gray-900 text-sm mb-1">
-                              {notification.title}
-                            </h4>
-                            <p className="text-gray-600 text-sm line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <span className="text-xs text-gray-400 mt-1 block">
-                              {formatTimeAgo(notification.created_at)}
-                            </span>
-                          </Link>
-                        ) : (
-                          <>
-                            <h4 className="font-semibold text-gray-900 text-sm mb-1">
-                              {notification.title}
-                            </h4>
-                            <p className="text-gray-600 text-sm line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <span className="text-xs text-gray-400 mt-1 block">
-                              {formatTimeAgo(notification.created_at)}
-                            </span>
-                          </>
-                        )}
+                        <div
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`block ${notification.link ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        >
+                          <h4 className="font-semibold text-gray-900 text-sm mb-1">
+                            {notification.title}
+                          </h4>
+                          <p className="text-gray-600 text-sm line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <span className="text-xs text-gray-400 mt-1 block">
+                            {formatTimeAgo(notification.created_at)}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex-shrink-0 flex items-start gap-2">
                         {!notification.is_read && (
                           <button
@@ -280,16 +264,17 @@ const NotificationDropdown = () => {
             )}
           </div>
 
-          {/* Footer */}
           {notifications.length > 0 && (
             <div className="p-3 border-t border-gray-100">
-              <Link
-                to="/student/notifications"
-                onClick={() => setIsOpen(false)}
-                className="block text-center text-sm text-primary hover:text-purple-700 font-medium"
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate("/student/notifications");
+                }}
+                className="block w-full text-center text-sm text-primary hover:text-purple-700 font-medium"
               >
                 View all notifications
-              </Link>
+              </button>
             </div>
           )}
         </div>

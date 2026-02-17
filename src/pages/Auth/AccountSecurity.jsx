@@ -5,17 +5,14 @@ import {
   Shield,
   Key,
   Mail,
-  Smartphone,
   Lock,
   Eye,
   EyeOff,
   CheckCircle,
   AlertCircle,
   Loader2,
-  ChevronRight,
   Copy,
   QrCode as QrCodeIcon,
-  Download,
 } from "lucide-react";
 
 export default function AccountSecurity() {
@@ -37,7 +34,6 @@ export default function AccountSecurity() {
   // MFA state
   const [mfaSettings, setMfaSettings] = useState({
     email: { enabled: false, verified: false },
-    sms: { enabled: false, verified: false, phone: "" },
     authenticator: { enabled: false, verified: false, secret: "" },
   });
   
@@ -46,7 +42,6 @@ export default function AccountSecurity() {
   const [verificationCode, setVerificationCode] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [secretKey, setSecretKey] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [mfaError, setMfaError] = useState("");
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -142,19 +137,24 @@ export default function AccountSecurity() {
     if (type === "email") {
       try {
         setMfaLoading(true);
-        await axios.post(
+        const response = await axios.post(
           `${API_URL}/users/mfa/send-verification`,
           { type: "email" },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setSetupStep(3);
+        
+        // For development - if API returns devCode, show it
+        if (response.data.devCode) {
+          console.log(`📧 Email verification code: ${response.data.devCode}`);
+          showToast(`Dev mode - Code: ${response.data.devCode}`, "success");
+        }
+        
+        setSetupStep(2); // Go directly to verification step
       } catch (err) {
         setMfaError(err.response?.data?.message || "Failed to send verification");
       } finally {
         setMfaLoading(false);
       }
-    } else if (type === "sms") {
-      setSetupStep(2);
     } else if (type === "authenticator") {
       try {
         setMfaLoading(true);
@@ -166,7 +166,7 @@ export default function AccountSecurity() {
         
         setSecretKey(res.data.data.secret);
         
-        // Generate QR code if library is loaded
+        // Generate QR code
         if (qrCodeLib) {
           const otpauth = `otpauth://totp/LMS:${user.email}?secret=${res.data.data.secret}&issuer=LMS`;
           const qrCode = await qrCodeLib.toDataURL(otpauth);
@@ -180,7 +180,6 @@ export default function AccountSecurity() {
             setQrCodeUrl(qrCode);
           } catch (qrError) {
             console.error('QR Code generation failed:', qrError);
-            // Show manual entry only
           }
         }
         setSetupStep(2);
@@ -192,33 +191,10 @@ export default function AccountSecurity() {
     }
   };
 
-  // Send SMS verification
-  const sendSmsVerification = async () => {
-    if (!phoneNumber || !/^\+?[\d\s-]{10,}$/.test(phoneNumber)) {
-      setMfaError("Please enter a valid phone number");
-      return;
-    }
-
-    setMfaLoading(true);
-    try {
-      await axios.post(
-        `${API_URL}/users/mfa/send-verification`,
-        { type: "sms", phone: phoneNumber },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSetupStep(3);
-      setMfaError("");
-    } catch (err) {
-      setMfaError(err.response?.data?.message || "Failed to send verification");
-    } finally {
-      setMfaLoading(false);
-    }
-  };
-
   // Verify MFA code
   const verifyMfaCode = async () => {
-    if (!verificationCode || verificationCode.length < 6) {
-      setMfaError("Please enter a valid verification code");
+    if (!verificationCode || verificationCode.length !== 6) {
+      setMfaError("Please enter a valid 6-digit code");
       return;
     }
 
@@ -229,9 +205,7 @@ export default function AccountSecurity() {
         code: verificationCode,
       };
 
-      if (selectedMfaType === "sms") {
-        payload.phone = phoneNumber;
-      } else if (selectedMfaType === "authenticator") {
+      if (selectedMfaType === "authenticator") {
         payload.secret = secretKey;
       }
 
@@ -241,14 +215,14 @@ export default function AccountSecurity() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      showToast(`${selectedMfaType.toUpperCase()} MFA enabled successfully!`);
+      showToast(`${selectedMfaType === "email" ? "Email" : "Authenticator App"} MFA enabled successfully!`);
       
       await fetchMfaSettings();
       
+      // Reset state
       setSetupStep(1);
       setSelectedMfaType(null);
       setVerificationCode("");
-      setPhoneNumber("");
       setSecretKey("");
       setQrCodeUrl("");
     } catch (err) {
@@ -260,7 +234,7 @@ export default function AccountSecurity() {
 
   // Disable MFA method
   const disableMfa = async (type) => {
-    if (!confirm(`Are you sure you want to disable ${type.toUpperCase()} MFA?`)) {
+    if (!confirm(`Are you sure you want to disable ${type === "email" ? "Email" : "Authenticator App"} MFA?`)) {
       return;
     }
 
@@ -271,7 +245,7 @@ export default function AccountSecurity() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      showToast(`${type.toUpperCase()} MFA disabled`);
+      showToast(`${type === "email" ? "Email" : "Authenticator App"} MFA disabled`);
       await fetchMfaSettings();
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to disable MFA", "error");
@@ -511,49 +485,6 @@ export default function AccountSecurity() {
                   </div>
                 </div>
 
-                {/* SMS MFA */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-purple-100 rounded-lg">
-                      <Smartphone className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">SMS</h3>
-                      <p className="text-sm text-gray-500">
-                        Receive codes via text message
-                      </p>
-                      {mfaSettings.sms?.phone && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Phone: {mfaSettings.sms.phone}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {mfaSettings.sms?.enabled ? (
-                      <>
-                        <span className="flex items-center gap-1 text-green-600 text-sm">
-                          <CheckCircle className="w-4 h-4" />
-                          Enabled
-                        </span>
-                        <button
-                          onClick={() => disableMfa("sms")}
-                          className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
-                        >
-                          Disable
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => startMfaSetup("sms")}
-                        className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primaryHover transition"
-                      >
-                        Enable
-                      </button>
-                    )}
-                  </div>
-                </div>
-
                 {/* Authenticator App MFA */}
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="flex items-center gap-4">
@@ -599,14 +530,13 @@ export default function AccountSecurity() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Set up {selectedMfaType.toUpperCase()} Authentication
+                    Set up {selectedMfaType === "email" ? "Email" : "Authenticator App"} Authentication
                   </h3>
                   <button
                     onClick={() => {
                       setSetupStep(1);
                       setSelectedMfaType(null);
                       setVerificationCode("");
-                      setPhoneNumber("");
                       setMfaError("");
                     }}
                     className="text-gray-400 hover:text-gray-600"
@@ -641,88 +571,49 @@ export default function AccountSecurity() {
                   ))}
                 </div>
 
-                {/* Step 2: Setup */}
-                {setupStep === 2 && (
+                {/* Step 2: Setup/Scan QR Code */}
+                {setupStep === 2 && selectedMfaType === "authenticator" && (
                   <div className="space-y-6">
-                    {selectedMfaType === "sms" && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">
-                            Phone Number
-                          </label>
-                          <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="+1234567890"
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-purple-100 outline-none transition"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Include country code (e.g., +1 for US)
-                          </p>
+                    <div className="flex flex-col items-center p-6 bg-gray-50 rounded-xl">
+                      {qrCodeUrl ? (
+                        <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48 mb-4" />
+                      ) : (
+                        <div className="w-48 h-48 mb-4 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                         </div>
+                      )}
+                      <p className="text-sm text-gray-600 text-center mb-4">
+                        Scan this QR code with your authenticator app
+                      </p>
+                      <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200">
+                        <code className="text-sm font-mono">{secretKey}</code>
                         <button
-                          onClick={sendSmsVerification}
-                          disabled={mfaLoading}
-                          className="w-full bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primaryHover transition disabled:opacity-50 flex items-center justify-center gap-2"
+                          onClick={() => copyToClipboard(secretKey)}
+                          className="p-1 hover:bg-gray-100 rounded"
                         >
-                          {mfaLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            "Send Verification Code"
-                          )}
+                          <Copy className="w-4 h-4 text-gray-500" />
                         </button>
                       </div>
-                    )}
+                      <p className="text-xs text-gray-400 mt-2">
+                        Or enter this key manually in your app
+                      </p>
+                    </div>
 
-                    {selectedMfaType === "authenticator" && (
-                      <div className="space-y-6">
-                        <div className="flex flex-col items-center p-6 bg-gray-50 rounded-xl">
-                          {qrCodeUrl ? (
-                            <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48 mb-4" />
-                          ) : (
-                            <div className="w-48 h-48 mb-4 bg-gray-200 rounded-lg flex items-center justify-center">
-                              <QrCodeIcon className="w-12 h-12 text-gray-400" />
-                            </div>
-                          )}
-                          <p className="text-sm text-gray-600 text-center mb-4">
-                            {qrCodeUrl 
-                              ? "Scan this QR code with your authenticator app"
-                              : "Loading QR code or use manual entry below"}
-                          </p>
-                          <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200">
-                            <code className="text-sm font-mono">{secretKey}</code>
-                            <button
-                              onClick={() => copyToClipboard(secretKey)}
-                              className="p-1 hover:bg-gray-100 rounded"
-                            >
-                              <Copy className="w-4 h-4 text-gray-500" />
-                            </button>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-2">
-                            Or enter this key manually in your app
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => setSetupStep(3)}
-                          className="w-full bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primaryHover transition"
-                        >
-                          Next: Verify Code
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      onClick={() => setSetupStep(3)}
+                      className="w-full bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primaryHover transition"
+                    >
+                      Next: Verify Code
+                    </button>
                   </div>
                 )}
 
-                {/* Step 3: Verify */}
+                {/* Step 3: Verify Code (for both email and authenticator) */}
                 {setupStep === 3 && (
                   <div className="space-y-6">
                     <p className="text-sm text-gray-600">
                       {selectedMfaType === "email"
                         ? "We've sent a verification code to your email. Please enter it below."
-                        : selectedMfaType === "sms"
-                        ? `We've sent a verification code to ${phoneNumber}. Please enter it below.`
                         : "Enter the 6-digit code from your authenticator app"}
                     </p>
 
@@ -737,6 +628,7 @@ export default function AccountSecurity() {
                         placeholder="000000"
                         maxLength={6}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-purple-100 outline-none transition text-center text-2xl tracking-widest font-mono"
+                        autoFocus
                       />
                     </div>
 
@@ -747,9 +639,21 @@ export default function AccountSecurity() {
                       </div>
                     )}
 
+                    {selectedMfaType === "email" && (
+                      <div className="text-center">
+                        <button
+                          onClick={() => startMfaSetup("email")}
+                          disabled={mfaLoading}
+                          className="text-sm text-primary hover:text-primaryHover disabled:text-gray-400"
+                        >
+                          Resend code
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex gap-3">
                       <button
-                        onClick={() => setSetupStep(2)}
+                        onClick={() => setSetupStep(selectedMfaType === "authenticator" ? 2 : 1)}
                         className="flex-1 px-6 py-3 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
                       >
                         Back
@@ -760,7 +664,10 @@ export default function AccountSecurity() {
                         className="flex-1 bg-gradient-to-r from-primary to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-primaryHover hover:to-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {mfaLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Verifying...
+                          </>
                         ) : (
                           "Verify & Enable"
                         )}

@@ -7,9 +7,16 @@ import {
   ChevronRight,
   CheckCircle,
   Check,
+  Star,
+  Edit,
+  Trash2,
+  X,
+  ChevronUp,
+  Target,
 } from "lucide-react";
 import logo from "../../assets/images/logo.png";
 import QuizPlayer from "./QuizPlayer";
+import { toast } from "react-hot-toast";
 
 export default function CoursePlayer() {
   const { courseId } = useParams();
@@ -36,6 +43,17 @@ export default function CoursePlayer() {
   const [certificateIssued, setCertificateIssued] = useState(false);
   const [certificateMessage, setCertificateMessage] = useState("");
   const [hasCertificate, setHasCertificate] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [parsedRequirements, setParsedRequirements] = useState([]);
+  const [parsedAudience, setParsedAudience] = useState([]);
+
+  // Review states
+  const [reviews, setReviews] = useState([]);
+  const [userReview, setUserReview] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Fixed height for all content areas
   const CONTENT_HEIGHT = "70vh";
@@ -83,6 +101,18 @@ export default function CoursePlayer() {
     );
   };
 
+  const safelyParseJSON = (data) => {
+    if (!data) return [];
+    try {
+      if (Array.isArray(data)) return data;
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (error) {
+      console.error("JSON Parse fallback:", error);
+      return [data];
+    }
+  };
+
   const formatLastUpdated = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -92,7 +122,17 @@ export default function CoursePlayer() {
     });
   };
 
-  // Helper function to find lesson by ID (needs to be declared before useEffect)
+  const formatReviewDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  // Helper function to find lesson by ID
   const findLessonById = (lessonId) => {
     if (!sections || sections.length === 0) return null;
 
@@ -107,11 +147,159 @@ export default function CoursePlayer() {
     return null;
   };
 
+  const findNextLesson = (currentLessonId) => {
+    if (!sections || sections.length === 0 || !currentLessonId) return null;
+    
+    // Flatten all lessons from all sections in order
+    const allLessons = [];
+    sections.forEach(section => {
+      if (section.children && section.children.length > 0) {
+        // Sort lessons by order_index if available
+        const sortedLessons = [...section.children].sort((a, b) => 
+          (a.order_index || 0) - (b.order_index || 0)
+        );
+        allLessons.push(...sortedLessons);
+      }
+    });
+
+    // Find current lesson index
+    const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
+    
+    // Return next lesson if exists
+    if (currentIndex !== -1 && currentIndex < allLessons.length - 1) {
+      return allLessons[currentIndex + 1];
+    }
+    
+    return null;
+  };
+
+  // ============================
+  // Fetch Reviews
+  // ============================
+  const fetchReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const response = await axios.get(
+        `${API_URL}/courses/${courseId}/reviews`,
+        config
+      );
+      setReviews(response.data.reviews || []);
+      setUserReview(response.data.userReview || null);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  // ============================
+  // Submit Review
+  // ============================
+  const handleSubmitReview = async () => {
+    if (!reviewForm.comment.trim()) {
+      alert("Please write a review comment");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      if (userReview) {
+        // Update existing review
+        await axios.put(
+          `${API_URL}/courses/${courseId}/reviews/${userReview.id}`,
+          reviewForm,
+          config
+        );
+      } else {
+        // Create new review
+        await axios.post(
+          `${API_URL}/courses/${courseId}/reviews`,
+          reviewForm,
+          config
+        );
+      }
+
+      setShowReviewModal(false);
+      setReviewForm({ rating: 5, comment: "" });
+      fetchReviews();
+
+      // Refresh course data to update average rating
+      const courseRes = await axios.get(
+        `${API_URL}/course-player/${courseId}`,
+        config
+      );
+      setCourse(courseRes.data);
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      alert("Failed to submit review. Please try again.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  // ============================
+  // Delete Review
+  // ============================
+  const handleDeleteReview = async () => {
+    if (!confirm("Are you sure you want to delete your review?")) return;
+
+    try {
+      await axios.delete(
+        `${API_URL}/courses/${courseId}/reviews/${userReview.id}`,
+        config
+      );
+      setUserReview(null);
+      fetchReviews();
+
+      // Refresh course data
+      const courseRes = await axios.get(
+        `${API_URL}/course-player/${courseId}`,
+        config
+      );
+      setCourse(courseRes.data);
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      alert("Failed to delete review");
+    }
+  };
+
+  // ============================
+  // Open Edit Review Modal
+  // ============================
+  const handleEditReview = () => {
+    setReviewForm({
+      rating: userReview.rating,
+      comment: userReview.comment,
+    });
+    setShowReviewModal(true);
+  };
+
+  // ============================
+  // Render Star Rating
+  // ============================
+  const StarRating = ({ rating, size = "w-4 h-4", interactive = false, onRatingChange = null }) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`${size} ${
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-600"
+            } ${interactive ? "cursor-pointer hover:fill-yellow-400 hover:text-yellow-400" : ""}`}
+            onClick={() => interactive && onRatingChange && onRatingChange(star)}
+          />
+        ))}
+      </div>
+    );
+  };
+
   // ============================
   // Handle browser back/forward buttons
   // ============================
   useEffect(() => {
-    // Handle browser back/forward buttons
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const lessonId = urlParams.get("lesson");
@@ -164,6 +352,15 @@ export default function CoursePlayer() {
   }, [certificateIssued, courseId, navigate]);
 
   // ============================
+  // Fetch reviews when Reviews tab is active
+  // ============================
+  useEffect(() => {
+    if (activeTab === "reviews") {
+      fetchReviews();
+    }
+  }, [activeTab, courseId]);
+
+  // ============================
   // Fetch course, lessons, next lesson
   // ============================
   useEffect(() => {
@@ -187,6 +384,14 @@ export default function CoursePlayer() {
         );
         console.log("Course data:", courseRes.data);
         setCourse(courseRes.data);
+
+        // Parse requirements and target audience
+        if (courseRes.data.requirements) {
+          setParsedRequirements(safelyParseJSON(courseRes.data.requirements));
+        }
+        if (courseRes.data.target_audience) {
+          setParsedAudience(safelyParseJSON(courseRes.data.target_audience));
+        }
 
         // Fetch organized lessons/sections
         const lessonsRes = await axios.get(
@@ -342,11 +547,20 @@ export default function CoursePlayer() {
   };
 
   // ============================
-  // Mark lesson complete manually (via checkbox)
+  // Mark lesson complete manually (via checkbox) - UPDATED with optimistic update
   // ============================
   const handleManualComplete = async (lessonId, isCurrentlyCompleted) => {
     try {
       setUpdatingProgress(true);
+
+      // Update local state immediately for instant UI feedback
+      const newCompleted = new Set(completedLessons);
+      if (isCurrentlyCompleted) {
+        newCompleted.delete(lessonId);
+      } else {
+        newCompleted.add(lessonId);
+      }
+      setCompletedLessons(newCompleted);
 
       if (isCurrentlyCompleted) {
         // Mark as incomplete
@@ -354,11 +568,6 @@ export default function CoursePlayer() {
           `${API_URL}/course-player/${courseId}/lessons/${lessonId}/complete`,
           config,
         );
-
-        // Update local state
-        const newCompleted = new Set(completedLessons);
-        newCompleted.delete(lessonId);
-        setCompletedLessons(newCompleted);
       } else {
         // Mark as complete
         const res = await axios.post(
@@ -373,14 +582,9 @@ export default function CoursePlayer() {
             res.data.certificateReason || "Certificate issued for this course!",
           );
         }
-
-        // Update local state
-        const newCompleted = new Set(completedLessons);
-        newCompleted.add(lessonId);
-        setCompletedLessons(newCompleted);
       }
 
-      // Refresh course data to update progress
+      // Refresh course data to update progress count (but keep checkbox state)
       const courseRes = await axios.get(
         `${API_URL}/course-player/${courseId}`,
         config,
@@ -388,6 +592,14 @@ export default function CoursePlayer() {
       setCourse(courseRes.data);
     } catch (err) {
       console.error("Error updating lesson completion:", err);
+      // Revert the optimistic update if there's an error
+      const revertedCompleted = new Set(completedLessons);
+      if (isCurrentlyCompleted) {
+        revertedCompleted.add(lessonId);
+      } else {
+        revertedCompleted.delete(lessonId);
+      }
+      setCompletedLessons(revertedCompleted);
       alert("Failed to update lesson completion status");
     } finally {
       setUpdatingProgress(false);
@@ -444,30 +656,6 @@ export default function CoursePlayer() {
     return Math.round((course.completed_lessons / course.total_lessons) * 100);
   };
 
-  if (loading) {
-    return <div className="text-white p-10">Loading course...</div>;
-  }
-
-  if (!course) {
-    return <div className="text-white p-10">Course not found</div>;
-  }
-
-  // ============================
-  // Initialize course progress
-  // ============================
-  const initializeProgress = async () => {
-    try {
-      await axios.post(
-        `${API_URL}/course-player/${courseId}/initialize-progress`,
-        {},
-        config,
-      );
-      console.log("Course progress initialized");
-    } catch (err) {
-      console.error("Error initializing progress:", err);
-    }
-  };
-
   const handleDownloadCertificate = async () => {
     try {
       const response = await axios.get(
@@ -490,9 +678,89 @@ export default function CoursePlayer() {
     }
   };
 
+  if (loading) {
+    return <div className="text-white p-10">Loading course...</div>;
+  }
+
+  if (!course) {
+    return <div className="text-white p-10">Course not found</div>;
+  }
+
   return (
-    <div className="bg-slate-900 text-white min-h-screen">
-      {/* ================= TOP BAR ================= */}
+    <div className="bg-white min-h-screen">
+      {/* ================= REVIEW MODAL ================= */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 border border-gray-200 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                {userReview ? "Edit Your Review" : "Write a Review"}
+              </h3>
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Rating */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Rating
+                </label>
+                <StarRating
+                  rating={reviewForm.rating}
+                  size="w-8 h-8"
+                  interactive={true}
+                  onRatingChange={(rating) =>
+                    setReviewForm({ ...reviewForm, rating })
+                  }
+                />
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Review
+                </label>
+                <textarea
+                  value={reviewForm.comment}
+                  onChange={(e) =>
+                    setReviewForm({ ...reviewForm, comment: e.target.value })
+                  }
+                  placeholder="Share your thoughts about this course..."
+                  className="w-full h-32 px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={submittingReview}
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingReview
+                    ? "Submitting..."
+                    : userReview
+                      ? "Update Review"
+                      : "Submit Review"}
+                </button>
+                <button
+                  onClick={() => setShowReviewModal(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= TOP BAR (Original Dark Theme) ================= */}
       <div className="w-full bg-slate-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between fixed top-0 z-50">
         {/* LEFT — Logo + Course Name */}
         <div className="flex items-center gap-4">
@@ -504,7 +772,7 @@ export default function CoursePlayer() {
             />
           </Link>
 
-          <h1 className="font-bold text-lg truncate max-w-[350px]">
+          <h1 className="font-bold text-lg truncate max-w-[350px] text-white">
             {course.title}
           </h1>
         </div>
@@ -544,14 +812,14 @@ export default function CoursePlayer() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDownloadCertificate}
-                className="inline-flex items-center px-3 py-1 rounded bg-emerald-600 text-xs font-semibold hover:bg-emerald-500"
+                className="inline-flex items-center px-3 py-1 rounded bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500"
               >
                 Download Certificate
               </button>
 
               <button
                 onClick={() => navigate(`/student/certificates/${courseId}`)}
-                className="inline-flex items-center px-3 py-1 rounded bg-slate-700 text-xs font-semibold hover:bg-slate-600"
+                className="inline-flex items-center px-3 py-1 rounded bg-slate-700 text-white text-xs font-semibold hover:bg-slate-600"
               >
                 View Certificate
               </button>
@@ -606,7 +874,7 @@ export default function CoursePlayer() {
                           __html: currentLesson.note_content,
                         }}
                       />
-                    </div>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -664,54 +932,79 @@ export default function CoursePlayer() {
             )}
           </div>
 
-          {/* FOOTER */}
+          {/* FOOTER - "Now Playing" section */}
           <div className="p-4 bg-slate-800 text-sm border-t border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-bold mb-1">Now Playing:</p>
+                <p className="font-bold mb-1 text-white">Now Playing:</p>
                 <p className="text-gray-300">
                   {currentLesson?.title || "No lesson selected"}
                 </p>
               </div>
               {currentLesson && (
-                <button
-                  onClick={() =>
-                    handleManualComplete(
-                      currentLesson.id,
-                      completedLessons.has(currentLesson.id),
-                    )
-                  }
-                  disabled={updatingProgress}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition ${
-                    completedLessons.has(currentLesson.id)
-                      ? "bg-green-900/30 text-green-400 hover:bg-green-900/50"
-                      : "bg-purple-900/30 text-purple-400 hover:bg-purple-900/50"
-                  }`}
-                >
-                  {updatingProgress ? (
-                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                  ) : completedLessons.has(currentLesson.id) ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Completed
-                    </>
-                  ) : (
-                    "Mark as Complete"
-                  )}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      handleManualComplete(
+                        currentLesson.id,
+                        completedLessons.has(currentLesson.id),
+                      )
+                    }
+                    disabled={updatingProgress}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition ${
+                      completedLessons.has(currentLesson.id)
+                        ? "bg-green-900/30 text-green-400 hover:bg-green-900/50"
+                        : "bg-purple-900/30 text-purple-400 hover:bg-purple-900/50"
+                    }`}
+                  >
+                    {updatingProgress ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    ) : completedLessons.has(currentLesson.id) ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Completed
+                      </>
+                    ) : (
+                      "Mark as Complete"
+                    )}
+                  </button>
+
+                  {/* Next Lesson Button - Goes to next lesson regardless of completion */}
+                  <button
+                    onClick={() => {
+                      const nextLesson = findNextLesson(currentLesson?.id);
+                      if (nextLesson) {
+                        setCurrentLesson(nextLesson);
+                        // Update URL without page reload
+                        window.history.pushState(
+                          {},
+                          "",
+                          `/course/${courseId}/learn?lesson=${nextLesson.id}`,
+                        );
+                      } else {
+                        toast?.success("You've reached the end of the course!");
+                      }
+                    }}
+                    disabled={!currentLesson}
+                    className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition bg-blue-900/30 text-blue-400 hover:bg-blue-900/50"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               )}
             </div>
           </div>
 
-          {/* ================= BOTTOM INFO WITH TABS ================= */}
-          <div className="p-6 bg-slate-900 border-t border-gray-800 text-gray-200">
-            <div className="flex gap-6 border-b border-gray-700 mb-6">
+          {/* ================= BOTTOM INFO WITH TABS (White Theme) ================= */}
+          <div className="p-6 bg-white border-t border-gray-200 text-gray-900">
+            <div className="flex gap-6 border-b border-gray-200 mb-6">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={`pb-2 text-sm font-semibold ${
                   activeTab === "overview"
-                    ? "text-white border-b-2 border-purple-500"
-                    : "text-gray-400 hover:text-white"
+                    ? "text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-500 hover:text-gray-700"
                 }`}
               >
                 Overview
@@ -721,8 +1014,8 @@ export default function CoursePlayer() {
                 onClick={() => setActiveTab("reviews")}
                 className={`pb-2 text-sm font-semibold ${
                   activeTab === "reviews"
-                    ? "text-white border-b-2 border-purple-500"
-                    : "text-gray-400 hover:text-white"
+                    ? "text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-500 hover:text-gray-700"
                 }`}
               >
                 Reviews
@@ -732,61 +1025,117 @@ export default function CoursePlayer() {
             {/* TAB CONTENT */}
             {activeTab === "overview" && (
               <div className="space-y-6">
-                <h2 className="text-xl font-bold">{course.title}</h2>
+                <h2 className="text-xl font-bold text-gray-900">{course.title}</h2>
 
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-yellow-400 font-bold">
+                  <span className="text-yellow-600 font-bold">
                     ★ {course.rating}
                   </span>
-                  <span className="text-gray-400">
+                  <span className="text-gray-600">
                     {course.reviews} reviews
                   </span>
-                  <span className="text-gray-400">
+                  <span className="text-gray-600">
                     {course.students} students
                   </span>
                 </div>
 
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-gray-500 mt-2">
                   Last updated {formatLastUpdated(course.updated_at)}
                 </p>
 
-                <hr className="border-gray-700" />
+                <hr className="border-gray-200" />
 
-                {/* Description */}
+                {/* Description with Read More - Everything below is collapsible */}
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-3">
-                    <h3 className="font-semibold">Description</h3>
+                    <h3 className="font-semibold text-gray-700">Description</h3>
                   </div>
                   <div className="col-span-9">
-                    <p className="text-gray-300 leading-relaxed">
+                    {/* Short description - always visible */}
+                    <p className="text-gray-700 leading-relaxed">
                       {course.description}
                     </p>
+                    
+                    {/* Read More Toggle Button - Show if there's additional content */}
+                    {(parsedRequirements.length > 0 || parsedAudience.length > 0) && (
+                      <button
+                        onClick={() => setShowFullDescription(!showFullDescription)}
+                        className="text-purple-600 hover:text-purple-700 text-sm font-medium mt-3 focus:outline-none flex items-center gap-1"
+                      >
+                        {showFullDescription ? (
+                          <>Show less <ChevronUp className="w-4 h-4" /></>
+                        ) : (
+                          <>Read more <ChevronDown className="w-4 h-4" /></>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Collapsible Content - Requirements and Target Audience */}
+                    {showFullDescription && (
+                      <div className="mt-6 space-y-6 animate-fadeIn">
+                        {/* Requirements Section */}
+                        {parsedRequirements.length > 0 && (
+                          <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-purple-600" />
+                              Requirements / What you'll need
+                            </h4>
+                            <div className="space-y-2">
+                              {parsedRequirements.map((req, index) => (
+                                <div key={index} className="flex gap-3 items-start text-sm">
+                                  <CheckCircle className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
+                                  <span className="text-gray-700">{req}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Target Audience Section */}
+                        {parsedAudience.length > 0 && (
+                          <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                              <Target className="w-4 h-4 text-purple-600" />
+                              Who this course is for
+                            </h4>
+                            <div className="space-y-2">
+                              {parsedAudience.map((audience, index) => (
+                                <div key={index} className="flex gap-3 items-start text-sm">
+                                  <Target className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
+                                  <span className="text-gray-700">{audience}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <hr className="border-gray-700" />
+                <hr className="border-gray-200" />
 
                 {/* Instructor */}
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-12 md:col-span-3">
-                    <h3 className="font-semibold text-gray-200">Instructor</h3>
+                    <h3 className="font-semibold text-gray-700">Instructor</h3>
                   </div>
                   <div className="col-span-12 md:col-span-9">
                     <div className="flex items-start gap-4">
                       <img
-                        src={course.instructor.photo}
-                        alt={course.instructor.name}
-                        className="w-20 h-20 rounded-full object-cover border border-gray-700"
+                        src={course.instructor?.photo || "/default-avatar.png"}
+                        alt={course.instructor?.name}
+                        className="w-20 h-20 rounded-full object-cover border border-gray-200"
                       />
                       <div>
-                        <p className="font-semibold text-lg text-white">
-                          {course.instructor.name}
+                        <p className="font-semibold text-lg text-gray-900">
+                          {course.instructor?.name}
                         </p>
-                        <p className="text-sm text-gray-400 mb-2">
-                          {course.instructor.headline}
+                        <p className="text-sm text-gray-600 mb-2">
+                          {course.instructor?.headline}
                         </p>
-                        <p className="text-gray-300 leading-relaxed text-sm">
-                          {course.instructor.biography}
+                        <p className="text-gray-700 leading-relaxed text-sm">
+                          {course.instructor?.biography}
                         </p>
                       </div>
                     </div>
@@ -796,34 +1145,163 @@ export default function CoursePlayer() {
             )}
 
             {activeTab === "reviews" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold">Student Reviews</h3>
-                {course.reviews === 0 && (
-                  <p className="text-gray-400">
-                    No reviews yet. Be the first to leave one!
-                  </p>
+              <div className="space-y-6">
+                {/* Header with Add/Edit Review Button */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">Student Reviews</h3>
+
+                  {!userReview ? (
+                    <button
+                      onClick={() => {
+                        setReviewForm({ rating: 5, comment: "" });
+                        setShowReviewModal(true);
+                      }}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition"
+                    >
+                      Write a Review
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleEditReview}
+                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition flex items-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={handleDeleteReview}
+                        className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Your Review */}
+                {userReview && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={user?.photo || user?.profile_picture || "/default-avatar.png"}
+                        alt={user?.name || `${user?.first_name} ${user?.last_name}`}
+                        className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {user?.name || `${user?.first_name} ${user?.last_name}`} (You)
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <StarRating rating={userReview.rating} />
+                              <span className="text-xs text-gray-500">
+                                {formatReviewDate(userReview.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed">
+                          {userReview.comment}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading State */}
+                {loadingReviews && (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                    <p className="text-gray-500 mt-2">Loading reviews...</p>
+                  </div>
+                )}
+
+                {/* Reviews List */}
+                {!loadingReviews && reviews.length === 0 && !userReview && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">
+                      No reviews yet. Be the first to leave one!
+                    </p>
+                  </div>
+                )}
+
+                {!loadingReviews && reviews.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-gray-700">
+                      Other Reviews ({reviews.length})
+                    </h4>
+                    {reviews.map((review) => (
+                      <div
+                        key={review.id}
+                        className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                      >
+                        <div className="flex items-start gap-3">
+                          <img
+                            src={
+                              review.student?.photo || 
+                              review.student?.profile_picture || 
+                              review.Users?.photo ||
+                              review.Users?.profile_picture ||
+                              "/default-avatar.png"
+                            }
+                            alt={
+                              review.student?.name || 
+                              (review.student?.first_name && review.student?.last_name
+                                ? `${review.student.first_name} ${review.student.last_name}`
+                                : review.Users?.name ||
+                                  (review.Users?.first_name && review.Users?.last_name
+                                    ? `${review.Users.first_name} ${review.Users.last_name}`
+                                    : "Student"))
+                            }
+                            className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {review.student?.name || 
+                                  (review.student?.first_name && review.student?.last_name
+                                    ? `${review.student.first_name} ${review.student.last_name}`
+                                    : review.Users?.name ||
+                                      (review.Users?.first_name && review.Users?.last_name
+                                        ? `${review.Users.first_name} ${review.Users.last_name}`
+                                        : "Anonymous Student"))}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <StarRating rating={review.rating} />
+                                  <span className="text-xs text-gray-500">
+                                    {formatReviewDate(review.created_at)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-gray-700 text-sm leading-relaxed">
+                              {review.comment}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        {/* ================= FIXED RIGHT SIDEBAR ================= */}
-        <div className="fixed top-[72px] right-0 w-80 h-[calc(100vh-72px)] bg-slate-900 border-l border-gray-800 flex flex-col z-40">
-          <div className="p-4 border-b border-gray-800">
+        {/* ================= FIXED RIGHT SIDEBAR (White Theme) ================= */}
+        <div className="fixed top-[72px] right-0 w-80 h-[calc(100vh-72px)] bg-white border-l border-gray-200 flex flex-col z-40 shadow-lg">
+          <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h4 className="font-bold">Course Content</h4>
-              {/* <span className="text-xs bg-purple-900/30 text-purple-300 px-2 py-1 rounded">
-                {calculateCompletionPercentage()}%
-              </span> */}
+              <h4 className="font-bold text-gray-900">Course Content</h4>
             </div>
-            {/* <p className="text-xs text-gray-400 mt-1">
-              {course.completed_lessons} of {course.total_lessons} complete
-            </p> */}
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {sections.length === 0 ? (
-              <div className="p-4 text-center text-gray-400">
+              <div className="p-4 text-center text-gray-500">
                 <p>No content available</p>
                 <p className="text-sm mt-1">Check back later</p>
               </div>
@@ -834,8 +1312,8 @@ export default function CoursePlayer() {
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition ${
                       section.type === "section"
-                        ? "bg-slate-800 hover:bg-slate-700"
-                        : "bg-slate-800/50"
+                        ? "bg-gray-100 hover:bg-gray-200"
+                        : "bg-gray-50"
                     }`}
                     onClick={() =>
                       section.type === "section" && toggleSection(section.id)
@@ -844,17 +1322,17 @@ export default function CoursePlayer() {
                     <div className="flex items-center gap-2">
                       {section.type === "section" &&
                         (expandedSections.has(section.id) ? (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
                         ) : (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronRight className="w-4 h-4 text-gray-500" />
                         ))}
-                      <span className="font-semibold text-sm text-gray-200">
+                      <span className="font-semibold text-sm text-gray-800">
                         {section.title}
                       </span>
                     </div>
                     {section.type === "section" && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-500">
                           {section.children?.length || 0} lessons
                         </span>
                       </div>
@@ -875,8 +1353,8 @@ export default function CoursePlayer() {
                               key={lesson.id}
                               className={`flex items-center gap-2 p-3 rounded-lg transition group ${
                                 currentLesson && currentLesson.id === lesson.id
-                                  ? "bg-purple-900/30 border border-purple-700"
-                                  : "hover:bg-slate-800"
+                                  ? "bg-purple-50 border border-purple-200"
+                                  : "hover:bg-gray-100"
                               }`}
                             >
                               {/* CHECKBOX */}
@@ -888,7 +1366,7 @@ export default function CoursePlayer() {
                                     handleManualComplete(lesson.id, isCompleted)
                                   }
                                   disabled={updatingProgress}
-                                  className="h-4 w-4 rounded border-gray-600 bg-slate-700 text-purple-500 focus:ring-purple-500 focus:ring-offset-slate-900 cursor-pointer"
+                                  className="h-4 w-4 rounded border-gray-300 bg-white text-purple-600 focus:ring-purple-500 cursor-pointer"
                                 />
                               </div>
 
@@ -901,17 +1379,17 @@ export default function CoursePlayer() {
                                   <div className="relative">
                                     {getLessonIcon(lesson.type)}
                                     {isCompleted && (
-                                      <CheckCircle className="absolute -top-1 -right-1 w-3 h-3 text-green-500 bg-slate-900 rounded-full" />
+                                      <CheckCircle className="absolute -top-1 -right-1 w-3 h-3 text-green-500 bg-white rounded-full" />
                                     )}
                                   </div>
-                                  <div className="relative w-12 h-8 bg-gray-800 rounded overflow-hidden shrink-0">
+                                  <div className="relative w-12 h-8 bg-gray-100 rounded overflow-hidden shrink-0">
                                     <img
                                       src={course.image}
                                       className="w-full h-full object-cover opacity-40"
                                       alt=""
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                      <PlayCircle className="w-3 h-3 text-white" />
+                                      <PlayCircle className="w-3 h-3 text-gray-600" />
                                     </div>
                                   </div>
                                 </div>
@@ -921,7 +1399,7 @@ export default function CoursePlayer() {
                                       className={`text-sm font-medium truncate ${
                                         isCompleted
                                           ? "text-gray-400 line-through"
-                                          : "text-gray-200"
+                                          : "text-gray-700"
                                       }`}
                                     >
                                       {lesson.title}
@@ -933,11 +1411,11 @@ export default function CoursePlayer() {
                                     )}
                                   </div>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs px-2 py-0.5 bg-slate-700 rounded text-gray-300">
+                                    <span className="text-xs px-2 py-0.5 bg-gray-100 rounded text-gray-600">
                                       {lesson.type}
                                     </span>
                                     {lesson.is_preview && (
-                                      <span className="text-xs px-2 py-0.5 bg-blue-900/30 rounded text-blue-300">
+                                      <span className="text-xs px-2 py-0.5 bg-blue-100 rounded text-blue-700">
                                         Preview
                                       </span>
                                     )}
