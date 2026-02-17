@@ -452,6 +452,14 @@ export default function StudentLayout() {
                     <Settings className="w-4 h-4 text-gray-500" />
                     Edit profile
                   </Link>
+                  <Link
+                    to="/student/security"
+                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100"
+                    onClick={() => setActiveDropdown(null)}
+                  >
+                    <Settings className="w-4 h-4 text-gray-500" />
+                    Account Security
+                  </Link>
                   
                   <div className="border-t my-2"></div>
                   
