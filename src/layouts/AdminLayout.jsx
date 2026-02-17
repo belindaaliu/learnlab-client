@@ -16,7 +16,7 @@ const AdminLayout = () => {
 
   const handleLogout = () => {
     localStorage.clear();
-    navigate('/login');
+    navigate('/.');
   };
 
   const navItems = [

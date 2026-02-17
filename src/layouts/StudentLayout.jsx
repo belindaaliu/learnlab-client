@@ -36,7 +36,7 @@ export default function StudentLayout() {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     delete axios.defaults.headers.common["Authorization"];
-    navigate("/login");
+    navigate("/.");
   };
 
   useEffect(() => {
