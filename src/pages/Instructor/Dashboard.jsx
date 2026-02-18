@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Users, DollarSign, BookOpen, Eye, ArrowUpRight, Loader2, 
-  X, Lightbulb, MessageCircle, Image, Video 
+  X, Lightbulb, MessageCircle, Image, Video, UserCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
