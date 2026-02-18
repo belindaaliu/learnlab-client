@@ -31,6 +31,8 @@ const ReviewsList = ({ courseId }) => {
         params: { page, limit: 10, sort }
       });
       
+      console.log("Reviews API response:", response.data); // Debug log
+      
       setReviews(response.data.reviews);
       setStats(response.data.stats);
       setTotalPages(response.data.pagination.totalPages);
@@ -44,12 +46,12 @@ const ReviewsList = ({ courseId }) => {
   const fetchUserReview = async () => {
     try {
       const response = await api.get(`/courses/${courseId}/reviews/me`);
+      console.log("User review response:", response.data); // Debug log
       setUserReview(response.data.review);
     } catch (error) {
       console.error('Error fetching user review:', error);
     }
   };
-
 
   const handleDeleteReview = () => {
     toast((t) => (
@@ -114,6 +116,46 @@ const ReviewsList = ({ courseId }) => {
       month: 'long', 
       day: 'numeric' 
     });
+  };
+
+  // Helper function to get student initials
+  const getInitials = (student) => {
+    if (student?.first_name && student?.last_name) {
+      return `${student.first_name[0] || ''}${student.last_name[0] || ''}`;
+    }
+    if (student?.name) {
+      const nameParts = student.name.split(' ');
+      if (nameParts.length >= 2) {
+        return `${nameParts[0][0] || ''}${nameParts[1][0] || ''}`;
+      }
+      return student.name[0] || 'A';
+    }
+    return 'AU'; // Anonymous User
+  };
+
+  // Helper function to get student name
+  const getStudentName = (review) => {
+    // Try to get from student object first
+    if (review.student) {
+      if (review.student.first_name && review.student.last_name) {
+        return `${review.student.first_name} ${review.student.last_name}`;
+      }
+      if (review.student.name) {
+        return review.student.name;
+      }
+    }
+    
+    // Try to get from user object (fallback)
+    if (review.user) {
+      if (review.user.first_name && review.user.last_name) {
+        return `${review.user.first_name} ${review.user.last_name}`;
+      }
+      if (review.user.name) {
+        return review.user.name;
+      }
+    }
+    
+    return 'Anonymous User';
   };
 
   if (loading) {
@@ -244,38 +286,41 @@ const ReviewsList = ({ courseId }) => {
             No reviews yet. Be the first to review this course!
           </div>
         ) : (
-          reviews.map((review) => (
-            <div
-              key={review.id}
-              className="bg-white p-6 rounded-lg border border-gray-200"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-semibold">
-
-                  {review.user?.first_name?.[0] || 'A'}{review.user?.last_name?.[0] || 'U'}
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-900">
-
-                        {review.user?.first_name || 'Anonymous'} {review.user?.last_name || 'User'}
-                      </h4>
-                      {renderStars(review.rating)}
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      {formatDate(review.created_at)}
-                    </span>
+          reviews.map((review) => {
+            const studentName = getStudentName(review);
+            const initials = getInitials(review.student || review.user);
+            
+            return (
+              <div
+                key={review.id}
+                className="bg-white p-6 rounded-lg border border-gray-200"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-semibold uppercase">
+                    {initials}
                   </div>
                   
-                  {review.review_text && (
-                    <p className="text-gray-700 mt-2">{review.review_text}</p>
-                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">
+                          {studentName}
+                        </h4>
+                        {renderStars(review.rating)}
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {formatDate(review.created_at)}
+                      </span>
+                    </div>
+                    
+                    {review.review_text && (
+                      <p className="text-gray-700 mt-2">{review.review_text}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

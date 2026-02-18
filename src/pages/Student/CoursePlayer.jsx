@@ -181,93 +181,131 @@ export default function CoursePlayer() {
   // ============================
   // Fetch Reviews
   // ============================
-  const fetchReviews = async () => {
-    try {
-      setLoadingReviews(true);
-      const response = await axios.get(
-        `${API_URL}/courses/${courseId}/reviews`,
-        config
-      );
+const fetchReviews = async () => {
+  try {
+    setLoadingReviews(true);
+    console.log("Fetching reviews for course:", courseId);
+    
+    const response = await axios.get(
+      `${API_URL}/courses/${courseId}/reviews`,
+      config
+    );
+    
+    console.log("Reviews API response:", response.data);
+    
+    if (response.data.success) {
+      console.log("Setting reviews:", response.data.reviews);
+      console.log("Setting userReview:", response.data.userReview);
+      
       setReviews(response.data.reviews || []);
       setUserReview(response.data.userReview || null);
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-    } finally {
-      setLoadingReviews(false);
+      
+      // Check if userReview exists after setting
+      setTimeout(() => {
+        console.log("userReview state after setting:", userReview);
+      }, 100);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    toast.error("Failed to load reviews");
+  } finally {
+    setLoadingReviews(false);
+  }
+};
 
   // ============================
   // Submit Review
   // ============================
-  const handleSubmitReview = async () => {
-    if (!reviewForm.comment.trim()) {
-      alert("Please write a review comment");
-      return;
-    }
+const handleSubmitReview = async () => {
+  if (!reviewForm.comment.trim()) {
+    toast.error("Please write a review comment");
+    return;
+  }
 
-    try {
-      setSubmittingReview(true);
+  try {
+    setSubmittingReview(true);
 
-      if (userReview) {
-        // Update existing review
-        await axios.put(
-          `${API_URL}/courses/${courseId}/reviews/${userReview.id}`,
-          reviewForm,
-          config
-        );
-      } else {
-        // Create new review
-        await axios.post(
-          `${API_URL}/courses/${courseId}/reviews`,
-          reviewForm,
-          config
-        );
-      }
-
-      setShowReviewModal(false);
-      setReviewForm({ rating: 5, comment: "" });
-      fetchReviews();
-
-      // Refresh course data to update average rating
-      const courseRes = await axios.get(
-        `${API_URL}/course-player/${courseId}`,
+    if (userReview) {
+      // Update existing review
+      const response = await axios.put(
+        `${API_URL}/reviews/${userReview.id}`,
+        {
+          rating: reviewForm.rating,
+          reviewText: reviewForm.comment
+        },
         config
       );
-      setCourse(courseRes.data);
-    } catch (error) {
-      console.error("Error submitting review:", error);
-      alert("Failed to submit review. Please try again.");
-    } finally {
-      setSubmittingReview(false);
+      
+      if (response.data.success) {
+        toast.success("Review updated successfully!");
+      }
+    } else {
+      // Create new review
+      const response = await axios.post(
+        `${API_URL}/courses/${courseId}/reviews`,
+        {
+          courseId: courseId,
+          rating: reviewForm.rating,
+          reviewText: reviewForm.comment
+        },
+        config
+      );
+      
+      if (response.data.success) {
+        toast.success("Review submitted successfully!");
+      }
     }
-  };
+
+    setShowReviewModal(false);
+    setReviewForm({ rating: 5, comment: "" });
+    
+    // Refresh data
+    await fetchReviews();
+    
+    // Refresh course data to update average rating
+    const courseRes = await axios.get(
+      `${API_URL}/course-player/${courseId}`,
+      config
+    );
+    setCourse(courseRes.data);
+    
+  } catch (error) {
+    console.error("Error submitting review:", error);
+    toast.error(error.response?.data?.message || "Failed to submit review. Please try again.");
+  } finally {
+    setSubmittingReview(false);
+  }
+};
 
   // ============================
   // Delete Review
   // ============================
-  const handleDeleteReview = async () => {
-    if (!confirm("Are you sure you want to delete your review?")) return;
+const handleDeleteReview = async () => {
+  if (!confirm("Are you sure you want to delete your review?")) return;
 
-    try {
-      await axios.delete(
-        `${API_URL}/courses/${courseId}/reviews/${userReview.id}`,
-        config
-      );
+  try {
+    const response = await axios.delete(
+      `${API_URL}/reviews/${userReview.id}`,
+      config
+    );
+    
+    if (response.data.success) {
+      toast.success("Review deleted successfully!");
       setUserReview(null);
-      fetchReviews();
-
+      await fetchReviews();
+      
       // Refresh course data
       const courseRes = await axios.get(
         `${API_URL}/course-player/${courseId}`,
         config
       );
       setCourse(courseRes.data);
-    } catch (error) {
-      console.error("Error deleting review:", error);
-      alert("Failed to delete review");
     }
-  };
+  } catch (error) {
+    console.error("Error deleting review:", error);
+    toast.error(error.response?.data?.message || "Failed to delete review");
+  }
+};
 
   // ============================
   // Open Edit Review Modal
@@ -654,6 +692,32 @@ export default function CoursePlayer() {
       setUpdatingProgress(false);
     }
   };
+
+  // Add this function to check user's review specifically
+const checkUserReview = async () => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/courses/${courseId}/reviews/me`,
+      config
+    );
+    
+    console.log("User review endpoint response:", response.data);
+    
+    if (response.data.success && response.data.review) {
+      setUserReview(response.data.review);
+    }
+  } catch (error) {
+    console.error("Error checking user review:", error);
+  }
+};
+
+// Call it when the reviews tab is active
+useEffect(() => {
+  if (activeTab === "reviews") {
+    fetchReviews();
+    checkUserReview(); // Also try the specific endpoint
+  }
+}, [activeTab, courseId]);
 
   // Calculate completion percentage
   const calculateCompletionPercentage = () => {
