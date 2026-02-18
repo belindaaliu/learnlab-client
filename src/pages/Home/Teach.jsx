@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-hot-toast";
+import api from "../../utils/Api";
 import {
   Users,
   Globe,
@@ -17,12 +18,25 @@ import {
   TrendingUp,
   Star,
   Shield,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
 
 const Teach = () => {
   const navigate = useNavigate();
   const { user, addInstructorRole } = useAuth();
+  
+  // State for dynamic data
+  const [stats, setStats] = useState([
+    { icon: Users, value: "0+", label: "Active Students" },
+    { icon: Globe, value: "0+", label: "Countries" },
+    { icon: DollarSign, value: "$0+", label: "Average Monthly Earnings" },
+    { icon: BarChart3, value: "85%", label: "Revenue Share" }
+  ]);
+  
+  const [instructorCount, setInstructorCount] = useState("0+");
+  const [totalPayout, setTotalPayout] = useState("$0");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Check if user is already an instructor
   useEffect(() => {
@@ -34,51 +48,114 @@ const Teach = () => {
     }
   }, [user, navigate]);
 
-  const handleGetStarted = async () => {
-    if (user) {
-      // User is logged in but not instructor
-      if (!user.roles?.includes('instructor')) {
-        try {
-          // Add instructor role to existing user
-          const success = await addInstructorRole();
-          if (success) {
-            toast.success("Congratulations! You are now an instructor!");
-            navigate("/instructor/dashboard");
-          }
-        } catch (error) {
-          toast.error("Failed to upgrade to instructor");
-        }
-      }
-    } else {
-      // Not logged in - redirect to register with instructor role
-      localStorage.setItem("instructorIntent", "true");
-      toast.success("Create an account to become an instructor!");
-      navigate("/register", { 
-        state: { 
-          role: "instructor", 
-          from: "/teach" 
-        } 
-      });
-    }
-  };
+  // Fetch real statistics from the database
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.get("/public/stats");
+        const data = response.data;
 
-  const stats = [
-    { icon: Users, value: "12,000+", label: "Active Students" },
-    { icon: Globe, value: "50+", label: "Countries" },
-    { icon: DollarSign, value: "$5K+", label: "Average Monthly Earnings" },
-    { icon: BarChart3, value: "85%", label: "Revenue Share" }
-  ];
+        // Update main stats with real data
+        setStats([
+          { 
+            icon: Users, 
+            value: `${data.students?.toLocaleString() || '0'}+`, 
+            label: "Active Students" 
+          },
+          { 
+            icon: Globe, 
+            value: `${data.countries || '50'}+`, 
+            label: "Countries" 
+          },
+          { 
+            icon: DollarSign, 
+            value: `$${data.averageInstructorEarnings?.toLocaleString() || '5K'}+`, 
+            label: "Average Monthly Earnings" 
+          },
+          { 
+            icon: BarChart3, 
+            value: `${data.revenueShare || '85'}%`, 
+            label: "Revenue Share" 
+          }
+        ]);
+
+        // Set instructor count
+        setInstructorCount(`${data.instructors?.toLocaleString() || '1,200'}+`);
+        
+        // Set total payout (if available from API)
+        setTotalPayout(`$${data.totalPayout?.toLocaleString() || '2.5M'}+`);
+
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+        // Keep default values if API fails
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Fetch success stories from database
+  const [successStories, setSuccessStories] = useState([
+    {
+      name: "Priya Sharma",
+      role: "Data Science Instructor",
+      students: "8,500+",
+      earnings: "$30,000 in 3 months",
+      image: "https://i.pravatar.cc/150?img=1"
+    },
+    {
+      name: "Rahul Verma",
+      role: "Web Development Instructor",
+      students: "12,000+",
+      earnings: "$80,000 in 6 months",
+      image: "https://i.pravatar.cc/150?img=3"
+    },
+    {
+      name: "Michael Chen",
+      role: "AI & Machine Learning",
+      students: "15,000+",
+      earnings: "$120,000 in 8 months",
+      image: "https://i.pravatar.cc/150?img=8"
+    }
+  ]);
+
+  // Fetch top instructors/success stories
+  useEffect(() => {
+    const fetchTopInstructors = async () => {
+      try {
+        const response = await api.get("/instructors/top");
+        if (response.data && response.data.length > 0) {
+          const mappedStories = response.data.map(instructor => ({
+            name: `${instructor.first_name} ${instructor.last_name}`,
+            role: instructor.expertise || "Instructor",
+            students: `${instructor.totalStudents?.toLocaleString() || '0'}+`,
+            earnings: `$${instructor.totalEarnings?.toLocaleString() || '0'} earned`,
+            image: instructor.profile_image || `https://i.pravatar.cc/150?img=${instructor.id}`
+          }));
+          setSuccessStories(mappedStories.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Failed to fetch top instructors:", error);
+        // Keep default stories if API fails
+      }
+    };
+
+    fetchTopInstructors();
+  }, []);
 
   const benefits = [
     {
       icon: Users,
       title: "Ready-to-Teach Audience",
-      description: "Access 12,000+ motivated learners actively looking for courses in your expertise area."
+      description: `Access ${stats[0].value} motivated learners actively looking for courses in your expertise area.`
     },
     {
       icon: TrendingUp,
       title: "Higher Revenue Share",
-      description: "Earn up to 85% revenue share on your courses. No hidden fees, no exclusivity lock-in."
+      description: `Earn up to ${stats[3].value} revenue share on your courses. No hidden fees, no exclusivity lock-in.`
     },
     {
       icon: Video,
@@ -117,30 +194,6 @@ const Teach = () => {
     }
   ];
 
-  const successStories = [
-    {
-      name: "Priya Sharma",
-      role: "Data Science Instructor",
-      students: "8,500+",
-      earnings: "$30,000 in 3 months",
-      image: "https://i.pravatar.cc/150?img=1"
-    },
-    {
-      name: "Rahul Verma",
-      role: "Web Development Instructor",
-      students: "12,000+",
-      earnings: "$80,000 in 6 months",
-      image: "https://i.pravatar.cc/150?img=3"
-    },
-    {
-      name: "Michael Chen",
-      role: "AI & Machine Learning",
-      students: "15,000+",
-      earnings: "$120,000 in 8 months",
-      image: "https://i.pravatar.cc/150?img=8"
-    }
-  ];
-
   const howItWorks = [
     {
       step: "1",
@@ -160,9 +213,45 @@ const Teach = () => {
     {
       step: "4",
       title: "Start Earning",
-      description: "Publish your course and start earning up to 85% revenue share from day one."
+      description: `Publish your course and start earning up to ${stats[3].value} revenue share from day one.`
     }
   ];
+
+  const handleGetStarted = async () => {
+    if (user) {
+      // User is logged in but not instructor
+      if (!user.roles?.includes('instructor')) {
+        try {
+          // Add instructor role to existing user
+          const success = await addInstructorRole();
+          if (success) {
+            toast.success("Congratulations! You are now an instructor!");
+            navigate("/instructor/dashboard");
+          }
+        } catch (error) {
+          toast.error("Failed to upgrade to instructor");
+        }
+      }
+    } else {
+      // Not logged in - redirect to register with instructor role
+      localStorage.setItem("instructorIntent", "true");
+      toast.success("Create an account to become an instructor!");
+      navigate("/register", { 
+        state: { 
+          role: "instructor", 
+          from: "/teach" 
+        } 
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-purple-50/30 to-white">
@@ -187,7 +276,7 @@ const Teach = () => {
                 </span>
               </h1>
               <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-lg">
-                Share your knowledge with thousands of eager learners. 
+                Share your knowledge with {stats[0].value} eager learners. 
                 We handle the platform, you focus on teaching.
               </p>
               
@@ -233,7 +322,7 @@ const Teach = () => {
                     <Users className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">1,200+</p>
+                    <p className="text-2xl font-bold text-gray-900">{instructorCount}</p>
                     <p className="text-gray-600 text-sm">Active Instructors</p>
                   </div>
                 </div>
@@ -341,7 +430,7 @@ const Teach = () => {
               Instructors Like You, Thriving
             </h2>
             <p className="text-xl text-gray-600">
-              Join hundreds of educators who've found their community and income on LearnLab
+              Join {instructorCount} educators who've found their community and income on LearnLab
             </p>
           </div>
 
@@ -387,7 +476,7 @@ const Teach = () => {
                 How Much Can You Earn?
               </h2>
               <p className="text-xl text-purple-100 mb-8">
-                Our top instructors make over $10,000 per month. You keep up to 85% of every sale.
+                Our top instructors make over ${stats[2]?.value?.replace('$', '').replace('+', '') || '10,000'} per month. You keep up to {stats[3].value} of every sale.
               </p>
               
               <div className="space-y-4">
@@ -397,7 +486,7 @@ const Teach = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-                  <span>85% revenue share on self-sales</span>
+                  <span>{stats[3].value} revenue share on self-sales</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
@@ -410,7 +499,7 @@ const Teach = () => {
               </div>
 
               <div className="mt-8 flex items-center gap-4">
-                <div className="text-3xl font-bold">$2.5M+</div>
+                <div className="text-3xl font-bold">{totalPayout}</div>
                 <div className="text-purple-200">paid to instructors last year</div>
               </div>
             </div>
@@ -424,31 +513,31 @@ const Teach = () => {
                     <span className="font-bold">$50</span>
                   </div>
                   <div className="w-full bg-white/20 rounded-full h-2">
-                    <div className="bg-yellow-400 h-2 rounded-full" style={{ width: '85%' }}></div>
+                    <div className="bg-yellow-400 h-2 rounded-full" style={{ width: stats[3].value.replace('%', '') }}></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Your earnings per sale</span>
-                    <span className="font-bold">$42.50</span>
+                    <span className="font-bold">${(50 * parseInt(stats[3].value.replace('%', '')) / 100).toFixed(2)}</span>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>100 students</span>
-                    <span className="font-bold">$4,250</span>
+                    <span className="font-bold">${(50 * parseInt(stats[3].value.replace('%', '')) / 100 * 100).toLocaleString()}</span>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>500 students</span>
-                    <span className="font-bold">$21,250</span>
+                    <span className="font-bold">${(50 * parseInt(stats[3].value.replace('%', '')) / 100 * 500).toLocaleString()}</span>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>1,000 students</span>
-                    <span className="font-bold text-yellow-400">$42,500</span>
+                    <span className="font-bold text-yellow-400">${(50 * parseInt(stats[3].value.replace('%', '')) / 100 * 1000).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -477,7 +566,7 @@ const Teach = () => {
               },
               {
                 q: "How much can I earn?",
-                a: "Top instructors earn over $10,000 per month. Your earnings depend on course quality, pricing, and marketing. You keep up to 85% of revenue."
+                a: `Top instructors earn over $${stats[2]?.value?.replace('$', '').replace('+', '') || '10,000'} per month. Your earnings depend on course quality, pricing, and marketing. You keep up to ${stats[3].value} of revenue.`
               },
               {
                 q: "What topics can I teach?",
@@ -512,7 +601,7 @@ const Teach = () => {
             Ready to Share Your Knowledge?
           </h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join 1,200+ instructors already teaching on LearnLab. Start your journey today.
+            Join {instructorCount} instructors already teaching on LearnLab. Start your journey today.
           </p>
           <button
             onClick={handleGetStarted}
