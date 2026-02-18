@@ -4,6 +4,7 @@ import Modal from "../../components/common/Modal";
 import Input from "../../components/common/Input";
 import { Trash2, Edit2, Plus, X, Star, CheckCircle } from "lucide-react";
 import api from "../../utils/Api";
+import { toast } from "react-hot-toast";
 
 const Subscriptions = () => {
   const [plans, setPlans] = useState([]);
@@ -163,10 +164,13 @@ const Subscriptions = () => {
       if (response.status === 200 || response.status === 201) {
         closeModal();
         fetchPlans();
-        // TODO: Add a success toast here
+        toast.success(
+          editingPlanId
+            ? "Subscription plan updated successfully"
+            : "Subscription plan created successfully",
+        );
       }
     } catch (err) {
-      // Extract the error details
       const status = err.response?.status;
       const backendMessage = err.response?.data?.message;
       const validationErrors = err.response?.data?.errors;
@@ -176,16 +180,16 @@ const Subscriptions = () => {
         setErrors(validationErrors || { general: backendMessage });
         console.error("Validation Error:", backendMessage);
       } else if (status === 401 || status === 403) {
-        alert(
+        toast.error(
           "Session expired or insufficient permissions. Please log in again.",
         );
       } else if (status === 404) {
-        alert("The plan you are trying to edit no longer exists.");
+        toast.error("The plan you are trying to edit no longer exists.");
       } else if (status === 500) {
-        alert("Server error. Our engineers are on it!");
+        toast.error("Server error. Our engineers are on it!");
       } else {
         // Fallback for network issues or unknown errors
-        alert(err.message || "An unexpected error occurred.");
+       toast.error(err.message || "An unexpected error occurred.");
       }
     } finally {
       setLoading(false);
@@ -197,9 +201,10 @@ const Subscriptions = () => {
     try {
       await api.delete(`/admin/subscriptions/plans/${id}`);
       fetchPlans();
+      toast.success("Subscription plan deleted");
     } catch (err) {
       console.error("Delete error:", err);
-      alert(err.response?.data?.message || "Failed to delete plan.");
+      toast.error(err.response?.data?.message || "Failed to delete plan.");
     }
   };
 

@@ -79,6 +79,9 @@ const CourseDetails = () => {
     }
   };
 
+  const instructorId =
+    course?.instructor_id || course?.Users?.id || course?.user_id || null;
+
   // --- Increment View Count ---
   useEffect(() => {
     const incrementView = async () => {
@@ -714,7 +717,7 @@ const CourseDetails = () => {
               <div className="text-slate-300">
                 Created by{" "}
                 <Link
-                  to={`/profile/${course.Users?.id}`}
+                  to={`/profile/${instructorId}`}
                   className="text-purple-300 underline hover:text-purple-400 transition-colors cursor-pointer"
                 >
                   {course.Users?.first_name || "Instructor"}{" "}
