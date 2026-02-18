@@ -13,6 +13,8 @@ import {
   Loader2,
   Copy,
   QrCode as QrCodeIcon,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 export default function AccountSecurity() {
@@ -43,6 +45,10 @@ export default function AccountSecurity() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [mfaError, setMfaError] = useState("");
+  
+  // Disable confirmation modal state
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [disableMfaType, setDisableMfaType] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const user = JSON.parse(localStorage.getItem("user"));
@@ -129,59 +135,58 @@ export default function AccountSecurity() {
     }
   };
 
-  // Start MFA setup
-  const startMfaSetup = async (type) => {
-    setSelectedMfaType(type);
-    setMfaError("");
-    setVerificationCode("");
-    
-    if (type === "email") {
-      try {
-        setMfaLoading(true);
-        const response = await axios.post(
-          `${API_URL}/users/mfa/send-verification`,
-          { type: "email" },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        // For development - if API returns devCode, show it
-        if (response.data.devCode) {
-          console.log(`📧 Email verification code: ${response.data.devCode}`);
-          // showToast(`Dev mode - Code: ${response.data.devCode}`, "success");
-        }
-        
-        setSetupStep(2); // Go directly to verification step
-      } catch (err) {
-        setMfaError(err.response?.data?.message || "Failed to send verification");
-      } finally {
-        setMfaLoading(false);
+// Start MFA setup
+const startMfaSetup = async (type) => {
+  setSelectedMfaType(type);
+  setMfaError("");
+  setVerificationCode("");
+  
+  // Show the verification box immediately
+  setSetupStep(2);
+  
+  if (type === "email") {
+    try {
+      setMfaLoading(true);
+      const response = await axios.post(
+        `${API_URL}/users/mfa/send-verification`,
+        { type: "email" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // For development - if API returns devCode, show it
+      if (response.data.devCode) {
+        console.log(`📧 Email verification code: ${response.data.devCode}`);
+        // showToast(`Dev mode - Code: ${response.data.devCode}`, "success");
       }
-    } else if (type === "authenticator") {
-      try {
-        setMfaLoading(true);
-        const res = await axios.post(
-          `${API_URL}/users/mfa/setup-authenticator`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        setSecretKey(res.data.data.secret);
-        
-        // Generate QR code
-        if (qrCodeLib) {
-          const otpauth = `otpauth://totp/LMS:${user.email}?secret=${res.data.data.secret}&issuer=LMS`;
-          const qrCode = await qrCodeLib.toDataURL(otpauth);
-          setQrCodeUrl(qrCode);
-        }
-        
-        setSetupStep(2); // Show QR code step
-      } catch (err) {
-        setMfaError(err.response?.data?.message || "Failed to setup authenticator");
-      } finally {
-        setMfaLoading(false);
-      }
+    } catch (err) {
+      setMfaError(err.response?.data?.message || "Failed to send verification");
+    } finally {
+      setMfaLoading(false);
     }
-  };
+  } else if (type === "authenticator") {
+    try {
+      setMfaLoading(true);
+      const res = await axios.post(
+        `${API_URL}/users/mfa/setup-authenticator`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setSecretKey(res.data.data.secret);
+      
+      // Generate QR code
+      if (qrCodeLib) {
+        const otpauth = `otpauth://totp/LMS:${user.email}?secret=${res.data.data.secret}&issuer=LMS`;
+        const qrCode = await qrCodeLib.toDataURL(otpauth);
+        setQrCodeUrl(qrCode);
+      }
+    } catch (err) {
+      setMfaError(err.response?.data?.message || "Failed to setup authenticator");
+    } finally {
+      setMfaLoading(false);
+    }
+  }
+};
 
   // Verify MFA code
   const verifyMfaCode = async () => {
@@ -224,24 +229,38 @@ export default function AccountSecurity() {
     }
   };
 
-  // Disable MFA method
-  const disableMfa = async (type) => {
-    if (!confirm(`Are you sure you want to disable ${type === "email" ? "Email" : "Authenticator App"} MFA?`)) {
-      return;
-    }
+  // Show disable confirmation modal
+  const confirmDisableMfa = (type) => {
+    setDisableMfaType(type);
+    setShowDisableModal(true);
+  };
 
+  // Disable MFA method
+  const disableMfa = async () => {
+    if (!disableMfaType) return;
+    
+    setShowDisableModal(false);
+    
     try {
       await axios.post(
         `${API_URL}/users/mfa/disable`,
-        { type },
+        { type: disableMfaType },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      showToast(`${type === "email" ? "Email" : "Authenticator App"} MFA disabled`);
+      showToast(`${disableMfaType === "email" ? "Email" : "Authenticator App"} MFA disabled`);
       await fetchMfaSettings();
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to disable MFA", "error");
+    } finally {
+      setDisableMfaType(null);
     }
+  };
+
+  // Cancel disable
+  const cancelDisable = () => {
+    setShowDisableModal(false);
+    setDisableMfaType(null);
   };
 
   // Copy to clipboard
@@ -472,7 +491,7 @@ export default function AccountSecurity() {
                           Enabled
                         </span>
                         <button
-                          onClick={() => disableMfa("email")}
+                          onClick={() => confirmDisableMfa("email")}
                           className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
                         >
                           Disable
@@ -510,7 +529,7 @@ export default function AccountSecurity() {
                           Enabled
                         </span>
                         <button
-                          onClick={() => disableMfa("authenticator")}
+                          onClick={() => confirmDisableMfa("authenticator")}
                           className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
                         >
                           Disable
@@ -729,6 +748,60 @@ export default function AccountSecurity() {
           </div>
         )}
       </div>
+
+      {/* Disable MFA Confirmation Modal */}
+      {showDisableModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-fade-in">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 rounded-full">
+                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Disable {disableMfaType === "email" ? "Email" : "Authenticator App"} MFA?
+                  </h3>
+                </div>
+                <button
+                  onClick={cancelDisable}
+                  className="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600">
+                  Are you sure you want to disable two-factor authentication for{" "}
+                  <span className="font-semibold">
+                    {disableMfaType === "email" ? "Email" : "Authenticator App"}
+                  </span>?
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Your account will be less secure. You can always re-enable it later.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelDisable}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={disableMfa}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition flex items-center justify-center gap-2"
+                >
+                  <Shield className="w-4 h-4" />
+                  Disable
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
