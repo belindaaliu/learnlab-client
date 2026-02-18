@@ -34,7 +34,7 @@ export default function InstructorNavbar() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     delete axios.defaults.headers.common["Authorization"];
-    navigate("/login");
+    navigate("/.");
   };
 
   useEffect(() => {
