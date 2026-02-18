@@ -132,6 +132,10 @@ const InstructorDashboard = () => {
               <Lightbulb className="w-5 h-5 text-yellow-400"/> Instructor Tips
             </h3>
             <ul className="text-slate-300 text-sm space-y-4">
+                  <li className="flex gap-3">
+                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full mt-1.5 shrink-0"></span>
+                  <span>First You must request to the admin to approve as an instructor by admin.</span>
+                </li>
                 <li className="flex gap-3">
                   <span className="w-1.5 h-1.5 bg-purple-400 rounded-full mt-1.5 shrink-0"></span>
                   <span>Engage with student questions quickly to boost ratings.</span>
