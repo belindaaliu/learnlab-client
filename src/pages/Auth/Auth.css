@@ -120,7 +120,7 @@
 /* Auth Card */
 .auth-card {
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   background: var(--color-card);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
