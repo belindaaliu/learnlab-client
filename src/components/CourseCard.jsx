@@ -199,7 +199,7 @@ const CourseCard = ({
         </div>
 
         <div className="p-4 flex flex-col gap-1 flex-1">
-          <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors h-10 mb-1">
+          <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors min-h-[2.5rem] mb-1">
             {course.title}
           </h3>
           <p className="text-xs text-gray-500">{instructorName}</p>
