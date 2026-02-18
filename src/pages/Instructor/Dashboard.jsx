@@ -179,6 +179,20 @@ const InstructorDashboard = () => {
 
             {/* Modal Body */}
             <div className="p-6 md:p-8 space-y-8 max-h-[70vh] overflow-y-auto">
+
+              {/* Admin Approval Request */}
+              <div className="flex gap-4">
+                <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-6 h-6"/>
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-lg mb-1">Request Admin Approval</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    First, you must request the admin to approve your account as an instructor. 
+                    Once your request is <strong>approved by the admin</strong>, you will gain access to the instructor dashboard.
+                  </p>
+                </div>
+              </div>
               
               {/* Tip 1 */}
               <div className="flex gap-4">
