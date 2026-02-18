@@ -133,6 +133,7 @@ export default function AccountSecurity() {
   const startMfaSetup = async (type) => {
     setSelectedMfaType(type);
     setMfaError("");
+    setVerificationCode("");
     
     if (type === "email") {
       try {
@@ -146,7 +147,7 @@ export default function AccountSecurity() {
         // For development - if API returns devCode, show it
         if (response.data.devCode) {
           console.log(`📧 Email verification code: ${response.data.devCode}`);
-          showToast(`Dev mode - Code: ${response.data.devCode}`, "success");
+          // showToast(`Dev mode - Code: ${response.data.devCode}`, "success");
         }
         
         setSetupStep(2); // Go directly to verification step
@@ -171,18 +172,9 @@ export default function AccountSecurity() {
           const otpauth = `otpauth://totp/LMS:${user.email}?secret=${res.data.data.secret}&issuer=LMS`;
           const qrCode = await qrCodeLib.toDataURL(otpauth);
           setQrCodeUrl(qrCode);
-        } else {
-          // Try to import again if not loaded
-          try {
-            const qrcode = await import('qrcode');
-            const otpauth = `otpauth://totp/LMS:${user.email}?secret=${res.data.data.secret}&issuer=LMS`;
-            const qrCode = await qrcode.default.toDataURL(otpauth);
-            setQrCodeUrl(qrCode);
-          } catch (qrError) {
-            console.error('QR Code generation failed:', qrError);
-          }
         }
-        setSetupStep(2);
+        
+        setSetupStep(2); // Show QR code step
       } catch (err) {
         setMfaError(err.response?.data?.message || "Failed to setup authenticator");
       } finally {
@@ -256,6 +248,18 @@ export default function AccountSecurity() {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     showToast("Copied to clipboard!");
+  };
+
+  // Go back to previous step
+  const goBack = () => {
+    if (selectedMfaType === "authenticator" && setupStep === 3) {
+      setSetupStep(2);
+    } else {
+      setSetupStep(1);
+      setSelectedMfaType(null);
+      setVerificationCode("");
+      setMfaError("");
+    }
   };
 
   const tabs = [
@@ -545,33 +549,60 @@ export default function AccountSecurity() {
                   </button>
                 </div>
 
-                {/* Setup steps indicator */}
+                {/* Step indicator - different for email vs authenticator */}
                 <div className="flex items-center gap-2 mb-6">
-                  {[1, 2, 3].map((step) => (
-                    <div key={step} className="flex items-center">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                          step === setupStep
-                            ? "bg-primary text-white"
-                            : step < setupStep
-                            ? "bg-green-100 text-green-600"
-                            : "bg-gray-100 text-gray-400"
-                        }`}
-                      >
-                        {step < setupStep ? <CheckCircle className="w-4 h-4" /> : step}
-                      </div>
-                      {step < 3 && (
+                  {selectedMfaType === "authenticator" ? (
+                    // 3-step indicator for authenticator
+                    [1, 2, 3].map((step) => (
+                      <div key={step} className="flex items-center">
                         <div
-                          className={`w-12 h-0.5 ${
-                            step < setupStep ? "bg-green-500" : "bg-gray-200"
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                            step === setupStep
+                              ? "bg-primary text-white"
+                              : step < setupStep
+                              ? "bg-green-100 text-green-600"
+                              : "bg-gray-100 text-gray-400"
                           }`}
-                        />
-                      )}
-                    </div>
-                  ))}
+                        >
+                          {step < setupStep ? <CheckCircle className="w-4 h-4" /> : step}
+                        </div>
+                        {step < 3 && (
+                          <div
+                            className={`w-12 h-0.5 ${
+                              step < setupStep ? "bg-green-500" : "bg-gray-200"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    // 2-step indicator for email
+                    [1, 2].map((step, index) => (
+                      <div key={step} className="flex items-center">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                            step === setupStep
+                              ? "bg-primary text-white"
+                              : step < setupStep
+                              ? "bg-green-100 text-green-600"
+                              : "bg-gray-100 text-gray-400"
+                          }`}
+                        >
+                          {step < setupStep ? <CheckCircle className="w-4 h-4" /> : step}
+                        </div>
+                        {index === 0 && (
+                          <div
+                            className={`w-12 h-0.5 ${
+                              step < setupStep ? "bg-green-500" : "bg-gray-200"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
 
-                {/* Step 2: Setup/Scan QR Code */}
+                {/* Step 2: QR Code for Authenticator */}
                 {setupStep === 2 && selectedMfaType === "authenticator" && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center p-6 bg-gray-50 rounded-xl">
@@ -608,8 +639,9 @@ export default function AccountSecurity() {
                   </div>
                 )}
 
-                {/* Step 3: Verify Code (for both email and authenticator) */}
-                {setupStep === 3 && (
+                {/* Step 2 for Email OR Step 3 for Authenticator - Verification Code */}
+                {(setupStep === 2 && selectedMfaType === "email") || 
+                 (setupStep === 3 && selectedMfaType === "authenticator") ? (
                   <div className="space-y-6">
                     <p className="text-sm text-gray-600">
                       {selectedMfaType === "email"
@@ -653,7 +685,7 @@ export default function AccountSecurity() {
 
                     <div className="flex gap-3">
                       <button
-                        onClick={() => setSetupStep(selectedMfaType === "authenticator" ? 2 : 1)}
+                        onClick={goBack}
                         className="flex-1 px-6 py-3 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
                       >
                         Back
@@ -674,7 +706,7 @@ export default function AccountSecurity() {
                       </button>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
 
